@@ -1,0 +1,189 @@
+// firmware binary loader
+//
+// bitmask to define the maximum size of the FW to download.
+// Intel hex processor will check any new segment address record (03) or extended linear
+// address record (04) to see if the addressed 64 kByte data block still falls
+// in the maximum flash size, and will throw if any hex data are larger than this size.
+//
+const c_flashSizeMask = 0xFFC00000; // 22 bits = 4 MB
+
+object EsFwBinary
+{
+	var m_startAddr, 
+		m_offs,
+		m_fw;
+
+	// misc checks
+	function emptyCheck()
+	{
+		if( m_fw#isEmpty() )
+			throw "Firmware image is empty";
+	}
+	
+	function fwOffsAndSizeCheck(offs, size)
+	var thisSize = m_fw#countGet();
+	{
+		if( thisSize <= offs )
+			throw EsStr::format("The specified data offset '%d' is too big for firmware image size '%d'",
+				offs, thisSize);
+		
+		if( thisSize < offs+size )
+			throw EsStr::format("The data chunk with size '%d' and offset '%d' does not fit firmware image size '%d'",
+				size, offs, thisSize);
+	}
+
+	function hexSet(hex)
+	var buffLenEstimate = hex#countGet()/2,
+		buffLen = 0, realAddr = 0, binOffsDefined = false,
+		tokenizer = new EsTokenizer(hex, "\r\n :"),
+		rec, pos, recAddr, recType, recLen,
+		nib, hexVal, idx, allLines;
+	{
+		if( !tokenizer$moreTokens )
+			throw "Firmware hex image is too small or empty";
+		allLines = tokenizer$remainingTokens;
+
+		// try to predict binary size to minimize buffer re-allocations
+		if( buffLenEstimate % 4 )
+			buffLenEstimate = ((buffLenEstimate + 3)/4) * 4;
+		
+		m_fw = EsVar::as(EsVariantType$$VAR_BIN_BUFFER, buffLenEstimate);
+		//EsScriptDebug::log( "m_fw estimated size set to: %d", buffLenEstimate );
+			
+		while( tokenizer$moreTokens )
+		{
+			__scriptHost.dataPost(EsStr::format("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines));
+		
+			rec = tokenizer$nextToken;
+			pos = 0;
+			// record length
+			recLen = EsStr::hexToBinNibble(rec[pos++]) << 4;
+			recLen += EsStr::hexToBinNibble(rec[pos++]);
+			// record address
+			recAddr = EsStr::hexToBinNibble(rec[pos++]) << 4;
+			recAddr += EsStr::hexToBinNibble(rec[pos++]);
+			recAddr <<= 4;
+			recAddr += EsStr::hexToBinNibble(rec[pos++]);
+			recAddr <<= 4;
+			recAddr += EsStr::hexToBinNibble(rec[pos++]);
+			realAddr = realAddr - (realAddr & 0xFFFF) + recAddr;
+			recType = EsStr::hexToBinNibble(rec[pos++]) << 4;
+			recType += EsStr::hexToBinNibble(rec[pos++]);
+
+			// handle record types
+			if(0x00 == recType) // 00 - Data record
+			{
+				// Binary Offset is defined as soon as first data record read
+				binOffsDefined = true;
+				// We need to know, what the highest address is,
+				// how many bytes / sectors we must flash
+				buffLen = realAddr + recLen - m_offs;
+				if(buffLen > m_fw#countGet())
+				{
+					m_fw#countSet( buffLen );
+					//EsScriptDebug::log( "m_fw extended to: %d", buffLen );					
+				}
+				for(idx = 0; idx < recLen; ++idx)
+				{
+					hexVal = EsStr::hexToBinNibble(rec[pos++]) << 4;
+					hexVal += EsStr::hexToBinNibble(rec[pos++]);
+					m_fw[realAddr + idx - m_offs] = hexVal;
+				}
+			}	
+			else if(0x02 == recType)     // 02 - Extended segment address record
+			{
+				for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+				{
+					realAddr <<= 4;
+					if(idx == 0)
+						realAddr = EsStr::hexToBinNibble(rec[pos++]);
+					else
+						realAddr += EsStr::hexToBinNibble(rec[pos++]);
+				}
+				realAddr <<= 4;
+			}
+			else if(0x03 == recType)     // 03 - Start segment address record
+			{
+				for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+				{
+					realAddr <<= 4;
+					if(idx == 0)
+						realAddr = EsStr::hexToBinNibble(rec[pos++]);
+					else
+						realAddr += EsStr::hexToBinNibble(rec[pos++]);
+				}
+				realAddr <<= 8;
+			}
+			else if(0x04 == recType)     // 04 - Extended linear address record
+			{
+				for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+				{
+					realAddr <<= 4;
+					if(idx == 0)
+						realAddr = EsStr::hexToBinNibble(rec[pos++]);
+					else
+						realAddr += EsStr::hexToBinNibble(rec[pos++]);
+				}
+				realAddr <<= 16;
+				if( !binOffsDefined )
+					// set startaddress of BinaryContent
+					// use of c_flashSizeMask to allow a memory range, not taking the first
+					// [04] record as actual start-address.
+					m_offs = realAddr & c_flashSizeMask;
+				else if((realAddr & c_flashSizeMask) != m_offs)
+						throw EsStr::format("New Extended Linear Address Record [04] out of memory range\nCurrent Memory starts at: 0x%08X, new Address is: 0x%08X",
+							m_offs, realAddr);
+			}
+			else if(0x05 == recType)     // 05 - Start linear address record
+			{
+				m_startAddr = 0;
+				for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+				{
+					m_startAddr = m_startAddr << 4;
+					if(idx == 0)
+						m_startAddr = EsStr::hexToBinNibble(rec[pos++]);
+					else
+						m_startAddr += EsStr::hexToBinNibble(rec[pos++]);
+				}
+			}
+			else if(0x01 != recType)  // 01 - End of file record
+				// we should not be here
+				throw EsStr::format("Unsupported hex record type encountered: [%d].", recType);			
+
+			// check length for correct alignment, can happen with broken ld-scripts
+			//
+			if(buffLen % 4 != 0)
+			{
+				m_fw#countSet( ((buffLen + 3)/4) * 4 );
+				//EsScriptDebug::log( "m_fw alignment fixed, size set to: %d", buffLen );	
+			}				
+		}
+		
+		if(buffLenEstimate > buffLen) 
+		{
+			m_fw#countSet( buffLen );
+			//EsScriptDebug::log( "final m_fw size truncated from %d to %d", buffLenEstimate, buffLen );
+		}
+	}
+
+	// ctor
+	new(hex)
+	{
+		hexSet(hex);
+	}
+	
+	new(start, offs, binary)
+	{
+		m_startAddr = start#asULong(); 
+		m_offs = offs#asULong();
+		m_fw = binary#asBinBuffer();
+	}	
+	
+	property fw;
+	read:
+	{
+		emptyCheck();
+		
+		return m_fw;
+	}
+}

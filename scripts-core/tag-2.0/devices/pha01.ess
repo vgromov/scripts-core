@@ -1,0 +1,460 @@
+// scripting device support for pha-01 photo-appliance
+##require("core.ess");
+##require("EsDeviceBase.ess");
+
+// pha01-specific rpcs 
+enum PHA01_Rpid
+{
+  AutosaveIntervalSet = 2048, "VOID_Call_UINT8|";
+  AutosaveIntervalGet = 2049, "UINT8_Call|";
+  CalibrationNodeSet  = 2050, "VOID_Call_UINT8_BYTEARRAY|";
+  CalibrationGet      = 2051, "BYTEARRAY_Call|";
+  CalibrationSet      = 2052,  "VOID_Call_BYTEARRAY|";
+  CalibrationReset    = 2053, "VOID_Call|";
+  // preserve prc IDs to maintain compatibility with existing clients
+  OperationModeSet    = 2056, "VOID_Call_UINT8|";
+  OperationModeGet    = 2057, "UINT8_Call|";
+  LiveDataGet          = 2058, "BYTEARRAY_Call|";
+  DataCountGet        = 2059, "UINT16_Call|";
+  DataAtIdxGet        = 2060, "BYTEARRAY_Call_UINT16|";
+  DataClear            = 2061, "BOOL_Call|";
+  RangeGet            = 2062, "UINT8_Call|";
+  RangeSet            = 2063, "VOID_Call_UINT8|";
+  AutoRangeGet        = 2064, "BOOL_Call|";
+  AutoRangeSet        = 2065, "VOID_Call_BOOL|";
+  AllowChargingSet    = 2067, "VOID_Call_BOOL|";
+  LinFactorsSet        = 2068, "VOID_Call_BYTEARRAY|";
+  LinFactorsGet        = 2069, "BYTEARRAY_Call|";
+  CalSelectiveReset    = 2070, "VOID_Call_UINT8|";
+  HysteresisGet        = 2071, "UINT32_Call|";
+  HysteresisSet        = 2072, "VOID_Call_UINT32|";
+  LiveWithBgndStart    = 2073, "VOID_Call_UINT16|";
+  BgndPeriodLeftGet    = 2074, "UINT16_Call|";
+}
+
+object PHA01_Data 
+{
+  /// Fields
+  DATETIME   f_ts;
+  FLOAT     f_lux;
+  FLOAT     f_cdm;
+  UINT16    f_kp;
+  INT8       f_temp;
+  
+  /// Properties
+  /// illumination
+  property lux;
+  read: { return f_lux$value; }
+  /// brightness
+  property cdm;
+  read: { return f_cdm$value; }
+  /// pulsation coefficient, in 100%
+  property kp;
+  read: { return f_kp / 10.; }
+}
+
+// added since 1.6 - background subtraction data packet
+object PHA01_DataWoBgnd
+{
+  DATETIME   f_ts;
+  FLOAT     f_luxOrg;        /// > original illuminosity
+  FLOAT     f_luxBgnd;      /// > measured background illuminosity
+  FLOAT     f_lux;          /// > illuminosity-bgnd level
+  UINT16    f_kpOrg;        /// > original pulsation
+  UINT16    f_kp;            /// > resulting pulsation
+  UINT16    f_bgndDuration; /// > duration of background measurements in seconds
+  UINT16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
+  
+  /// original illumination
+  property luxOrg;
+  read: { return f_luxOrg$value; }
+  /// background illumination W|O
+  property luxBgnd;
+  read: { return f_luxBgnd$value; }
+  /// illumination W|O background
+  property lux;
+  read: { return f_lux$value; }
+  /// original pulsation coefficient, in 100%
+  property kpOrg;
+  read: { return f_kpOrg / 10.; }  
+  /// resulting pulsation coefficient, in 100%
+  property kp;
+  read: { return f_kp / 10.; }  
+}
+
+/// Calibration node
+object PHA01_CalNode
+{
+  FLOAT f_1;
+  FLOAT f_2;
+}
+
+/// All calibration info
+object PHA01_Calibration
+{
+  PHA01_CalNode f_lux[4];
+  PHA01_CalNode f_cdm[4];
+  PHA01_CalNode f_kp[2];
+}
+
+// linearization coeffs, for firmware newer than or equal to 1.4
+object PHA01_LinNodeLow
+{  
+  PHA01_CalNode f_node;
+  UINT16 f_adcRangeMax;
+}
+
+object PHA01_Linearization 
+{
+  PHA01_LinNodeLow f_low[6];
+  PHA01_CalNode f_high;
+}
+
+// ranges hysteresis thresholds
+object PHA01_Hysteresis
+{
+  UINT16 f_loHi;
+  UINT16 f_hiLo;
+}
+
+// settings defaults
+enum PHA01_Defs
+{
+  // autosave intervals in sec
+  AutoIntervalMin = 1;
+  AutoIntervalMax = 600;
+  AutoIntervalDef = 2;
+  // background photo measurement length, in sec
+  BgndIntervalMin = 5;
+  BgndIntervalMax = 60;
+  BgndIntervalDef = 15;
+}
+
+// calibration data types
+enum PHA01_CalType
+{
+  Lux = 0, "Illuminance calibration";
+  Cdm = 1, "Luminance calibration";
+  Kp  = 2, "Pulsation calibration";
+  All = 3, "All calibration data";
+}
+
+// photo appliance operation modes
+enum PHA01_OpMode 
+{
+  None           = 0, "NONE";
+  Idle           = 1, "IDLE operation";
+  Live           = 2, "LIVE operation";
+  Autonomous     = 3, "KEO operation";
+  LiveWoBgnd     = 4, "LIVE operation with background subtraction";
+  Oscilloscope   = 5, "OSCILLOSCOPE operation";
+}
+
+// photo appliance amplification ranges
+enum PHA01_OpRange
+{
+  Low           = 0, "LOW signal, high amplification";
+  High          = 1, "HIGH signal, low amplification";
+}  
+
+// health error flags & masks
+enum PHA01_Error
+{
+  Batt           = 0x00000001, "Battery Low"; // low battery flag
+  I2c            = 0x00000002, "I2C bus error"; // i2c bus error
+  Spi            = 0x00000004, "SPI bus error"; // spi bus error
+  RTC            = 0x00000008, "RTC error";  // RTC error
+  RTCDateTime    = 0x00000010, "RTC date time corrupt"; // DateTime value error
+  Storage        = 0x00000020, "Storage initialization error";  // data storage initialization
+  StorageData    = 0x00000040, "Data storage corrupt"; // data storage error
+  StorageSystem  = 0x00000080, "System storage corrupt"; // system data storage error
+  Calibration    = 0x00000100, "Calibration is missing or incomplete"; // appliance calibration error (lost|never calibrated)
+  Linearization  = 0x00000200, "Linearization is missing"; // appliance linearization error (lost|never linearized)
+}
+
+object PHA01_Health
+{
+  UINT32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & PHA01_Error$$Batt)
+      result += PHA01_Error$$Batt$$label;
+    if(f_errors & PHA01_Error$$I2c)
+      result += PHA01_Error$$I2c$$label;
+    if(f_errors & PHA01_Error$$Spi)
+      result += PHA01_Error$$Spi$$label;
+    if(f_errors & PHA01_Error$$RTC)
+      result += PHA01_Error$$RTC$$label;
+    if(f_errors & PHA01_Error$$RTCDateTime)
+      result += PHA01_Error$$RTCDateTime$$label;
+    if(f_errors & PHA01_Error$$Storage)
+      result += PHA01_Error$$Storage$$label;
+    if(f_errors & PHA01_Error$$StorageData)
+      result += PHA01_Error$$StorageData$$label;
+    if(f_errors & PHA01_Error$$StorageSystem)
+      result += PHA01_Error$$StorageSystem$$label;
+    if(f_errors & PHA01_Error$$Calibration)
+      result += PHA01_Error$$Calibration$$label;
+    if(f_errors & PHA01_Error$$Linearization)
+      result += PHA01_Error$$Linearization$$label;
+  
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), ";", "", "");
+  }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$I2c|
+                                  PHA01_Error$$Spi|
+                                  PHA01_Error$$RTC|
+                                  PHA01_Error$$Storage); 
+        }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$RTCDateTime|
+                                  PHA01_Error$$StorageData|
+                                  PHA01_Error$$StorageSystem|
+                                  PHA01_Error$$Calibration|
+                                  PHA01_Error$$Linearization);        
+        }
+  /// return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  /// return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// pha01 device settings
+object PHA01_Settings
+{
+  // settings block
+  EsFirmwareId f_fwId;
+  
+  if( f_fwId$ver > "1.5" )
+    EsSoftwareInfo f_swInfo;
+  
+  if( f_fwId$ver > "1.1" )
+    PHA01_Hysteresis f_hys;
+
+  UINT8 f_autosaveInterval;
+    @default = PHA01_Defs$$AutoIntervalDef;
+    @restriction = [PHA01_Defs$$AutoIntervalMin..PHA01_Defs$$AutoIntervalMax];
+  // linearization data
+  PHA01_Linearization f_lin;
+  // calibration data
+  PHA01_Calibration f_cal;    
+  
+  /// Constructor
+  new(fwId)
+  {
+    fwIdValidate(fwId, EsDeviceType$$ECOL1, "PHA01 settings");
+    f_fwId.copyFrom(fwId);
+  }
+}
+
+/// PHA01 device object
+object PHA01 extends EsDeviceBase
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return PHA01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return rpcSigGet(PHA01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsDeviceType$$ECOL1, "PHA01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ECOL1);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 6;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new PHA01_Health(rpcResult);    // use PHA01 health implementation instead of unparsed standard one
+    else if( PHA01_Rpid$$HysteresisGet == rpcId && m_fwId$ver > "1.1" )
+    {
+      result = new PHA01_Hysteresis();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$CalibrationGet == rpcId )
+    {
+      result = new PHA01_Calibration();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$LinFactorsGet == rpcId )
+    {
+      result = new PHA01_Linearization();
+      result$buffer = rpcResult#asBinBuffer();      
+    }
+    else if( PHA01_Rpid$$LiveDataGet == rpcId )
+    {
+      if( m_fwId$ver >= "1.6" && PHA01_OpMode$$LiveWoBgnd == m_opMode )
+        result = new PHA01_DataWoBgnd();
+      else
+        result = new PHA01_Data();
+        
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( (PHA01_Rpid$$BgndPeriodLeftGet == rpcId && m_fwId$ver >= "1.5") ||
+      PHA01_Rpid$$DataCountGet == rpcId ||
+      PHA01_Rpid$$OperationModeGet == rpcId ||
+      PHA01_Rpid$$RangeGet == rpcId  ||
+      PHA01_Rpid$$AutoRangeGet == rpcId ||
+      PHA01_Rpid$$AutosaveIntervalGet == rpcId )
+    {
+      result = rpcResult;
+      
+      // in addition, save currently active device opmode
+      // it's vital for live data requests handling
+      if( PHA01_Rpid$$OperationModeGet == rpcId )
+        m_opMode = result;
+    }
+    else if( PHA01_Rpid$$DataAtIdxGet == rpcId )
+    {
+      result = new PHA01_Data();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  new(fwId)
+  {
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  /// PHA01 custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload(rpcMaster)
+  var settings = new PHA01_Settings(m_fwId), rpcResult;
+  {
+    // optionally download software info
+    if( m_fwId$ver > "1.5" )
+    {
+      rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+      if( rpcResult[0] )
+        settings.f_swInfo = rpcResult[1];
+      else
+        return rpcResult;
+    }
+     if( m_fwId$ver > "1.1" )
+    {
+      rpcResult = rpcCall(PHA01_Rpid$$HysteresisGet, null);
+      if( rpcResult[0] )
+        settings.f_hys = rpcResult[1];
+      else
+        return rpcResult;
+    }
+    rpcResult = rpcCall(PHA01_Rpid$$AutosaveIntervalGet, null);
+    if( rpcResult[0] )
+      settings.f_autosaveInterval = rpcResult[1];
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$LinFactorsGet, null);
+    if( rpcResult[0] )
+      settings.f_lin = rpcResult[1];
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$CalibrationGet, null);
+    if( rpcResult[0] )
+      settings.f_cal = rpcResult[1];
+    else
+      return rpcResult;
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [], batchItem = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    if( m_fwId$ver > "1.1" )
+    {
+      batchItem += PHA01_Rpid$$HysteresisSet;
+      batchItem += settings.f_hys;
+      batch#append(batchItem);
+      batchItem = [];
+    }
+    batchItem += PHA01_Rpid$$AutosaveIntervalSet;
+    batchItem += settings.f_autosaveInterval;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$LinFactorsSet;
+    batchItem += settings.f_lin;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$CalibrationSet;
+    batchItem += settings.f_cal;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batch = rpcBatchCall(batch);
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batchItem += true;
+      batchItem += null; // nothing is returned
+    }
+    else
+    {
+      batchItem += false;
+      batchItem += "Device settings upload fail";
+    }
+
+    return batchItem;
+  }
+}

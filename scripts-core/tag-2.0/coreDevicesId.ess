@@ -1,0 +1,386 @@
+// --------------------------- device identification
+// firmware version
+object EsFirmwareVersion
+	@help = "Firmware version";
+{
+	UINT8 f_major;
+	UINT8 f_minor;
+	
+	function asString()
+	{
+		return f_major.asString() + "." + f_minor.asString();
+	}
+	
+	function compare(other) 
+	{
+		if( other#isString() )
+			return EsStr::compare( asString(), other );
+		else if( other.isKindOf("EsFirmwareVersion") )
+		{
+			if( f_major == other.f_major )
+			{
+				if( f_minor < other.f_minor )
+					return -1;
+				else if( f_minor > other.f_minor )	
+					return 1;
+				
+				return 0;
+			}
+			else if( f_major < other.f_major )
+				return -1;
+
+			return 1;
+		}
+	
+		return -1;
+	}	
+}
+
+// device f_serial number
+object EsDeviceSerial
+	@help = "Hardware serial number";
+{
+	UINT16 f_year;
+	UINT16 f_order;
+
+	function asString()
+	{
+		return EsStr::format("%05d-%02d", f_order, f_year%100);
+	}
+	
+	function compare(other) 
+	{
+		if( other#isString() )
+			return EsStr::compare( asString(), other );
+		else if( other.isKindOf("EsDeviceSerial") )
+		{
+			if( f_year == other.f_year )
+			{
+				if( f_order < other.f_order )
+					return -1;
+				else if( f_order > other.f_order )	
+					return 1;
+				
+				return 0;
+			}
+			else if( f_year < other.f_year )
+				return -1;
+
+			return 1;
+		}
+		
+		return -1;
+	}
+}
+
+// device f_uid
+object EsDeviceUID
+	@help = "Device Unique IDentification string";
+{
+	UINT8 f_id[32];
+	
+	// f_uid comparison
+	function compare(other)
+	var idx = 0, c, co;
+	{	
+		if( other.isKindOf("EsDeviceUID") )
+		{
+			while(idx < 32)
+			{
+				c = f_id[idx];
+				co = other.f_id[idx];
+				if( c < co )
+					return -1;
+				else if( c > co )
+					return 1;
+					
+				++idx;
+			}
+		}
+		else if( other#isIndexed() )
+		{
+			c = other#countGet();
+			if( 32 < c )
+				return -1;
+			else if( 32 > c )
+				return 1;
+			
+			while(idx < 32)
+			{
+				c = f_id[idx];
+				co = other[idx];
+				if( c < co )
+					return -1;
+				else if( c > co )
+					return 1;
+					
+				++idx;
+			}
+		}
+		else 
+			return -1;
+		
+		return 0;
+	}
+	
+	// return generic string f_uid representation
+	function asString()
+	{
+		return EsStr::fromByteString(f_id$buffer);
+	}
+	
+	new()
+	var idx = 0;
+	{
+		while(idx < 32)
+			f_id[idx++] = B'0';
+	}
+	
+	// value property, to allow UID reading|writing as string
+	property value;
+	read: { return asString(); }
+	write:
+	var ch, str = EsStr::toUpper(__value#asString());
+	{ 
+		if( 32 != str#countGet() )
+			throw "UID string length must be 32 symbols";
+		foreach(ch in str)
+			if( !EsStr::isHexChar(ch) )
+				throw "UID string must contain only HEX symbols";
+		f_id$buffer = EsStr::toByteString(str);
+	}
+}
+
+// device firmware id as-string formatting flags
+enum EsFirmwareIdFmtFlag
+{
+	DescrShort= 0;
+	DescrLong = 1;
+	Serial		= 2;
+	Version		= 4;
+	UID				= 8;
+}
+
+// device firmware comparison flags
+enum EsFirmwareIdCmpFlag
+{
+	// device type is always used in comparison
+	Type			= 0;
+	Serial		= 1;
+	Version		= 2;
+	UID				= 4;
+	Functionality=8;
+	Significant= 3;
+	All				= 0xF;
+}
+
+// hardware identifier
+object EsFirmwareId
+	@help = "Hardware identification result object";
+{
+	UINT16 f_devType;
+		@help = "Device type (model) id";
+	
+	EsDeviceSerial f_serial;
+	EsFirmwareVersion f_fwVer;
+	
+	if( deviceIsHubFull(f_devType) )
+	{
+		EsDeviceUID f_uid;
+		UINT32 f_funcMask;
+			@help = "Device functionality mask";
+
+		function comparePartial(other, flags)
+		var result = -1;
+		{
+			if( other.isKindOf("EsFirmwareId") &&
+					deviceIsHubFull(other.f_devType) )
+			{
+				if( f_devType > other.f_devType )
+					result = 1;
+				else if( f_devType == other.f_devType )
+					result = 0;
+					
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Serial))
+				{
+					if( f_serial > other.f_serial )
+						result = 1;
+					else if( f_serial < other.f_serial )
+						result = -1;
+				}
+				
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Version))
+				{
+					if(	f_fwVer > other.f_fwVer )
+						result = 1;
+					else if( f_fwVer < other.f_fwVer )
+						result = -1;
+				}
+				
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$UID))
+				{
+					if( f_uid > other.f_uid )
+						result = 1;
+					else if( f_uid < other.f_uid )
+						result = -1;
+				}
+				
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Functionality))
+				{
+					if( f_funcMask > other.f_funcMask )
+						result = 1;
+					else if( f_funcMask < other.f_funcMask )
+						result = -1;
+				}
+			}
+			
+			return result;
+		}
+			
+		function compare(other)
+		{
+			return comparePartial(other, EsFirmwareIdCmpFlag$$Significant);
+		}
+		
+		// r-o access to the hub's Unique IDentifier string
+		property UID;
+		read: { return f_uid; }		
+		
+		// access functionality mask as collection of nodes,
+		// [0] - 'function is active' flag, [1] - function description
+		property functionality;
+		read:	var result = [], node = [[false, ""]],
+					fr = deviceHubFunctionalityRecordGet(f_devType),
+					pluginRec, bit = 1, mask = f_funcMask#asULong();
+				{
+					foreach(pluginRec in fr)
+					{
+						node[0][0] = bit == (mask & bit);
+						node[0][1] = pluginRec[EsHubDatabaseField$$PluginDescrLong];
+						result += node;
+						bit <<= 1;
+					}
+					return result;
+				}
+		write:	var node, bit = 1, mask = 0;
+				{
+					foreach(node in __value)
+					{
+						if( node[0] )
+							mask |= bit;
+						bit <<= 1;
+					}
+					f_funcMask = mask;
+				}
+	}
+	else
+	{
+		function comparePartial(other, flags)
+		var result = -1;
+		{
+			if( other.isKindOf("EsFirmwareId") &&
+					!deviceIsHubFull(other.f_devType) )
+			{
+				if( f_devType > other.f_devType )
+					result = 1;
+				else if( f_devType == other.f_devType )
+					result = 0;
+					
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Serial))
+				{
+					if( f_serial > other.f_serial )
+						result = 1;
+					else if( f_serial < other.f_serial )
+						result = -1;
+				}
+				
+				if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Version))
+				{
+					if(	f_fwVer > other.f_fwVer )
+						result = 1;
+					else if( f_fwVer < other.f_fwVer )
+						result = -1;
+				}
+			}
+			
+			return result;
+		}
+
+		function compare(other)
+		{
+			return comparePartial(other, EsFirmwareIdCmpFlag$$Significant);
+		}
+	}
+	
+	// services
+	//
+	function asString(flags)
+	@help = "Return string representation of the hardware id depending on formatting flags";
+	var result;
+	{
+		if( flags & EsFirmwareIdFmtFlag$$DescrLong )
+			result = deviceDescriptionLongGet(f_devType);
+		else
+			result = deviceDescriptionShortGet(f_devType);
+		
+		if( flags & EsFirmwareIdFmtFlag$$Serial )
+			result += "; " + f_serial.asString();
+		
+		if( flags & EsFirmwareIdFmtFlag$$Version )
+			result += "; " + f_fwVer.asString();
+
+		if( (flags & EsFirmwareIdFmtFlag$$UID) && hasField("f_uid") )
+			result += "; " + fieldGet("f_uid").asString();
+
+		return result;
+	}
+
+	function asString()
+		@help = "Return standard string representation of the hardware id";
+	{
+		return asString(EsFirmwareIdFmtFlag$$DescrLong|
+										EsFirmwareIdFmtFlag$$Serial|
+										EsFirmwareIdFmtFlag$$Version|
+										EsFirmwareIdFmtFlag$$UID);	
+	}
+	
+	new()
+	{
+		f_devType = EsDeviceType$$ECOL1;
+	}
+	
+	new(type)
+	{
+		f_devType = type;
+	}
+	
+	// device id string (includes only description and firmware version)
+	property fwIdString;
+	read: { return asString(EsFirmwareIdFmtFlag$$DescrLong | EsFirmwareIdFmtFlag$$Version); }
+	
+	// read-only access to the dev id components
+	property devType;
+	read: { return f_devType; }
+	
+	property devTypeName;
+	read: { return deviceDescriptionLongGet(f_devType); }
+
+	property ver;
+	read: { return f_fwVer; }
+	
+	property verMajor;
+	read: { return f_fwVer.f_major; }
+
+	property verMinor;
+	read: { return f_fwVer.f_minor; }
+	
+	property serial;
+	read: { return f_serial; }
+	
+	property year;
+	read: { return f_serial.f_year; }
+
+	property order;
+	read: { return f_serial.f_order; }
+}
+// --------------------------- end device identification

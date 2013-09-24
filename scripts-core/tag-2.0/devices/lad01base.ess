@@ -1,0 +1,207 @@
+// basic scripting device support for lad-01-xx appliances
+##require("core.ess");
+
+// ld01v-specific rpcs 
+enum lad01rpid
+{
+	OpStateSet 		= 2048;	// VOID_RpcSig_UINT8_UINT8_UINT16
+	BgndLatchSet 	= 2049;	// VOID_RpcSig_BOOL
+	LiveDataGet		= 2050; // BYTEARRAY_RpcSig
+}
+
+enum lad01dataStateMask
+{
+	// mode mask in data packet
+	OpMode 		= 0x0000000F;
+	// signal range mask in data packet
+	OpRange 	= 0x00000030;
+	BgndTrim 	= 0x000000C0; 
+	// laser wavelength mask in status dword,
+	// encoded in nm
+	LaserWlNm = 0xFFFFF00;
+}
+
+enum lad01opRange
+{
+	Low 	= 0; 		// low signal, high amplification
+	High 	= 1;		// high signal, low amplification
+	Auto 	= 2;		// auto range operation bit
+}
+
+enum lad01opMode 
+{
+	None 	= 0;
+	Idle 	= 1;
+	Const	= 2;
+	Pulse = 3;
+}
+
+// health error flags & masks
+enum lad01error
+{
+ 	Batt 				= 0x00000001; // low battery flag
+	I2c					= 0x00000002; // i2c bus error
+	RTC					=	0x00000004;	// RTC error
+	RTCDateTime	= 0x00000008; // DateTime value error
+	Storage			=	0x00000010;	// data storage initialization
+	Calibration	= 0x00000020; // appliance calibration error (lost|never calibrated)
+	Linearization= 0x00000040; // appliance linearization error (lost|never linearized)
+	// // include 	errBatt error bit neither in critical not in non-critical errors
+	// // because it's critical only to autonomous mode
+	
+	// errLD1_NonCriticalMask= 					// non-critical errors mask
+										// errLD1_RTCDateTime|
+										// errLD1_Calibration|
+										// errLD1_Linearization,
+
+	// errLD1_WarningsMask = // special subset of non-critical errors
+										// errLD1_Calibration|
+										// errLD1_Linearization,
+
+	// errLD1_CriticalMask =		 					// critical errors mask
+										// errLD1_i2c|
+										// errLD1_RTC|
+										// errLD1_Storage,
+
+	// errLD1_Mask			=							// latched errors mask
+										// errLD1_NonCriticalMask|
+										// errLD1_CriticalMask,
+}
+
+// ladin data structure
+object lad01data 
+{
+	DATETIME 	f_dt;
+	UINT32		f_health;
+	UINT32 		f_state;
+	FLOAT 		f_bgnd;
+	UINT32 		f_msrLen;
+	FLOAT 		f_immediate;
+	FLOAT			f_max;
+	FLOAT 		f_integral;
+	
+	// todo: add properties for extracting opMode, opRange, LaserWlNm and BgndTrimming from f_state
+}
+
+// default lad-01 appliance state object
+object lad01state
+{
+	var m_fwId,
+			m_dt,
+			m_errors,
+			m_power,
+			m_opMode,
+			m_opRange;
+
+	// ctor
+	new(fwId)
+	{
+		deviceFwIdValidate(fwId, [EsDeviceType$$LD1V], "lad01 state");
+		m_fwId = fwId;
+		m_opMode = lad01opMode$$None;
+		m_opRange = lad01opRange$$Auto;
+	}
+	
+	// status queries
+	//
+	function dateTimeRead(rpcMaster)
+	{
+		m_dt = deviceDateTimeGet(rpcMaster);
+	}
+
+	function dateTimeSet(rpcMaster, dateTime)
+	{
+		if( deviceDateTimeSet(rpcMaster, dateTime) )
+		{
+			m_dt = dateTime;
+			return true;
+		}
+		
+		return false;
+	}	
+
+	function healthStatusRead(rpcMaster)
+	{
+		m_errors = deviceHealthStatusGet(rpcMaster);
+	}
+
+	function powerStatusRead(rpcMaster)
+	{
+		m_power = devicePowerStatusGet(rpcMaster);
+	}
+	
+	// standard device state api
+	//
+	function renew(rpcMaster)
+	{
+		dateTimeRead(rpcMaster);
+		healthStatusRead(rpcMaster);
+		powerStatusRead(rpcMaster);
+	}
+}
+
+// base lad01-xx device object
+object lad01base
+{
+	var m_state;
+	// if( id.fwVer.major > 1 ||	(1 == id.fwVer.major && 5 < id.fwVer.minor) )
+	// {
+		// EsSoftwareInfo swInfo;
+		
+		// function softwareInfoRead(rpcMaster)
+		// {	
+			// swInfo.copyFrom( deviceSoftwareInfoRead(rpcMaster) );
+		// }
+	// }
+	
+	// settings read-write-control
+	//
+	function settingsReset(rpcMaster)
+	{
+		deviceFactoryReset(rpcMaster); 
+	}
+	
+	// function upload(rpcMaster)
+	// {
+		// // call base class first
+		// EsDevice::upload(rpcMaster);
+	// }
+	
+	// function download(rpcMaster)
+	// {
+	// }
+
+	// control methods
+	//
+	function opStateSet(rpcMaster, mode, range, laserWlNm)
+	{
+		rpcMaster.VOID_Call_UINT8_UINT8_UINT16(lad01rpid$$OpStateSet, mode, range, laserWlNm);
+	}
+	
+	function bgndLatchSet(rpcMaster, doLatch)
+	{
+		rpcMaster.VOID_Call_BOOL(lad01rpid$$BgndLatchSet, doLatch);
+	}
+	
+	function liveDataGet(rpcMaster)
+		var liveData, buff;
+	{
+		buff = rpcMaster.BYTEARRAY_Call(lad01rpid$$LiveDataGet);
+		if( !buff#isEmpty() )
+		{
+			liveData = new lad01data();
+			liveData$buffer = buff;
+			// todo: update operation mode and range in m_state
+		}
+		
+		return liveData;
+	}
+	
+	// standard properties
+	//
+	property fwId;
+	read: { return m_state$m_fwId; }
+	
+	property state;
+	read: { return m_state; }	
+}	

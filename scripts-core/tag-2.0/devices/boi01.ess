@@ -1,0 +1,68 @@
+// scripting device support for boi-01 hub
+##require("core.ess");
+##require("datafile.ess");
+##require("EsDeviceBase.ess");
+
+/// BOI01-specific rpcs 
+enum BOI01_Rpid
+{
+	ColorSchemeGet	= 2048, "BYTEARRAY_RpcSig|Read GUI color scheme";
+	ColorSchemeSet	= 2049, "VOID_RpcSig_BYTEARRAY|Set GUI color scheme";
+}
+
+/// BOI01 ColorScheme object
+object BOI01_ColorScheme
+{
+
+}
+
+/// BOI01 Settings object
+
+/// BOI01 device object
+object BOI01 extends EsDeviceBase
+{
+/// Mandatory overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in BOI01_Rpid )
+      return BOI01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+	
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in BOI01_Rpid )
+      return rpcSigGet(BOI01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsDeviceType$$BOI1, "BOI01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$BOI1);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 16;
+  }
+	
+	function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+	{
+		if( BOI01_Rpid$$ColorSchemeGet == rpcId )
+    {
+      result = new BOI01_ColorScheme();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+	}
+	
+/// Custom BOI01 requests
+	
+}

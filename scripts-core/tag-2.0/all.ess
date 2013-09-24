@@ -1,0 +1,5 @@
+// necessary functionality for all-purpose ekosf application to function
+//
+##require("devices.ess");
+##require("datafile.ess");
+##require("workspace.ess");

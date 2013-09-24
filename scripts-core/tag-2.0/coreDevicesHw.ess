@@ -1,0 +1,46 @@
+##require("coreDevicesStd.ess");
+
+// --------------------------- hardware information
+enum EsDeviceHardware 
+{
+	MCU			= 0;
+	UART 		= 1;
+	SPI			= 2;
+	I2C			= 3;
+	RTC			= 4;
+	ADC			= 5;
+	DAC			= 6;
+	RAM			= 7;
+	NVRAM		= 8;
+}
+
+// hardware information block entry
+object EsDeviceHwInfoEntry
+{
+	UINT16 size;
+	UINT16 id;
+		@restriction = EsDeviceHardware;
+	UINT16 locationEntry;
+	UINT16 order;
+	// optional device name
+	UINT8 name[16];
+	
+	// device-specific part
+	if( id in [EsDeviceHardware$$UART..EsDeviceHardware$$I2C] )
+		UINT32 errorCode;
+	else if( id in [EsDeviceHardware$$RAM..EsDeviceHardware$$NVRAM] )
+	{
+		EsMemSpaceInfo total;
+		EsMemSpaceInfo free;
+	}
+}
+
+// hardware information block
+object EsDeviceHwInfo
+{
+	UINT32 health; 	// latched errors, as in standard health info
+	UINT16 ver;			// hardware version
+	UINT16 entryCnt; // hardware info entry count
+	EsDeviceHwInfoEntry entries[entryCnt];
+}
+// --------------------------- end hardware information

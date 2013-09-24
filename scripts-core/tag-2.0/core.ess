@@ -1,0 +1,79 @@
+/// @file: core.ess
+/// Ekosf script core data
+///
+
+/// Ekosfera standard RPC IDs
+/// Here, and in device-specific RPC id enums, we encode information about call signature 
+/// in value label string itself, separating it from the rest of the label string with '|'.
+/// Core method rpcSigGet(rpcIdLabel) should be used to extract rpc signature from label string
+///
+enum EsRpcStdId
+{
+  CAPS_GET           = 0,   "BYTEARRAY_Call|Return all procedure ids, supported by the hardware";
+  FWID_GET          = 1,   "BYTEARRAY_Call|Query firmware identification block";
+  HW_INFO_GET        = 2,   "BYTEARRAY_Call|Query hardware information block";
+  STORAGE_INFO_GET  = 3,   "BYTEARRAY_Call|Query storage information block";
+  HEALTH_INFO_GET    = 4,   "UINT32_Call|Query health information (latched errors) block";
+  HEALTH_EXEC        = 5,   "VOID_Call|Schedule self-test execution";
+  DATETIME_SET      = 6,   "BOOL_Call_DATETIME|Set device date and time";
+  DATETIME_GET      = 7,   "DATETIME_Call|Get device date and time";
+  FACTORY_RESET      = 8,   "VOID_Call|Reset device to factory defaults";
+  SHUTDOWN          = 9,   "VOID_Call|Schedule device power down";
+  ENTER_BOOT        = 10,  "VOID_Call_UINT32|Schedule device boot loader";
+  POWER_STATUS_GET  = 11, "BYTEARRAY_Call|Return device power status";
+  DIR_LIST_START    = 12, "UINT16_Call_BYTEARRAY|(Re)Start listing of device file system directory";
+  DIR_LIST_NEXT_GET = 13,  "BYTEARRAY_Call|Get next item of directory listing";
+  DIR_DELETE        = 14,  "UINT16_Call_BYTEARRAY_BOOL|Delete directory";
+  FILE_DELETE        = 15, "UINT16_Call_BYTEARRAY|Delete file";
+  FS_FREESPACE_GET    = 16, "BYTEARRAY_Call|Get free file system space info";
+  FILE_READ_START    = 17, "BYTEARRAY_Call_BYTEARRAY|Start file reading sequence";
+  FILE_READ_NEXT    = 18,  "BYTEARRAY_Call|Request next file data chunk";
+  HW_UID_GET        = 19, "BYTEARRAY_Call|Retrieve hardware unique ID (128bit, in text form, i.e. char[32])";
+  FINDME            = 20, "VOID_Call|Perform some kind of visual|audio device identification";
+  SW_INFO_GET        = 21, "BYTEARRAY_Call|Query software identification block";
+}
+
+##require("coreDevicesDb.ess");
+##require("coreDevicesId.ess");
+##require("coreDevicesStd.ess");
+##require("coreDevicesHw.ess");
+
+/// Assert RPC master object
+function rpcMasterAssert(rpcMaster)
+{
+  if( rpcMaster#isEmpty() )
+    throw "RPC master object is empty";
+  
+  if( !rpcMaster#isObject() ||
+      (rpcMaster#isObject() && !rpcMaster.isKindOf("EsRpcMaster")) )
+    throw "RPC master object is of invalid type";
+  
+  if( !rpcMaster.isActive() )
+    throw "RPC master object is not in active state";
+}
+
+/// Extract RPC signature string from RPC ID label string
+function rpcSigGet(rpcIdLabel)
+var pos = rpcIdLabel#findFirstOf('|');
+{
+  if( 0 < pos )
+    return rpcIdLabel#sliceGet(0, pos-1);
+  else
+    throw EsStr::format("Could not find RPC signature string in '%s'", rpcIdLabel#asString());
+}
+
+/// Firmware id validator
+function fwIdValidate(fwId, requiredDevType, subjectName)
+{
+  if( fwId#isEmpty() )
+    throw EsStr::format("Empty firmware id passed to '%s'", subjectName);
+    
+  if( !(fwId.f_devType in requiredDevType) )
+    throw EsStr::format("Firmware id passed to '%s' is of incompatible type. Got '%d', required '%s'", subjectName, fwId.f_devType, requiredDevType#asString());
+}
+
+// --------------------------- sizes
+enum EsCoreSize
+{
+  FullHardwareId = 44;
+}

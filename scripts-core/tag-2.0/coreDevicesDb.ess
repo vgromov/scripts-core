@@ -1,0 +1,222 @@
+// --------------------------- ekosfera device database && its services
+// device kinds
+enum EsDeviceKind
+{
+	Appliance = 0, "Measurement Appliance";
+	HubLight 	= 1, "Reduced-functionality HUB";
+	HubFull		= 3, "Full-functional HUB";
+}
+
+// known device types (code names)
+// labels are string representation of the 
+// device code names. by design, it must be 8 symbols, right-padded with spaces
+enum EsDeviceType
+{
+	BOI1 		= 0, 			"BOI1    ";
+	ECOL1 	= 1, 			"ECOL1   ";
+	BOI2L		= 2, 			"BOI2L   ";
+	BOI2T		= 3, 			"BOI2T   ";
+	ET			= 4, 			"ET      ";
+	EMI50		= 5, 			"EMI50   ";
+	RAD1		= 6, 			"RAD1    ";
+	SA1			= 7, 			"SA1     ";
+	LD1V		= 8, 			"LD1V    ";
+	OAA			= 9, 			"OAA     ";
+}
+
+// ids of 3-rd party OCTAVA appliances
+const c_octavaDeviceTypeBase = 32001;
+enum EsOctavaDeviceType
+{
+	P380E		= 32001,	"P380E   ";
+	P3811		= 32002, 	"P3811   ";
+	P3812		= 32003, 	"P3812   ";
+}
+
+enum EsDeviceDatabaseField
+{
+	Kind				= 0, "Device kind";
+	DescrShort	= 1, "Device short description";
+	DescrLong		= 2, "Device long description";
+}
+
+// known device database, indexed by device type
+// type value, device kind, symbolic name, short description, long description 
+const c_deviceDatabase = [
+	[EsDeviceKind$$HubFull, 		"БОИ-01", 	"Блок отображения информации БОИ-01"],
+	[EsDeviceKind$$Appliance, 	"ФГ-01", 		"Фотоголовка ФГ-01"],
+	[EsDeviceKind$$HubLight, 		"БОИ-02Ф", 	"Блок отображения информации БОИ-02Ф"],
+	[EsDeviceKind$$HubLight, 		"БОИ-02Т", 	"Блок отображения информации БОИ-02Т"],
+	[EsDeviceKind$$Appliance, 	"ЭТ", 			"Измеритель метеорологических параметров ЭкоТерма"],
+	[EsDeviceKind$$Appliance, 	"ЭМИ-50", 	"Головка изм. электромагнитного поля ЭМИ-50"],
+	[EsDeviceKind$$Appliance, 	"РАД-01", 	"Измеритель активности радона РАД-01"],
+	[EsDeviceKind$$Appliance, 	"СГ-01", 		"Спектрометрическая головка СГ-01"],
+	[EsDeviceKind$$Appliance,		"ЛД-01-В", 	"Головка лазерная дозиметрическая ЛД-01-В"],
+	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"]
+];
+
+const c_octavaDeviceDatabase = [
+	[EsDeviceKind$$Appliance, 	"П3-80Е", 	"Головка электростатическая П3-80Е"],
+	[EsDeviceKind$$Appliance, 	"П3-81-1", 	"Измеритель магнитной индукции П3-81-1 мТл"],
+	[EsDeviceKind$$Appliance, 	"П3-81-2", 	"Измеритель магнитной индукции П3-81-2 мкТл"]
+];
+
+// known hubs devices database
+//
+// field indexes of the hub functionality record
+enum EsHubDatabaseField
+{
+	PluginCodeName 		= 0, "Plugin internal code name";
+	PluginDescrShort 	= 1, "Short plugin description";
+	PluginDescrLong 	= 2, "Long plugin description";
+	PluginAppliances 	= 3, "Appliances supported by plugin";
+}
+
+// known hubs functionality table
+const c_hubsDatabase = [
+	// boi-01 functionality with plugins
+	[EsDeviceType$$BOI1, 
+		[
+			["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'", 
+				[ EsDeviceType$$ECOL1 ]
+			],
+			["RAD", "'РАД'", "Радиометр радона 'РАД'",
+				[ EsDeviceType$$RAD1 ]
+			],
+			["ET", "'ЭКОТЕРМА'", "Изм. микроклимата 'ЭКОТЕРМА'",
+				[ EsDeviceType$$ET ]
+			],
+			["P381X", "'П3-81-Х'", "Измеритель магнитного поля 'П3-81-X'",
+				[ EsOctavaDeviceType$$P3811,
+				  EsOctavaDeviceType$$P3812 ]
+			],
+			["P380E", "'П3-80Е'", "Измеритель электростатического поля 'П3-80Е'",
+				[ EsOctavaDeviceType$$P380E ]
+			]
+		]
+	]
+];
+
+// device type check
+function deviceTypeIsEkosf( type )
+	@help = "Check if 'type' is known Ekosfera device type. Return 'true' if yes, false otherwise";
+{
+	return type in EsDeviceType;
+}	
+
+function deviceTypeIsOctava( type )
+	@help = "Check if 'type' is known Octava device type. Return 'true' if yes, false otherwise";
+{
+	return type in EsOctavaDeviceType;
+}
+
+// device descriptions access
+function deviceCodeNameGet( type )
+	@help = "Return code name for the 'type' device type. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return EsDeviceType.valueLabelGet( type );
+	else if( deviceTypeIsOctava( type ) )	
+		return EsOctavaDeviceType.valueLabelGet( type );
+}
+
+function deviceDescriptionShortGet( type )
+	@help = "Return short description string for 'type' device type. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrShort];
+	else if( deviceTypeIsOctava( type ) )
+		return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
+}
+
+function deviceDescriptionLongGet( type )
+	@help = "Return long description string for 'type' device type. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrLong];
+	else if( deviceTypeIsOctava( type ) )
+		return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
+}
+
+function deviceIsHub( type )
+	@help = "Return true if 'type' device type is either light or full HUB, false otherwise. If device is unknown, empty value is returned";
+	var kind;	
+{
+	if( deviceTypeIsEkosf( type ) )
+	{
+		kind = c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+		return EsDeviceKind$$HubLight == kind ||
+			EsDeviceKind$$HubFull == kind;
+	}
+	else if( deviceTypeIsOctava( type ) )
+		return false;
+}
+ 
+function deviceIsHubLight( type )
+	@help = "Return true if 'type' device type is light HUB, false otherwise. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return EsDeviceKind$$HubLight == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+	else if( deviceTypeIsOctava( type ) )
+		return false;		
+}
+
+function deviceIsHubFull( type )
+	@help = "Return true if 'type' device type is full HUB, false otherwise. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return EsDeviceKind$$HubFull == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+	else if( deviceTypeIsOctava( type ) )
+		return false;	
+}
+
+function deviceIsAppliance( type )
+	@help = "Return true if 'type' device type is Appliance, false otherwise. If device is unknown, empty value is returned";
+{
+	if( deviceTypeIsEkosf( type ) )
+		return EsDeviceKind$$Appliance == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+	else if( deviceTypeIsOctava( type ) )
+		return true;
+}
+
+function deviceTypeFromCodeNameGet(	codeName )
+	@help = "Return device type value from its code name string. If code name is unknown, empty value is returned";
+	var idx = 0, lbl, 
+	values = EsDeviceType$values, 
+	labels = EsDeviceType$labels;	
+{
+	foreach( lbl in labels )
+	{
+		if( lbl == codeName )
+			return values[idx];
+		
+		++idx;
+	}
+	// check Octava devices
+	values = EsOctavaDeviceType$values; 
+	labels = EsOctavaDeviceType$labels;	
+	foreach( lbl in labels )
+	{
+		if( lbl == codeName )
+			return values[idx];
+		
+		++idx;
+	}
+}
+
+// return known hub functionality table, given the device type
+// if device is not a known full hub, empty value is returned
+function deviceHubFunctionalityRecordGet( deviceType )
+	var isHub = deviceIsHubFull( deviceType );
+	var hubRecord;
+{
+	if( isHub )
+	{
+		foreach(hubRecord in c_hubsDatabase)
+		{
+			if( deviceType == hubRecord[0] )
+				return hubRecord[1];
+		}
+	}
+}
+// --------------------------- end ekosfera device database && its services

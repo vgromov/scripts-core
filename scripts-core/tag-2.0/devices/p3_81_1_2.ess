@@ -1,0 +1,68 @@
+// scripting device support for p3-81-1|2 Octava appliances
+##require("core.ess");
+##require("p3xx_base.ess");
+
+// device live data 
+//
+
+// P3_81_1_2
+object p3_81_1_2node
+{
+	FLOAT f_mx;
+	FLOAT f_my;
+	FLOAT f_mz;
+	FLOAT f_mxyz;
+	FLOAT f_mxy;
+	FLOAT f_mdb;
+	FLOAT f_mdbMin;
+	FLOAT f_mdbMax;
+}
+
+object p3_81_1_2data
+{
+	UINT32 f_flags;				// data state flags
+	UINT32 f_msrLen; 			// measurement length in sec
+	FLOAT f_calibration;	// calibration value in db
+	FLOAT f_refLevel; 		// reference level in db
+	FLOAT f_sensitivity; 	// sensor sensitivity factor
+	p3_81_1_2node	f_m0;
+	p3_81_1_2node	f_m50;
+	p3_81_1_2node	f_m25;
+}
+
+// octava device
+//
+object p3_81_1_2
+{
+	var m_state;
+	
+	// ctor
+	new(fwId)
+	{
+		deviceFwIdValidate(fwId, [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812], "p3_81_1_2 device");
+		m_state = new p3xx_state(fwId);
+	}
+	
+	// control methods
+	//
+	function liveDataGet(rpcMaster)
+		var liveData, buff;
+	{
+		buff = rpcMaster.BYTEARRAY_Call(p3xx_rpid$$GetLiveData);
+		if( !buff#isEmpty() )
+		{
+			liveData = new p3_81_1_2data();
+			liveData$buffer = buff;
+		}
+		
+		return liveData;
+	}	
+	
+	// standard properties
+	//
+	property fwId;
+	read: { return m_state$m_fwId; }
+	
+	property state;
+	read: { return m_state; }	
+}

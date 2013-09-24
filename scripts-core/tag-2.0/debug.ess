@@ -1,0 +1,55 @@
+// additional script debug functionality
+//
+function debugValueDump(val)
+var idx, result = "";
+{
+	if( !val#isEmpty() )
+	{
+		if( EsVariantType$$VAR_STRING == val#typeGet() ) // string
+			result = val + "\n";
+		else if( val.isIndexed() )
+		{
+			result = "indexed contents...\n";
+			for(idx = 0; idx < val.countGet(); ++idx)
+				result += EsStr::format("[%d]=%s", idx, debugValueDump( val.itemGet(idx) ));
+		}
+		else if( val#isObject() )
+		{
+			// object type, size and offset
+			result += EsStr::format("type '%s', size=%d, offset=%d\n", val$type, val$size, val$offset);
+			if( val.hasProperty("value") )
+				result += "value=" + debugValueDump(val$value);
+		}
+		else
+			result = val#asString() + "\n";
+	}
+	else
+		result = "null\n";
+		
+	return result;
+}
+
+// helper functions for object printout
+function debugObjectDump(obj)
+var names, tmp, idx, result;
+{
+	// object value dump
+	result = debugValueDump(obj);
+	// object attributes
+	names = obj$attributeNames;
+	for(idx = 0; idx < names.countGet(); ++idx)
+	{
+		tmp = obj.attributeGet(names[idx]);
+		result += EsStr::format("attribute '%s'=%s\n", names[idx], tmp);
+	}
+	// object fields
+	names = obj$fieldNames;
+	for(idx = 0; idx < names.countGet(); ++idx)
+	{
+		tmp = obj.fieldGet(names[idx]);
+		result += EsStr::format("field '%s::%s' dump\n", obj$type, names[idx]);
+		result += debugObjectDump(tmp);
+	}
+	
+	return result;
+}

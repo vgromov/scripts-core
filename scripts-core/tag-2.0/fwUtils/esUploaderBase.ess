@@ -1,0 +1,211 @@
+// base uploader object implementation
+//
+##require("esProgressNotifier.ess");
+
+object EsUploaderBase extends EsProgressNotifier
+{
+	var m_moniker, 
+			m_defaultBaud,
+			m_preferredUploadBaud,
+			m_savedBaud;
+
+	function configurePowerOn(chnl)
+	{
+		// EsScriptDebug::log("configurePowerOn");
+		chnl.devicePowerSet(true);
+		EsCore::sleep(200);
+	}
+
+	function configurePowerOff(chnl)
+	{
+		// EsScriptDebug::log("configurePowerOff");
+		chnl.devicePowerSet(false);
+		EsCore::sleep(200);
+	}
+			
+	function configureBoot(chnl)
+	{
+		// EsScriptDebug::log("configureBoot");
+		chnl.deviceProgrammingModeSet(true);
+		EsCore::sleep(200);		
+	}
+	
+	function configureNormal(chnl)
+	{
+		// EsScriptDebug::log("configureNormal");
+		chnl.deviceProgrammingModeSet(false);
+		EsCore::sleep(200);	
+	}
+	
+	function setDevicePowerOnInNormalMode(chnl)
+	{
+		chnl.open();
+		if( chnl.hasMethod("devicePowerSet", 1) )
+		{
+			// EsScriptDebug::log("setDevicePowerOnInNormalMode");
+			configurePowerOff(chnl);
+			configureNormal(chnl);
+			configurePowerOn(chnl);
+		}
+	}
+	
+	function enterBootmodeWithPowerCtl(chnl)
+	{
+		// EsScriptDebug::log("enterBootmodeWithPowerCtl");
+		configurePowerOff(chnl);
+		configureBoot(chnl);
+		configurePowerOn(chnl);
+	}
+
+	function completeUpload(chnl)
+	var supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
+	{
+		// EsScriptDebug::log("completeUpload");
+		// restore baud
+		chnl.close();
+		chnl$baud = m_savedBaud;
+		// resore power
+		if( supportsPowerCtl && !chnl$useRS232 )
+		{
+			chnl.open();
+			configurePowerOff(chnl);
+			configureNormal(chnl);
+			configurePowerOn(chnl);
+			chnl.close();
+		}
+	}
+
+	function configureForBoot(rpcMaster, supportedRpcs)
+	var chnl = rpcMaster$channel, 
+		result = false, tmo = 40, 
+		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
+	{
+		// EsScriptDebug::log("configureForBoot");
+	
+		if( supportsPowerCtl && 
+				!chnl$useRS232 &&
+				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+		{
+			try
+			{
+				// EsScriptDebug::log("Shutting down device via RPC command");
+				configurePowerOff(chnl);
+				configureBoot(chnl);
+				deviceScheduleShutdown(rpcMaster);
+				progressNotifyStart("Shutting down device...", 1);
+				EsCore::sleep(1000);
+				configurePowerOn(chnl);
+				result = true;
+			}
+			catch
+			{}
+		}
+		
+		if( !result && (EsRpcStdId$$ENTER_BOOT in supportedRpcs) ) // add extra ms to the upload time estimate, just in case
+		{
+			try
+			{
+				// EsScriptDebug::log("Performing Warm boot");
+				deviceWarmBoot(rpcMaster, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+				progressNotifyStart("Performing Warm Boot...", 1);
+				EsCore::sleep(1500);
+				result = true;
+				
+				if( result && supportsPowerCtl && !chnl$useRS232 )
+					enterBootmodeWithPowerCtl(chnl);
+			}
+			catch
+			{}
+		}
+		
+		if( !result && supportsPowerCtl && !chnl$useRS232 )
+		{
+			configurePowerOff(chnl);		
+			configureBoot(chnl);
+			progressNotifyStart("Waiting for device to power down", tmo);
+			progressNotify(tmo);			
+			
+			// wait for 40 seconds - standard poweroff timeout
+			while( tmo-- )
+			{
+				EsCore::sleep(1000);
+				progressNotify(tmo);
+			}
+			
+			configurePowerOn(chnl);
+			result = true;
+		}
+		
+		return result;
+	}
+	
+	function upload(rpcMaster)
+	var loader = new EsMcuprogLpc(
+		EsMcuprogLpcFirmwareFlag$$WIPE|
+		EsMcuprogLpcFirmwareFlag$$NO_ECHO|
+		EsMcuprogLpcFirmwareFlag$$VERIFY, 
+		50, // maximum retries for uploader operations
+		m_moniker);
+	var chnl = rpcMaster$channel, swInfo,
+		supportedRpcs, deviceIsInBootMode = false, isAlreadySynched = false;
+	{	
+		rpcMaster.deactivate();
+		m_savedBaud = chnl$baud;
+		chnl$baud = m_preferredUploadBaud;
+		// power device normally
+		setDevicePowerOnInNormalMode(chnl);
+		// check if we're in bootloader mode, trying to sync with bootloader at once
+		deviceIsInBootMode = loader.syncWithBootloader(chnl, 20, false);
+		// EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
+		if( !deviceIsInBootMode )
+		{
+			rpcMaster.deactivate();
+			chnl$baud = m_defaultBaud;
+			rpcMaster.activate();
+			try
+			{
+				// EsScriptDebug::log("Getting implemented RPCs");
+				supportedRpcs = rpcMaster.getImplementedRPCs();
+				// if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
+				if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
+						m_moniker.hasProperty("fwPrevCrc") )
+				{
+					swInfo = deviceSoftwareInfoRead(rpcMaster);
+					m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
+				}
+			}
+			catch
+			{
+				// error ocurred during the most basic device query
+				// device may be already in boot mode
+				deviceIsInBootMode = true;
+			}
+		}
+		else
+			isAlreadySynched = true;
+			
+		if( !deviceIsInBootMode )
+		{
+			deviceIsInBootMode = configureForBoot(rpcMaster, supportedRpcs);
+			if( !deviceIsInBootMode )
+				throw "Could not enter device programming mode";
+		}
+			
+		chnl.close();
+		chnl$baud = m_preferredUploadBaud;
+		chnl.open();
+		try
+		{
+			loader.program(chnl, isAlreadySynched);
+			completeUpload(chnl);
+		}
+		catch
+		{
+			completeUpload(chnl);
+			rethrow;
+		}
+	}
+	
+	property moniker;
+	read: { return m_moniker; }	
+}

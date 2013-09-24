@@ -1,0 +1,34 @@
+// script progress notifier helper object
+//
+object EsProgressNotifier
+{
+	var	m_curAction,
+			m_curActionRange,
+			m_progressPulsePos;
+	
+	// todo: progressNotifyEnd
+	
+	function progressNotify(val)
+	var mon = __scriptHost$progressMonitor;
+	{
+		if( !mon#isEmpty() )
+			mon.posSet( val );
+	}
+
+	function progressNotifyStart(actionStr, range)
+	var mon = __scriptHost$progressMonitor;
+	{
+		m_progressPulsePos = 0;
+		m_curAction = actionStr;
+		m_curActionRange = range;
+		if( !mon#isEmpty() )
+			mon.actionStart(m_curAction, range);
+	}
+	
+	function progressPulse()
+	var mon = __scriptHost$progressMonitor;
+	{
+		if( !mon#isEmpty() )
+			mon.pulse(0, m_curAction);
+	}			
+}

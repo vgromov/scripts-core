@@ -1,0 +1,374 @@
+##require( "core.ess" );
+
+// ---------------- ekosfera binary data file parser
+
+// standard sizes & offsets
+enum EsBinDataFile 
+{
+	PageSize 			= 128;	// binary file page size in bytes
+	TagSize 			= 8;		// file tag size in bytes
+	HdrSize				= 16;		// file common header part size (tag+entrySize+entryCount)
+	SpaceSize			= 110;	// page space available for data (128-EsBinDataFilePageHdr-CRC16)
+}
+
+// page tags 
+//
+// standard file page tags: HDR_MAIN, HDR, DATA, 8 0s == EMPTY_PAGE
+const c_hdrMainTag 						= "HDRMAIN ";
+const c_hdrMainAdditionalTag 	= "HDRMAIN+";
+const c_hdrTag								= "HDR     ";
+const c_hdrAdditionalTag 			= "HDR+    ";
+const c_dataTag								= "DATA    ";
+const c_dataAdditionalTag			= "DATA+   ";
+const c_emptyTag  						= "\0\0\0\0\0\0\0\0";
+
+// custom data header tags && data entries registry
+//
+enum EsBinDataFileRegistry
+{
+	Tags = 0;
+	DataEntryTypes = 1;
+	LUX = 0;
+	CDM = 1;
+	KEO = 2;
+	TH = 3;
+	THV = 4;
+	IDX = 5;
+	BE = 6;
+	BEROT = 7;
+}
+
+const c_binDataFileRegistry = [[
+// pha-01 tags
+"LUX     ", 
+"CDM     ", 
+"KEO     ",
+// mk-01 tags
+"TH      ", 
+"THV     ", 
+"IDX     ",
+// emi tags
+"BE      ", 
+"BEROT   "
+],
+[
+// pha-01 data entries
+"EsBinDataFileIlluminosityEntry", 
+"EsBinDataFileLuminosityEntry",
+"EsBinDataFileKeoEntry",
+// mk-01 data entries
+"EsBinDataFileClimaticBaseEntry",
+"EsBinDataFileClimaticVelocityEntry",
+"EsBinDataFileClimaticIndexesEntry",
+// emi data entries
+"EsBinDataFileBeEntry",
+"EsBinDataFileBeRotEntry"
+]];
+
+function binDataFileRegistryTagFind(tag)
+	var tagStr, tagIdx = 0;
+{
+	foreach( tagStr in c_binDataFileRegistry[EsBinDataFileRegistry$$Tags] )
+	{
+		if( tagStr == tag )
+			return tagIdx;
+			
+		++tagIdx;
+	}
+	
+	return -1;
+}
+
+// tag class
+object EsBinDataFileTag
+{
+	UINT8 tag[EsBinDataFile$$TagSize];
+	
+	// tag services
+	//
+	// string comparison
+	function compare(tagStr)
+		var idx;
+	{
+		if( !tagStr#isEmpty() && 
+				EsBinDataFile$$TagSize == tagStr#countGet() )
+		{
+			for(idx = 0; idx < EsBinDataFile$$TagSize; ++idx)
+				if(tagStr[idx]#asByte() != tag[idx])
+					return -1;
+					
+			return 0;
+		}
+		
+		return -1;
+	}
+	
+	// predefined headers check
+	function isHdrMain()
+	{
+		return 0 == compare(c_hdrMainTag);
+	}
+	
+	function isHdrMainAdditional()
+	{
+		return 0 == compare(c_hdrMainAdditionalTag);
+	}	
+	
+	function isHdr()
+	{
+		return 0 == compare(c_hdrTag);
+	}
+
+	function isHdrAdditional()
+	{
+		return 0 == compare(c_hdrAdditionalTag);
+	}
+	
+	function isData()
+	{
+		return 0 == compare(c_dataTag);
+	}
+	
+	function isDataAdditional()
+	{
+		return 0 == compare(c_dataAdditionalTag);
+	}	
+	
+	function isEmpty()
+	{
+		return 0 == compare(c_emptyTag);
+	}
+}
+
+// ----------------------- page header record
+object EsBinDataFilePageHdr
+{
+	EsBinDataFileTag tag;
+	UINT32 entrySize;
+	UINT32 entryCnt;
+	if( tag.isHdrMain() ||
+			tag.isHdrMainAdditional() ||
+			tag.isHdr() ||
+			tag.isHdrAdditional()	)
+	{
+		EsBinDataFileTag contentTag;
+		
+		if( -1 != binDataFileRegistryTagFind(contentTag) )
+		{
+			EsFirmwareId hubId;
+				@label = "Hub ID";
+			EsFirmwareId applId;
+				@label = "Appliance ID";
+		}
+		
+		if( c_binDataFileRegistry[EsBinDataFileRegistry$$Tags][EsBinDataFileRegistry$$KEO] == contentTag )
+			EsFirmwareId auxApplId;
+				@label = "Aux. appliance ID";
+	}
+}
+
+// ----------------------- data entry records
+//
+// PHA01 appliance
+//
+// PHA01-LUX
+object EsBinDataFileIlluminosityEntry
+	@help = "Illuminosity data entry";
+{
+	DATETIME 	ts;
+		@label = "Timestamp";
+	FLOAT			lux;
+		@label = "Illuminosity, lux";
+	UINT16		kp;
+		@label = "Pulsation, %";
+	INT8			temp;
+		@label = "T, °C";
+}
+
+/// PHA01-CDM
+object EsBinDataFileLuminosityEntry
+	@help = "Luminosity data entry";
+{
+	DATETIME 	ts;
+		@label = "Timestamp";
+	FLOAT			cdm;
+		@label = "Luminosity, cd/m";
+	UINT16		kp;
+		@label = "Pulsation, %";	
+	INT8			temp;
+		@label = "T, °C";
+}
+
+// PHA01-KEO
+object EsBinDataFileKeoEntry 
+	@help = "KEO data entry";
+{
+	DATETIME 	ts;
+		@label = "Timestamp";
+	FLOAT			luxIndoors;
+		@label = "Indoors illuminosity, lux";		
+	FLOAT			luxOutdoors;
+		@label = "Outdoors illuminosity, lux";
+	FLOAT			keo;
+		@label = "KEO, %";
+}
+
+// MK01 appliance
+//
+// MK01-TH
+object EsBinDataFileClimaticBaseEntry
+	@help = "Basic climatic data entry";
+{
+	DATETIME 	ts;
+		@label = "Timestamp";
+	UINT32		state;
+		@label = "Data state";
+	FLOAT			ta;
+		@label = "Air T, °C";
+	FLOAT			rh;
+		@label = "Relative humidity, %";
+	FLOAT			td;
+		@label = "Dew point, °C";
+	FLOAT			tw;
+		@label = "Natural wet-bulb T, °C";
+	FLOAT			p;
+		@label = "Barometric pressure, Pa";
+}
+
+// MK01-THV
+object EsBinDataFileClimaticVelocityEntry extends EsBinDataFileClimaticBaseEntry
+	@help = "Climatic data with air velocity entry";
+{
+	FLOAT			u;
+		@label = "Air velocity, m/s";
+}
+
+// MK01-IDX
+object EsBinDataFileClimaticIndexesEntry extends EsBinDataFileClimaticBaseEntry
+	@help = "Full climatic data entry";
+{
+	FLOAT			tg;
+		@label = "Globe thermometer T, °C";
+	FLOAT			wbgt;
+		@label = "Wet bulb globe T, °C";
+	FLOAT			wbgts;
+		@label = "Wet bulb globe solar T, °C";
+	FLOAT			tr;
+		@label = "Mean radiant T, °C";
+	FLOAT			w;
+		@label = "Heat transfer rate, W/m²";
+	FLOAT			to;
+		@label = "Operative T, °C";
+}
+
+// --------------- bin file parser functions
+//
+function binDataFileBufferParse(buff)
+	var pageIdx = 0, pagesCnt, tmp, tmpArray = [];
+	var chunkStart = 0, dataChunkStart, chunk, checksum16;
+	var sessionHdr = [], sessionData = [], result = [];
+	var hdr = new EsBinDataFilePageHdr(), stage = 0; // 0 - none, 1 - parsing headers, 2 - parsing data
+	var dataEntryType, tmpDataEntry, dataEntryIdx;
+{
+	if( !buff#isEmpty() && 
+			EsVariantType$$VAR_BIN_BUFFER == buff#typeGet() )
+	{
+		pagesCnt = buff#countGet() / EsBinDataFile$$PageSize;
+		
+		while(pageIdx < pagesCnt)
+		{
+			chunkStart += EsBinDataFile$$PageSize;
+			chunk = buff#sliceGet(chunkStart, chunkStart+EsBinDataFile$$PageSize);
+			checksum16 = new EsChecksum16(chunk);
+			if( 0 == checksum16 )
+			{
+				hdr$buffer = chunk;
+				if( hdr.tag.isEmpty() )
+					break;
+				else if( (1 == stage || 2 == stage) 
+									&& hdr.tag.isData() &&
+									!tmpDataEntry#isEmpty() )
+				{
+					stage = 2;
+					if( hdr.entrySize != tmpDataEntry$size )
+						throw EsStr::format("Data entry record '%s' size is wrong, expected %d, got %d",
+							dataEntryType, tmpDataEntry$size, hdr.entrySize);
+
+					// parse data entries
+					dataChunkStart = chunkStart+EsBinDataFile$$HdrSize;
+					for(dataEntryIdx = 0; dataEntryIdx < hdr.entryCnt; ++dataEntryIdx)
+					{
+						chunk = buff#sliceGet(dataChunkStart, dataChunkStart+hdr.entrySize);
+						tmpDataEntry$buffer = chunk;
+						sessionData += tmpDataEntry.clone();
+						dataChunkStart += hdr.entrySize;
+					}
+				}	
+				else if( hdr.hasField("contentTag") )
+				{	
+					// reset stage
+					stage = 1;
+
+					if( 0 != sessionHdr#countGet() )
+					{
+						tmpArray += sessionHdr;
+						tmpArray += sessionData;
+						
+						result.append(tmpArray);
+						
+						// reset temporary array
+						tmpArray = [];
+						// reset session header
+						sessionHdr = [];
+						// reset session data
+						sessionData = [];						
+					}
+				
+					// check if header is of known type
+					if( hdr.hasField("hubId") )
+					{
+						// assert we have full hub id
+						if( EsCoreSize$$FullHardwareId != hdr.hubId$size )
+							throw EsStr::format("Hub ID field size is wrong, expected %d, got %d",
+								EsCoreSize$$FullHardwareId, hdr.hubId$size);
+						
+						// fill-in header entries
+						tmp = new EsFirmwareId();
+						tmp.copyFrom(hdr.hubId);
+						sessionHdr += tmp;
+						
+						tmp = new EsFirmwareId();
+						tmp.copyFrom(hdr.applId);
+						sessionHdr += tmp;
+						
+						if( hdr.hasField("auxApplId") )
+						{
+							tmp = new EsFirmwareId();
+							tmp.copyFrom(hdr.auxApplId);
+							sessionHdr += tmp;
+						}
+						
+						dataEntryType = 
+							c_binDataFileRegistry[EsBinDataFileRegistry$$DataEntryTypes][binDataFileRegistryTagFind(hdr.contentTag)];
+						tmpDataEntry = __metaclass.objectCreate(dataEntryType);
+					}
+				}
+			}
+			
+			++pageIdx;
+		}
+			
+		if( 2 == stage &&
+				0 != sessionHdr#countGet() )
+		{
+			tmpArray += sessionHdr;
+			tmpArray += sessionData;
+			
+			result.append(tmpArray);
+		}
+	}
+	
+	return result;
+}
+
+// ---------------- ekosfera binary data file parser end

@@ -1,0 +1,59 @@
+// scripting device support for p3-80E Octava appliances
+##require("core.ess");
+##require("p3xx_base.ess");
+
+// device live data 
+//
+
+// P3_80E
+object p3_80Edata 
+{
+	UINT32 f_flags;				// data state flags
+	UINT32 f_msrLen; 			// measurement length in sec
+	FLOAT f_calibration;	// calibration value in db
+	FLOAT f_refLevel; 		// reference level in db
+	FLOAT f_sensitivity; 	// sensor sensitivity factor
+	FLOAT f_edb;
+	FLOAT f_edbMin;
+	FLOAT f_edbMax;
+	FLOAT f_e;
+	FLOAT f_eMin;
+	FLOAT f_eMax;
+}
+
+// octava device
+//
+object p3_80E
+{
+	var m_state;
+	
+	// ctor
+	new(fwId)
+	{
+		deviceFwIdValidate(fwId, EsOctavaDeviceType$$P380E, "p3_80E device");
+		m_state = new p3xx_state(fwId);
+	}
+	
+	// control methods
+	//
+	function liveDataGet(rpcMaster)
+		var liveData, buff;
+	{
+		buff = rpcMaster.BYTEARRAY_Call(p3xx_rpid$$GetLiveData);
+		if( !buff#isEmpty() )
+		{
+			liveData = new p3_80Edata();
+			liveData$buffer = buff;
+		}
+		
+		return liveData;
+	}	
+	
+	// standard properties
+	//
+	property fwId;
+	read: { return m_state$m_fwId; }
+	
+	property state;
+	read: { return m_state; }	
+}

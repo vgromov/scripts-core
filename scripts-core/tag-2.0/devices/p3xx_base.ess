@@ -1,0 +1,124 @@
+// octava P3_80 | P3_81_82 base declarations
+//
+##require("core.ess");
+
+// p3-81-1|2,-80E - specific rpcs 
+enum p3xx_rpid
+{
+	Restart							= 2048, "VOID_RpcSig|Restart measurements";
+	GetMode 						= 2049, "UINT16_RpcSig|Read current working mode";
+	GetLiveData 				= 2050, "BYTEARRAY_RpcSig|Get live data packet";
+}
+
+// health error flags & masks
+enum p3xxError
+{
+ 	Batt 				= 0x00000001; // low battery flag
+}
+
+	// measurement state flags
+enum p3xxStateFlag
+{
+	Running		= 0x000001, "Running";
+	Overload	= 0x000002, "Input overload detected";
+	OverloadLatched = 0x000004, "Input overload latched";
+}
+
+enum p3xxOpMode
+{
+	// octava working modes
+	None			= 0;
+	Idle 			= 1;
+	Running		= 2;
+}
+
+// device state object
+//
+object p3xx_state
+{
+	var m_fwId,
+			m_errors,
+			m_power,
+			m_opMode;
+	
+	// ctor
+	new(fwId)
+	{
+		deviceFwIdValidate(fwId, [EsOctavaDeviceType$$P380E..EsOctavaDeviceType$$P3812], "p3xx state");
+		m_fwId = fwId;
+		m_opMode = p3xxOpMode$$None;
+	}
+	
+	// status queries
+	//
+	function healthStatusRead(rpcMaster)
+	{
+		m_errors = deviceHealthStatusGet(rpcMaster);
+	}
+	
+	function powerStatusRead(rpcMaster)
+	{
+		m_power = devicePowerStatusGet(rpcMaster);
+	}
+	
+	// opmode control
+	//
+	function opmodeRead(rpcMaster)
+	{
+		m_opMode = rpcMaster.UINT16_Call(p3xx_rpid$$GetMode);
+	}
+
+	function restart(rpcMaster)
+	{
+		rpcMaster.VOID_Call(p3xx_rpid$$Restart);
+	}
+	
+	// standard device state api
+	//
+	function renew(rpcMaster)
+	{
+		healthStatusRead(rpcMaster);
+		powerStatusRead(rpcMaster);
+		opmodeRead(rpcMaster);
+	}	
+	
+	// properties
+	//
+	property fwId;
+	read: { return m_fwId; }
+	
+	property power;
+	read: { return m_power; }
+	
+	property opMode;
+	read: { return m_opMode; }
+	
+	property opModeString;
+	read: { return p3xxOpMode.valueLabelGet(m_opMode); }
+	
+	property hasCriticalError;
+	read: { return false;	}
+
+	property hasNonCriticalError;
+	read: { return false;	}
+				
+	property hasError;
+	read: { return m_errors#isEmpty() ?
+						false :
+						m_errors#asULong() != 0; 
+				}
+				
+	property errorStrings;
+	read: var result = [], err; 
+				{
+					if(m_errors#isEmpty())
+						result += "N/A";
+					else
+					{
+						err = m_errors#asULong();	
+						if(err & p3xxError$$Batt)
+							result += p3xxError$$Batt$$label;
+					}	
+					return result;
+				}	
+}
