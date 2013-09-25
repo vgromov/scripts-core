@@ -69,7 +69,8 @@ enum EsHubDatabaseField
 	PluginCodeName 		= 0, "Plugin internal code name";
 	PluginDescrShort 	= 1, "Short plugin description";
 	PluginDescrLong 	= 2, "Long plugin description";
-	PluginAppliances 	= 3, "Appliances supported by plugin";
+	PluginTypes				= 3, "Data types, supported by plugin";
+	PluginAppliances 	= 4, "Appliances supported by plugin";
 }
 
 // known hubs functionality table
@@ -77,20 +78,41 @@ const c_hubsDatabase = [
 	// boi-01 functionality with plugins
 	[EsDeviceType$$BOI1, 
 		[
-			["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'", 
+			["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'",
+				[ // plugin data types supported [data type directory name, data type description]
+					["LUX", "Освещенность"],
+					["CDM", "Яркость"],
+					["KEO", "Коэффициент естественной освещенности (КЕО)"]
+				],
 				[ EsDeviceType$$ECOL1 ]
 			],
 			["RAD", "'РАД'", "Радиометр радона 'РАД'",
+				[
+					["RAD1DAT", "Радиометрия"]
+				],
 				[ EsDeviceType$$RAD1 ]
 			],
 			["ET", "'ЭКОТЕРМА'", "Изм. микроклимата 'ЭКОТЕРМА'",
+				[
+					["TH", "Микроклимат-базовый"],
+					["THV", "Микроклимат, анемометрия"],
+					["IDX", "Индексы"]
+				],
 				[ EsDeviceType$$ET ]
 			],
 			["P381X", "'П3-81-Х'", "Измеритель магнитного поля 'П3-81-X'",
+				[
+					["MGEO", "Геомагнитное поле"],
+					["MCONST", "Постоянное магнитное поле"],
+					["M50HZ", "Магнитное поле промышленной частоты"]
+				],
 				[ EsOctavaDeviceType$$P3811,
 				  EsOctavaDeviceType$$P3812 ]
 			],
 			["P380E", "'П3-80Е'", "Измеритель электростатического поля 'П3-80Е'",
+				[
+					["ESTAT", "Электростатика"]
+				],
 				[ EsOctavaDeviceType$$P380E ]
 			]
 		]
@@ -216,6 +238,38 @@ function deviceHubFunctionalityRecordGet( deviceType )
 		{
 			if( deviceType == hubRecord[0] )
 				return hubRecord[1];
+		}
+	}
+}
+
+/// Return hub plugin functionality record by its code name.
+/// If no plugin with specified code is found, empty value is returned.
+///
+function deviceHubPluginFunctionalityRecordGet( deviceType, plgCodeName )
+var frec = deviceHubFunctionalityRecordGet( deviceType ), frecItem;
+{
+	if( !frec#isEmpty() )
+	{
+		foreach(frecItem in frec)
+		{
+			if( plgCodeName == frecItem[0] )
+				return frecItem;
+		}
+	}
+}
+
+/// Get plugin data type record, by data type string, from plugin functionality record.
+/// Return null if data type was not found|unknown.
+function deviceHubPluginDataTypeRecordGet(deviceType, plgCodeName, plgDataType)
+var plgRec = deviceHubPluginFunctionalityRecordGet(deviceType, plgCodeName), plgTypes, plgTypeItem;
+{
+	if( !plgRec#isEmpty() )
+	{
+		plgTypes = plgRec[EsHubDatabaseField$$PluginTypes];
+		foreach(plgTypeItem in plgTypes)
+		{
+			if( plgDataType == plgTypeItem[0] )
+				return plgTypeItem;
 		}
 	}
 }

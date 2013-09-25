@@ -223,6 +223,19 @@ object EsFsItem
 	DATETIME f_ts;		/// <file time stamp
 	UINT8	f_attrs;		/// <file attributes
 	UINT8 f_name[13];	/// <file name (short)
+	
+/// Properties
+///
+/// Item name access as string
+	property name;
+	read: { return EsStr::fromByteString(f_name$buffer); }
+	write: 
+	var bs = EsStr::toByteString(__value);
+	{	
+		bs#countSet(f_name$size);
+		bs[f_name$size-1] = 0;
+		f_name$buffer = bs; 
+	}
 }
 
 /// File system enumeration|search result struct

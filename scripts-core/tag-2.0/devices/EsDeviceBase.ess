@@ -89,37 +89,6 @@ object EsDeviceBase
     evtPost("fromDevice", responseId, responseData);
   }
 	
-/// Push action start notification to the dispatcher queue
-	function evtActionStartPost(aId, paId, text, range)
-	var actionData = [];
-	{
-		actionData += aId;
-		actionData += paId;
-		actionData += text;
-		actionData += range;
-		evtPost("fromDevice", EsDeviceEvtId$$actionStart, actionData);
-	}
-
-/// Push action progress notification to the dispatcher queue
-	function evtActionProgressPost(aId, text, val)
-	var actionData = [];
-	{
-		actionData += aId;
-		actionData += text;
-		actionData += val;
-		evtPost("fromDevice", EsDeviceEvtId$$actionProgress, actionData);
-	}
-	
-/// Push action end notification to the dispatcher queue	
-	function evtActionEndPost(aId, text, result)
-	var actionData = [];
-	{
-		actionData += aId;
-		actionData += text;
-		actionData += result;
-		evtPost("fromDevice", EsDeviceEvtId$$actionEnd, actionData);
-	}
-	
 /// Return user-friendly RPC name string, or 'Unknown RPC with <id>'.
 /// By default, handles only the standard RPC ids, derived objects must extend this functionality
   function rpcNameGetById(rpcId)
@@ -272,7 +241,7 @@ object EsDeviceBase
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
   var handlingResult = null;
   {
-    if( handlingResult#isEmpty() && !rpcResult#isEmpty() )
+    if( !rpcResult#isEmpty() )
     {
       // handle standard data requests
       // NB! health info query response, included here, should normally be overridden in derived devices
@@ -297,14 +266,45 @@ object EsDeviceBase
         handlingResult = new EsPowerStatus();
         handlingResult$buffer = rpcResult;
       }
-      else if(EsRpcStdId$$CAPS_GET == rpcId ||
-              EsRpcStdId$$HEALTH_INFO_GET == rpcId ||
-              EsRpcStdId$$DATETIME_GET == rpcId )
+			else if(EsRpcStdId$$FS_FREESPACE_GET == rpcId && rpcResult#countGet())
+			{
+				handlingResult = new EsFsSpaceInfoResult();
+				handlingResult$buffer = rpcResult;
+			}
+			else if(EsRpcStdId$$DIR_LIST_NEXT_GET == rpcId )
+			{
+				if( rpcResult#countGet() == 2 )
+					handlingResult = rpcResult#asUInt();
+				else
+				{
+					handlingResult = new EsFsItemResult();
+					handlingResult$buffer = rpcResult;
+				}
+			}
+			else if(EsRpcStdId$$FILE_READ_START == rpcId && rpcResult#countGet())
+			{
+				handlingResult = new EsFsFileReadRequest();
+				handlingResult$buffer = rpcResult;
+			}
+			else if(EsRpcStdId$$DIR_LIST_START == rpcId ||
+							EsRpcStdId$$DIR_DELETE == rpcId ||
+							EsRpcStdId$$FILE_DELETE == rpcId )
+				handlingResult = rpcResult#asUInt();
+      else // return raw rpc response by default
         handlingResult = rpcResult;
     }
     
     return handlingResult;
   }
+	
+/// RPC pre-call filtering helper. If device capabilities were requested, and m_caps not empty,
+/// check rpcId against m_caps before actuall call, and throw 'unsupported RPC' without actually 
+/// performing any io transaction
+	function rpcCapsAssert(rpcId)
+	{
+		if( !m_caps#isEmpty() && !(rpcId in m_caps) )
+			throw EsStr::format("RPC with id: %d (%s) is not supported on '%s'", rpcId, rpcNameGetById(rpcId), m_tmpFwIdStr);
+	}
 	
 /// Parametric RPC call. Returned is pair [true|false, result], true, if call was successfull, false otherwise
 /// result contains the optional return value of rpcCallResultHandle
@@ -313,6 +313,8 @@ object EsDeviceBase
   {
     // 1) check if m_ioMaster is not null and active
     rpcMasterAssert(m_ioMaster);
+		// assert RPC id
+		rpcCapsAssert(rpcId);
     // 2) create try-catch scope
     try
     {
@@ -392,6 +394,8 @@ object EsDeviceBase
         onIoAttempt();
         // 4) perform rpc call
         rpcId = batchItem[0];
+				// assert RPC id
+				rpcCapsAssert(rpcId);
         rpcArgs = batchItem[1];
         if( EsRpcStdId$$CAPS_GET == rpcId )
         {
@@ -498,10 +502,9 @@ object EsDeviceBase
 	{
 		if( result[0] )
 		{
-			buff = result[1];
-			if( buff#countGet() == 2 )
+			fsResult = result[1];
+			if( !fsResult#isObject() )
 			{
-				fsResult = buff#asUInt();
 				if( EsFsResult$$OK != fsResult )
 				{
 					result[0] = false;
@@ -512,8 +515,7 @@ object EsDeviceBase
 			}
 			else
 			{
-				fsResult = new EsFsItemResult();
-				fsResult$buff = result[1];
+				// return 'prepared' EsFsItem object, instead of 'compound' EsFsItemResult
 				result[1] = new EsFsItem();
 				result[1].copyFrom(fsResult.f_item);
 			}
@@ -555,8 +557,7 @@ object EsDeviceBase
 	{
 		if( result[0] )
 		{
-			infoResult = new EsFsSpaceInfoResult();
-			infoResult$buff = result[1];
+			infoResult = result[1];
 			if( EsFsResult$$OK != infoResult.f_result )
 			{
 				result[0] = false;
@@ -564,6 +565,7 @@ object EsDeviceBase
 			}
 			else
 			{
+				// return 'prepared' EsFsSpaceInfo object instead of 'compound' EsFsSpaceInfoResult
 				result[1] = new EsFsSpaceInfo();
 				result[1].copyFrom(infoResult.f_info);
 			}
@@ -585,9 +587,7 @@ object EsDeviceBase
 		if( result[0] )
 		{
 			// todo: notify file read start action
-			fsResult = new EsFsFileReadRequest();
-			fsResult$buff = result[1];
-			
+			fsResult = result[1];
 			if( EsFsResult$$OK != fsResult.f_result )
 			{
 				result[0] = false;
