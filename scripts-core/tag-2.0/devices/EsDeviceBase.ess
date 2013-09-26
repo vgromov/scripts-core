@@ -4,16 +4,16 @@
 ##require("core.ess");
 
 /// Device event structure is as follows:
-///	evt_id=<some Id>, payload=deviceFwId<,payload>
-///		payload = Change|RPC (batch) request|RPC (batch) response|custom request|custom response
+///  evt_id=<some Id>, payload=deviceFwId<,payload>
+///    payload = Change|RPC (batch) request|RPC (batch) response|custom request|custom response
 ///     Change=[changed value property name, changed value property name, ... , changed value property name]
 ///     RPC response (batch) = RPC request (batch) parameters, RPC response (batch) data
 ///     RPC request = [rpcId, args]
 ///     RPC request (batch) = [[rpcId 0, args 0], ... [rpcId N, args N]]
 ///     RPC response data = [true|false, data]
 ///     RPC response (batch) data = [[true|false, data 0], ... [true|false, data N]]
-///     	true =	response succeeded, false - otherwise
-///       				if true - data = response data, if false data = error reason
+///       true =  response succeeded, false - otherwise
+///               if true - data = response data, if false data = error reason
 ///     Custom request = [procName, args]
 ///     Custom response = [true|false, data]
 ///
@@ -79,7 +79,7 @@ object EsDeviceBase
       
     __scriptHost.eventPost(cat, id, payload);
   }
-	
+  
 /// Push response to the dispatcher queue
   function evtResponsePost(responseId, request, response)
   var responseData = [];
@@ -88,7 +88,7 @@ object EsDeviceBase
     responseData#append(response);
     evtPost("fromDevice", responseId, responseData);
   }
-	
+  
 /// Return user-friendly RPC name string, or 'Unknown RPC with <id>'.
 /// By default, handles only the standard RPC ids, derived objects must extend this functionality
   function rpcNameGetById(rpcId)
@@ -98,7 +98,7 @@ object EsDeviceBase
     
     return EsStr::format("Unknown RPC id: '%d'", rpcId);
   }
-	
+  
 /// Return RPC signature string, or throws 'Unsupported RPC with <id>'.
 /// By default, handles only the standard RPC ids, derived objects must extend this functionality
   function rpcSigGetById(rpcId)
@@ -108,7 +108,7 @@ object EsDeviceBase
     
     throw EsStr::format("Unsupported RPC id: '%d'", rpcId);
   }
-	
+  
 /// Reset io state block
   function ioStateReset()
   {
@@ -118,7 +118,7 @@ object EsDeviceBase
     m_ioAddr = 255;
     m_ioErrorLog = [];
   }
-	
+  
 /// fwId assertion. Base implementation just checks for null and properly typed argument, 
 /// must be overridden in derived objects
   function fwIdAssert(fwId)
@@ -129,7 +129,7 @@ object EsDeviceBase
     if( !fwId#isObject() || !fwId.isKindOf("EsFirmwareId") )
       throw "Could not assign argument of wrong type to firmware Id";
   }
-	
+  
 /// Assign fwId to device  
   function fwIdSet(fwId)
   {
@@ -152,20 +152,20 @@ object EsDeviceBase
       evtPost("fromDevice", EsDeviceEvtId$$idChanged, null);
     }
   }
-	
+  
 /// Assign default FW id to the device. Must be overridden in derived classes
   function fwIdDefaultSet()
   {
     throw "fwIdDefaultSet must be overridden!";
   }
-	
+  
 /// Address check
   function addrAssert(addr)
   {
     if( !(addr in [0 .. 254]) )
       throw "Device address value is out of range";
   }
-	
+  
 /// Assign address
   function addrSet(addr)
   {
@@ -177,13 +177,13 @@ object EsDeviceBase
       evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, "ioAddr");
     }
   }
-	
+  
 /// IO attempt handler
   function onIoAttempt()
   {
     m_ioAttemptTs = EsDateTime::now();
   }
-	
+  
 /// IO success condition handler
   function onIoSuccess()
   var change = [];
@@ -198,7 +198,7 @@ object EsDeviceBase
     change += "ioLastError";
     evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, change);
   }
-	
+  
 /// IO error condition handler
   function onIoError(error)
   var change = [];
@@ -211,14 +211,14 @@ object EsDeviceBase
     change += "ioLastError";
     evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, change);
   }
-	
+  
 /// Common initializer
   function internalInit()
   {
     m_tmpFwIdStr = "";
     ioStateReset();
   }
-	
+  
 /// Constructor
   new()
   {
@@ -226,14 +226,14 @@ object EsDeviceBase
     internalInit();
     fwIdDefaultSet();
   }
-	
+  
   new( fwId )
   {
     m_fwInitialized = false;    
     internalInit();
     fwIdSet(fwId);
   }  
-	
+  
 /// rpcCall result handler. Base functionality - handles the most basic
 /// stuff which must always be there. handlingResult parameter is reserved for override calls.
 /// Inherited objects must first do their own handling, then call base object method, passing processing result in
@@ -266,46 +266,57 @@ object EsDeviceBase
         handlingResult = new EsPowerStatus();
         handlingResult$buffer = rpcResult;
       }
-			else if(EsRpcStdId$$FS_FREESPACE_GET == rpcId && rpcResult#countGet())
-			{
-				handlingResult = new EsFsSpaceInfoResult();
-				handlingResult$buffer = rpcResult;
-			}
-			else if(EsRpcStdId$$DIR_LIST_NEXT_GET == rpcId )
-			{
-				if( rpcResult#countGet() == 2 )
-					handlingResult = rpcResult#asUInt();
-				else
-				{
-					handlingResult = new EsFsItemResult();
-					handlingResult$buffer = rpcResult;
-				}
-			}
-			else if(EsRpcStdId$$FILE_READ_START == rpcId && rpcResult#countGet())
-			{
-				handlingResult = new EsFsFileReadRequest();
-				handlingResult$buffer = rpcResult;
-			}
-			else if(EsRpcStdId$$DIR_LIST_START == rpcId ||
-							EsRpcStdId$$DIR_DELETE == rpcId ||
-							EsRpcStdId$$FILE_DELETE == rpcId )
-				handlingResult = rpcResult#asUInt();
+      else if(EsRpcStdId$$FS_FREESPACE_GET == rpcId && rpcResult#countGet())
+      {
+        handlingResult = new EsFsSpaceInfoResult();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$DIR_LIST_NEXT_GET == rpcId )
+      {
+        if( rpcResult#countGet() == 2 )
+          handlingResult = rpcResult#asULong();
+        else
+        {
+          handlingResult = new EsFsItemResult();
+          handlingResult$buffer = rpcResult;
+        }
+      }
+      else if(EsRpcStdId$$FILE_READ_START == rpcId && rpcResult#countGet())
+      {
+        handlingResult = new EsFsFileReadRequest();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$DIR_LIST_START == rpcId ||
+              EsRpcStdId$$DIR_DELETE == rpcId ||
+              EsRpcStdId$$FILE_DELETE == rpcId )
+        handlingResult = rpcResult#asULong();
       else // return raw rpc response by default
         handlingResult = rpcResult;
     }
     
     return handlingResult;
   }
-	
+  
 /// RPC pre-call filtering helper. If device capabilities were requested, and m_caps not empty,
 /// check rpcId against m_caps before actuall call, and throw 'unsupported RPC' without actually 
 /// performing any io transaction
-	function rpcCapsAssert(rpcId)
-	{
-		if( !m_caps#isEmpty() && !(rpcId in m_caps) )
-			throw EsStr::format("RPC with id: %d (%s) is not supported on '%s'", rpcId, rpcNameGetById(rpcId), m_tmpFwIdStr);
-	}
-	
+  function rpcCapsAssert(rpcId)
+  {
+    if( !m_caps#isEmpty() && !(rpcId in m_caps) )
+      throw EsStr::format("RPC with id: %d (%s) is not supported on '%s'", rpcId, rpcNameGetById(rpcId), m_tmpFwIdStr);
+  }
+  
+/// Internal io master call helper. Must not be called directly.  
+  function internalCallMaster(rpcId, rpcArgs)
+  var args = [];
+  {
+    args += rpcId;
+    if( !rpcArgs#isEmpty() )
+      args += rpcArgs;
+    
+    return m_ioMaster.callMethod(rpcSigGetById(rpcId), args);
+  }
+  
 /// Parametric RPC call. Returned is pair [true|false, result], true, if call was successfull, false otherwise
 /// result contains the optional return value of rpcCallResultHandle
   function rpcCall(rpcId, rpcArgs)
@@ -313,8 +324,8 @@ object EsDeviceBase
   {
     // 1) check if m_ioMaster is not null and active
     rpcMasterAssert(m_ioMaster);
-		// assert RPC id
-		rpcCapsAssert(rpcId);
+    // assert RPC id
+    rpcCapsAssert(rpcId);
     // 2) create try-catch scope
     try
     {
@@ -331,7 +342,7 @@ object EsDeviceBase
         m_caps = result;
       }
       else
-        result = m_ioMaster.callMethod(rpcSigGetById(rpcId), rpcId, rpcArgs);
+        result = internalCallMaster(rpcId, rpcArgs);
       // call io success handler
       onIoSuccess();
       // 5) handle its result - call result handler, if registered for rpcId
@@ -355,7 +366,7 @@ object EsDeviceBase
 
     return tmp;
   }
-	
+  
 /// Batch item checking
   function batchItemAssert(batchItem)
   {
@@ -368,7 +379,7 @@ object EsDeviceBase
     if( 2 != batchItem.countGet() )
       throw "Wrong device io batch item member count.";
   }
-	
+  
 /// Batch io call service. It's expecting collection of input arrays: [rpcId, args]
 /// as 'batch' argument. Returned is the collection of pairs [true|false, stepResult] 
 /// The first pair member is true, if no errors occurred during batch execution.
@@ -394,8 +405,8 @@ object EsDeviceBase
         onIoAttempt();
         // 4) perform rpc call
         rpcId = batchItem[0];
-				// assert RPC id
-				rpcCapsAssert(rpcId);
+        // assert RPC id
+        rpcCapsAssert(rpcId);
         rpcArgs = batchItem[1];
         if( EsRpcStdId$$CAPS_GET == rpcId )
         {
@@ -403,7 +414,7 @@ object EsDeviceBase
           m_caps = result;
         }  
         else
-          result = m_ioMaster.callMethod(rpcSigGetById(rpcId), rpcId, rpcArgs);
+          result = internalCallMaster(rpcId, rpcArgs);
         // call io success handler
         onIoSuccess();
         // 5) handle its result - call result handler, if registered for rpcId
@@ -434,7 +445,7 @@ object EsDeviceBase
     
     return batchResult;
   }
-	
+  
 /// Handle -to device event. Default implementation handles
 /// single, batch, and custom requests
   function evtDestAssert(devIdStr)
@@ -467,165 +478,165 @@ object EsDeviceBase
       evtResponsePost(EsDeviceEvtId$$customResponse, request, result);
     }
   }
-	
+  
 /// Custom request handlers to simplify RPC FS operations
 ///
 /// Internal fsresult substitution helper. Must not be used directly
-	function checkFsResultOnSuccess( result )
-	{
-		if( result[0] && EsFsResult$$OK != result[1] )
-		{
-			result[0] = false;
-			result[1] = fsResultStringGet(result[1]);
-		}
-		
-		return result;
-	}
-	
+  function checkFsResultOnSuccess( result )
+  {
+    if( result[0] && EsFsResult$$OK != result[1] )
+    {
+      result[0] = false;
+      result[1] = fsResultStringGet(result[1]);
+    }
+    
+    return result;
+  }
+  
 /// Start listing objects in specified 'pathAbs' (must be absolute path) directory
-	function dirListStart(dirAbsPath)
-	var result, bs = EsStr::toByteString(dirAbsPath);
-	{
-		// send zero-terminated buffer, including terminating 0
-		bs += B'\0';
-		result = rpcCall(EsRpcStdId$$DIR_LIST_START, bs);
-		result = checkFsResultOnSuccess( result );
-		
-		return result;
-	}
+  function dirListStart(dirAbsPath)
+  var result, bs = EsStr::toByteString(dirAbsPath);
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$DIR_LIST_START, bs);
+    result = checkFsResultOnSuccess( result );
+    
+    return result;
+  }
 
 /// Proceed with directory listing, started by 'dirListStart' call
 /// If directory contains no more entries, the call returns [true, null]
 /// Otherwise, [true, <current EsFsItem>] is returned
-	function dirListGetNextItem()
-	var buff, fsResult, result = rpcCall(EsRpcStdId$$DIR_LIST_NEXT_GET, null);
-	{
-		if( result[0] )
-		{
-			fsResult = result[1];
-			if( !fsResult#isObject() )
-			{
-				if( EsFsResult$$OK != fsResult )
-				{
-					result[0] = false;
-					result[1] = fsResultStringGet(fsResult);
-				}
-				else
-					result[1] = null;
-			}
-			else
-			{
-				// return 'prepared' EsFsItem object, instead of 'compound' EsFsItemResult
-				result[1] = new EsFsItem();
-				result[1].copyFrom(fsResult.f_item);
-			}
-		}
-		 
-		return result;
-	}
+  function dirListGetNextItem()
+  var buff, fsResult, result = rpcCall(EsRpcStdId$$DIR_LIST_NEXT_GET, null);
+  {
+    if( result[0] )
+    {
+      fsResult = result[1];
+      if( !fsResult#isObject() )
+      {
+        if( EsFsResult$$OK != fsResult )
+        {
+          result[0] = false;
+          result[1] = fsResultStringGet(fsResult);
+        }
+        else
+          result[1] = null;
+      }
+      else
+      {
+        // return 'prepared' EsFsItem object, instead of 'compound' EsFsItemResult
+        result[1] = new EsFsItem();
+        result[1].copyFrom(fsResult.f_item);
+      }
+    }
+     
+    return result;
+  }
 
 /// Directory deletion service. If 'force' is true, tries to delete all directory content, if any.
 /// Otherwise, aborts deletion if directory is not empty.
-	function dirDelete(dirAbsPath, force)
-	var bs = EsStr::toByteString(dirAbsPath), args = [], result;
-	{
-		// send zero-terminated buffer, including terminating 0
-		bs += B'\0';	
-		args += bs;
-		args += force;
-		result = rpcCall(EsRpcStdId$$DIR_DELETE, args);
-		result = checkFsResultOnSuccess( result );
-		
-		return result;
-	}
-	
+  function dirDelete(dirAbsPath, force)
+  var bs = EsStr::toByteString(dirAbsPath), args = [], result;
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';  
+    args += bs;
+    args += force;
+    result = rpcCall(EsRpcStdId$$DIR_DELETE, args);
+    result = checkFsResultOnSuccess( result );
+    
+    return result;
+  }
+  
 /// File deletion service.
-	function fileDelete(fileAbsPath)
-	var bs = EsStr::toByteString(fileAbsPath), result;
-	{
-		// send zero-terminated buffer, including terminating 0
-		bs += B'\0';
-		result = rpcCall(EsRpcStdId$$FILE_DELETE, bs);
-		result = checkFsResultOnSuccess( result );
-		
-		return result;
-	}
+  function fileDelete(fileAbsPath)
+  var bs = EsStr::toByteString(fileAbsPath), result;
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$FILE_DELETE, bs);
+    result = checkFsResultOnSuccess( result );
+    
+    return result;
+  }
 
 /// Free filesystem information query service.
-	function fileSysFreeSpaceInfoGet()
-	var result = rpcCall(EsRpcStdId$$FS_FREESPACE_GET, null), infoResult;
-	{
-		if( result[0] )
-		{
-			infoResult = result[1];
-			if( EsFsResult$$OK != infoResult.f_result )
-			{
-				result[0] = false;
-				result[1] = fsResultStringGet(infoResult.f_result);
-			}
-			else
-			{
-				// return 'prepared' EsFsSpaceInfo object instead of 'compound' EsFsSpaceInfoResult
-				result[1] = new EsFsSpaceInfo();
-				result[1].copyFrom(infoResult.f_info);
-			}
-		}
-			
-		return result;
-	}
+  function fileSysFreeSpaceInfoGet()
+  var result = rpcCall(EsRpcStdId$$FS_FREESPACE_GET, null), infoResult;
+  {
+    if( result[0] )
+    {
+      infoResult = result[1];
+      if( EsFsResult$$OK != infoResult.f_result )
+      {
+        result[0] = false;
+        result[1] = fsResultStringGet(infoResult.f_result);
+      }
+      else
+      {
+        // return 'prepared' EsFsSpaceInfo object instead of 'compound' EsFsSpaceInfoResult
+        result[1] = new EsFsSpaceInfo();
+        result[1].copyFrom(infoResult.f_info);
+      }
+    }
+      
+    return result;
+  }
 
-	/// File read service. May perform multiple calls to the low-level RPC
-	/// file read services. Return entire file as binary buffer.
-	function fileRead(fileAbsPath)
-	var bs = EsStr::toByteString(fileAbsPath), fsResult, 
-			f = EsVar::as(EsVariantType$$VAR_BIN_BUFFER), 
-			chunks, chunk, result;
-	{
-		// send zero-terminated buffer, including terminating 0
-		bs += B'\0';
-		result = rpcCall(EsRpcStdId$$FILE_READ_START, bs);
-		if( result[0] )
-		{
-			// todo: notify file read start action
-			fsResult = result[1];
-			if( EsFsResult$$OK != fsResult.f_result )
-			{
-				result[0] = false;
-				result[1] = fsResultStringGet(fsResult.f_result);
-				
-				// todo: notify action end with error
-			}
-			else
-			{
-				chunks = fsResult.f_chunks;
-				chunk = 0;
-				// todo: re-notify file read start action with known range now
-				while( result[0] && chunk < chunks )
-				{
-					result = rpcCall(EsRpcStdId$$FILE_READ_NEXT, null);
-					if( result[0] )
-					{
-						f += result[1];
-						// todo: notify action progress
-					}
-					++chunk;
-				}
-				
-				if( result[0] )
-				{
-					// todo: notify file read action end OK
-					result[1] = f;
-				}
-				else
-				{
-					// todo: notify file read action end with error
-					result[1] = null;
-				}
-			}
-		}
-		
-		return result;
-	}
+  /// File read service. May perform multiple calls to the low-level RPC
+  /// file read services. Return entire file as binary buffer.
+  function fileRead(fileAbsPath)
+  var bs = EsStr::toByteString(fileAbsPath), fsResult, 
+      f = EsVar::as(EsVariantType$$VAR_BIN_BUFFER), 
+      chunks, chunk, result;
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$FILE_READ_START, bs);
+    if( result[0] )
+    {
+      // todo: notify file read start action
+      fsResult = result[1];
+      if( EsFsResult$$OK != fsResult.f_result )
+      {
+        result[0] = false;
+        result[1] = fsResultStringGet(fsResult.f_result);
+        
+        // todo: notify action end with error
+      }
+      else
+      {
+        chunks = fsResult.f_chunks;
+        chunk = 0;
+        // todo: re-notify file read start action with known range now
+        while( result[0] && chunk < chunks )
+        {
+          result = rpcCall(EsRpcStdId$$FILE_READ_NEXT, null);
+          if( result[0] )
+          {
+            f += result[1];
+            // todo: notify action progress
+          }
+          ++chunk;
+        }
+        
+        if( result[0] )
+        {
+          // todo: notify file read action end OK
+          result[1] = f;
+        }
+        else
+        {
+          // todo: notify file read action end with error
+          result[1] = null;
+        }
+      }
+    }
+    
+    return result;
+  }
   
 /// Properties:
 ///   
@@ -637,38 +648,38 @@ object EsDeviceBase
 /// Read-only access to the device fwid string
   property fwIdStr;
   read: { return m_tmpFwIdStr; }
-	
+  
 /// Read-only access to the device fwid
   property fwId;
   read: var tmp = new EsFirmwareId(); { 
     tmp.copyFrom(m_fwId);
     return tmp;
   }
-	
+  
 /// Read-only access to actual (downloaded from physical device itself) capabilities
   property caps;
   read: { return m_caps; }
-	
+  
 /// Return last successful IO timestamp
   property ioSuccessTs;
   read: { return m_ioSuccessTs; }
-	
+  
 /// Return last IO attempt timestamp
   property ioAttemptTs;
   read: { return m_ioAttemptTs; }
-	
+  
 /// Return current count of IO attempt errors
   property ioErrorCount;
   read: { return m_ioErrorCount.asULong(); }
-	
+  
 /// Return currently set io address
   property ioAddr;
   read: { return m_ioAddr.asULong(); }
-	
+  
 /// Return error log collection, if any
   property ioErrorLog;
   read: { return m_ioErrorLog; }
-	
+  
 /// Payload access
   property payload;
   read: { return m_payload; }
@@ -700,7 +711,7 @@ var fwId, rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
   if( !rpcResult#isEmpty() )
   {
     fwId = new EsFirmwareId();
-    fwId$buff = rpcResult#asBinBuffer();
+    fwId$buffer = rpcResult#asBinBuffer();
   }
   
   return fwId;

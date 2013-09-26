@@ -11,26 +11,26 @@
 function devicesDeviceCreate(fwId)
   @help = "Create device instance, provided device fwId, created and initialized|loaded elsewhere";
 {
-  if( deviceTypeIsEkosf(fwId.devType) )
+  if( deviceTypeIsEkosf(fwId$devType) )
   {
-		if( EsDeviceType$$BOI1 == fwId.devType )
-			return new BOI01(fwId);
-    else if( EsDeviceType$$ECOL1 == fwId.devType )
-      return new PHA01(fwId);	
+    if( EsDeviceType$$BOI1 == fwId$devType )
+      return new BOI01(fwId);
+    else if( EsDeviceType$$ECOL1 == fwId$devType )
+      return new PHA01(fwId);  
 // todo: add MK1 and RAD-01 device support
 //    if( EsDeviceType$$ET == fwId.devType )
 //      return new pha01(fwId);
 //    else if( EsDeviceType$$LD1V == fwId.devType)
 //      return new lad01v(fwId);
   }
-  else if( deviceTypeIsOctava(fwId.devType) )
-  {
-    if( EsOctavaDeviceType$$P3811 == fwId.devType ||
-        EsOctavaDeviceType$$P3812 == fwId.devType )
-      return new p3_81_1_2(fwId);
-    else if( EsOctavaDeviceType$$P380E == fwId.devType )
-      return new p3_80E(fwId);
-  }
+//  else if( deviceTypeIsOctava(fwId.devType) )
+// {
+//    if( EsOctavaDeviceType$$P3811 == fwId.devType ||
+//        EsOctavaDeviceType$$P3812 == fwId.devType )
+//      return new p3_81_1_2(fwId);
+//    else if( EsOctavaDeviceType$$P380E == fwId.devType )
+//      return new p3_80E(fwId);
+//  }
   
   /// Otherwise, return default 'Anonymous' device object
   return new EsDeviceBase(fwId);
