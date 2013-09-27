@@ -239,7 +239,7 @@ object EsDeviceBase
 /// Inherited objects must first do their own handling, then call base object method, passing processing result in
 /// handlingResult parameter. Top call should always set this parameter to null
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
-  var handlingResult = null;
+  var handlingResult;
   {
     if( !rpcResult#isEmpty() )
     {
@@ -320,7 +320,7 @@ object EsDeviceBase
 /// Parametric RPC call. Returned is pair [true|false, result], true, if call was successfull, false otherwise
 /// result contains the optional return value of rpcCallResultHandle
   function rpcCall(rpcId, rpcArgs)
-  var result, tmp = [];
+  var rpcResult, result = [];
   {
     // 1) check if m_ioMaster is not null and active
     rpcMasterAssert(m_ioMaster);
@@ -338,20 +338,20 @@ object EsDeviceBase
       // 4) perform rpc call
       if( EsRpcStdId$$CAPS_GET == rpcId )
       {
-        result = m_ioMaster.getImplementedRPCs();
-        m_caps = result;
+        rpcResult = m_ioMaster.getImplementedRPCs();
+        m_caps = rpcResult;
       }
       else
-        result = internalCallMaster(rpcId, rpcArgs);
+        rpcResult = internalCallMaster(rpcId, rpcArgs);
       // call io success handler
       onIoSuccess();
       // 5) handle its result - call result handler, if registered for rpcId
-      result = rpcCallResultHandle(rpcId, rpcArgs, result);
+      rpcResult = rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
       // restore broadcast address
       m_ioMaster$clientAddr = 255;
       // 7) unlock m_ioMaster
       m_ioMaster.unlock();
-      tmp += true; tmp += result;
+      result += true; result#append(rpcResult);
     }
     catch
     {
@@ -361,10 +361,10 @@ object EsDeviceBase
       m_ioMaster$clientAddr = 255;
       // 7) unlock m_ioMaster
       m_ioMaster.unlock();
-      tmp += false; tmp += __exception$reason;
+      result += false; result += __exception$reason;
     }
 
-    return tmp;
+    return result;
   }
   
 /// Batch item checking
@@ -385,7 +385,7 @@ object EsDeviceBase
 /// The first pair member is true, if no errors occurred during batch execution.
 /// Otherwise, the first pair member is false.
   function rpcBatchCall(batch)
-  var batchResult = [], tmp, result, batchItem, rpcId, rpcArgs;
+  var batchResult = [], stepResult, rpcResult, batchItem, rpcId, rpcArgs;
   {
     // 1) check if m_ioMaster is not null and active
     rpcMasterAssert(m_ioMaster);
@@ -410,19 +410,19 @@ object EsDeviceBase
         rpcArgs = batchItem[1];
         if( EsRpcStdId$$CAPS_GET == rpcId )
         {
-          result = m_ioMaster.getImplementedRPCs();
-          m_caps = result;
+          rpcResult = m_ioMaster.getImplementedRPCs();
+          m_caps = rpcResult;
         }  
         else
-          result = internalCallMaster(rpcId, rpcArgs);
+          rpcResult = internalCallMaster(rpcId, rpcArgs);
         // call io success handler
         onIoSuccess();
         // 5) handle its result - call result handler, if registered for rpcId
-        result = rpcCallResultHandle(rpcId, rpcArgs, result);
+        rpcResult = rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
    
-        tmp = [];
-        tmp += true; tmp += result;
-        batchResult#append(tmp);
+        stepResult = [];
+        stepResult += true; stepResult#append(rpcResult);
+        batchResult#append(stepResult);
       }
       // restore broadcast address
       m_ioMaster$clientAddr = 255;
@@ -438,9 +438,9 @@ object EsDeviceBase
       // 7) unlock m_ioMaster
       m_ioMaster.unlock();
       // create result pair
-      tmp = [];
-      tmp += false; tmp += __exception$reason;
-      batchResult#append(tmp);
+      stepResult = [];
+      stepResult += false; stepResult += __exception$reason;
+      batchResult#append(stepResult);
     }
     
     return batchResult;
@@ -509,7 +509,7 @@ object EsDeviceBase
 /// If directory contains no more entries, the call returns [true, null]
 /// Otherwise, [true, <current EsFsItem>] is returned
   function dirListGetNextItem()
-  var buff, fsResult, result = rpcCall(EsRpcStdId$$DIR_LIST_NEXT_GET, null);
+  var fsResult, result = rpcCall(EsRpcStdId$$DIR_LIST_NEXT_GET, null);
   {
     if( result[0] )
     {

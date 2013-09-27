@@ -2,178 +2,178 @@
 // software information
 object EsSoftwareCrcInfo
 {
-	UINT32 f_crcPrev; // previous CRC32 (as calculated by CRC32 IEEE 802.3)
-	UINT32 f_crcCur; 	// current CRC32 (as calculated by CRC32 IEEE 802.3)
-	DATETIME f_ts;		// CRC change timestamp
-	
-	property timestamp;
-	read: { return f_ts; }
-	write: { f_ts = __value; }
+  UINT32 f_crcPrev; // previous CRC32 (as calculated by CRC32 IEEE 802.3)
+  UINT32 f_crcCur;   // current CRC32 (as calculated by CRC32 IEEE 802.3)
+  DATETIME f_ts;    // CRC change timestamp
+  
+  property timestamp;
+  read: { return f_ts; }
+  write: { f_ts = __value; }
 
-	property crcPrevious;
-	read: { return f_crcPrev; }
-	write: { f_crcPrev = __value#asULong(); }
-	
-	property crcCurrent;
-	read: { return f_crcCur; }
-	write: { f_crcCur = __value#asULong(); }
+  property crcPrevious;
+  read: { return f_crcPrev; }
+  write: { f_crcPrev = __value#asULong(); }
+  
+  property crcCurrent;
+  read: { return f_crcCur; }
+  write: { f_crcCur = __value#asULong(); }
 }
 
 object EsFirmwareSwInfo
 {
-	UINT8 f_name[64];
-	UINT8 f_file[32];
-	EsSoftwareCrcInfo f_crc;
-	
-	property name;
-	read: { return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251); }
-	write: 
-	var idx = 0, ch, name = EsStr::toByteString(__value, EsStrByteEncoding$$CP1251);
-	{
-		foreach( ch in name )
-		{
-			f_name[idx] = ch;
-			++idx;
-			if( idx >= 64 )
-				break;
-		}
-		// add zero-terminator if name string is shorter than 64 symbols, and there is no terminator at the end already
-		if( idx < 64 && 0 != f_name[idx-1] )
-			f_name[idx] = 0;
-	}
-	
-	property file;
-	read: { return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251); }
-	write:
-	var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper( __value ), EsStrByteEncoding$$CP1251);
-	{
-		foreach( ch in file )
-		{
-			f_file[idx] = ch;
-			++idx;
-			if( idx >= 32 )
-				break;
-		}
-		// add zero-terminator if file string is shorter than 32 symbols, and there is no terminator at the end already
-		if( idx < 32 && 0 != f_file[idx-1] )
-			f_file[idx] = 0;
-	}
+  UINT8 f_name[64];
+  UINT8 f_file[32];
+  EsSoftwareCrcInfo f_crc;
+  
+  property name;
+  read: { return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251); }
+  write: 
+  var idx = 0, ch, name = EsStr::toByteString(__value, EsStrByteEncoding$$CP1251);
+  {
+    foreach( ch in name )
+    {
+      f_name[idx] = ch;
+      ++idx;
+      if( idx >= 64 )
+        break;
+    }
+    // add zero-terminator if name string is shorter than 64 symbols, and there is no terminator at the end already
+    if( idx < 64 && 0 != f_name[idx-1] )
+      f_name[idx] = 0;
+  }
+  
+  property file;
+  read: { return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251); }
+  write:
+  var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper( __value ), EsStrByteEncoding$$CP1251);
+  {
+    foreach( ch in file )
+    {
+      f_file[idx] = ch;
+      ++idx;
+      if( idx >= 32 )
+        break;
+    }
+    // add zero-terminator if file string is shorter than 32 symbols, and there is no terminator at the end already
+    if( idx < 32 && 0 != f_file[idx-1] )
+      f_file[idx] = 0;
+  }
 
-	property crcInfo;
-	read: { return f_crc; }
+  property crcInfo;
+  read: { return f_crc; }
 }
 
 object EsSoftwareInfo 
-	@fixedSize = 192;
+  @fixedSize = 192;
 {
-	EsFirmwareSwInfo f_fwSwInfo;
-	EsSoftwareCrcInfo f_crcCalibration;
-	
-	property fwSoftwareInfo;
-	read: { return f_fwSwInfo; }
-	
-	property calibrationCrcInfo;
-	read: { return f_crcCalibration; }
+  EsFirmwareSwInfo f_fwSwInfo;
+  EsSoftwareCrcInfo f_crcCalibration;
+  
+  property fwSoftwareInfo;
+  read: { return f_fwSwInfo; }
+  
+  property calibrationCrcInfo;
+  read: { return f_crcCalibration; }
 }
 
 // power status flag masks
 enum EsPowerStatusFlag
 {
-	BATTERY 			= 0x01, "Battery attached";
-	AUX		 				= 0x02, "Auxiliary power is ON";
-	CHARGING 			= 0x04, "Battery is charging";
-	FAST_CHARGING = 0x08, "Battery is fast charging";
+  BATTERY       = 0x01, "Battery attached";
+  AUX             = 0x02, "Auxiliary power is ON";
+  CHARGING       = 0x04, "Battery is charging";
+  FAST_CHARGING = 0x08, "Battery is fast charging";
 }
 
 object EsPowerStatus
-	@help = "Device power status object";
+  @help = "Device power status object";
 {
-	UINT16 min;
-	UINT16 cur;
-	UINT16 max;
-	UINT8	flags;
-	
-	function percentGet()
-		@help = "Return power level in percents";
-		var deltaFull = max-min, deltaCur = cur-min;
-	{
-		if( 0 == deltaFull )
-			return 0.;
-	
-		if( deltaCur < 0 )
-			deltaCur = 0;
-		
-		if( deltaCur > deltaFull )
-			deltaCur = deltaFull;
-			
-		return 100. * deltaCur / deltaFull;
-	}
-	
-	// handy flags components reading
-	function isOnBattery()
-	{
-		return flags & EsPowerStatusFlag$$BATTERY;
-	}
+  UINT16 min;
+  UINT16 cur;
+  UINT16 max;
+  UINT8  flags;
+  
+  function percentGet()
+    @help = "Return power level in percents";
+    var deltaFull = max-min, deltaCur = cur-min;
+  {
+    if( 0 == deltaFull )
+      return 0.;
+  
+    if( deltaCur < 0 )
+      deltaCur = 0;
+    
+    if( deltaCur > deltaFull )
+      deltaCur = deltaFull;
+      
+    return 100. * deltaCur / deltaFull;
+  }
+  
+  // handy flags components reading
+  function isOnBattery()
+  {
+    return flags & EsPowerStatusFlag$$BATTERY;
+  }
 
-	function isOnAuxPower()
-	{
-		return flags & EsPowerStatusFlag$$AUX;
-	}
+  function isOnAuxPower()
+  {
+    return flags & EsPowerStatusFlag$$AUX;
+  }
 
-	function isCharging()
-	{
-		return flags & EsPowerStatusFlag$$CHARGING;
-	}
+  function isCharging()
+  {
+    return flags & EsPowerStatusFlag$$CHARGING;
+  }
 
-	function asString()
-	var flagsStr = "";
-	{
-		if( isOnBattery() ) 
-			flagsStr += EsPowerStatusFlag$$BATTERY$$label;
-		if( isOnAuxPower() )
-		{
-			if( flagsStr )
-				flagsStr += ", ";
-			flagsStr += EsPowerStatusFlag$$AUX$$label;
-		}
-		if( isCharging() )
-		{
-			if( flagsStr )
-				flagsStr += ", ";
-			flagsStr += EsPowerStatusFlag$$CHARGING$$label;
-		}
-		return EsStr::format("Power level: %0.1f%%, status: %s", percentGet(), flagsStr);
-	}	
-	
-	property level;
-	read: { return percentGet(); }
-	
-	property usesBattery;
-	read: { return isOnBattery(); }
+  function asString()
+  var flagsStr = "";
+  {
+    if( isOnBattery() ) 
+      flagsStr += EsPowerStatusFlag$$BATTERY$$label;
+    if( isOnAuxPower() )
+    {
+      if( flagsStr )
+        flagsStr += ", ";
+      flagsStr += EsPowerStatusFlag$$AUX$$label;
+    }
+    if( isCharging() )
+    {
+      if( flagsStr )
+        flagsStr += ", ";
+      flagsStr += EsPowerStatusFlag$$CHARGING$$label;
+    }
+    return EsStr::format("Power level: %0.1f%%, status: %s", percentGet(), flagsStr);
+  }  
+  
+  property level;
+  read: { return percentGet(); }
+  
+  property usesBattery;
+  read: { return isOnBattery(); }
 
-	property usesAuxPower;
-	read: { return isOnAuxPower(); }
-	
-	property charging;
-	read: { return isCharging(); }
+  property usesAuxPower;
+  read: { return isOnAuxPower(); }
+  
+  property charging;
+  read: { return isCharging(); }
 }
 
 // memory space units
 enum EsMemoryUnit
 {
-	Bytes 	= 0, "Bytes";
-	Kbytes 	= 1, "Kilobytes";
-	Mbytes	= 2, "Megabytes";
-	Gbytes	= 3, "Gigabytes";
+  Bytes   = 0, "Bytes";
+  Kbytes   = 1, "Kilobytes";
+  Mbytes  = 2, "Megabytes";
+  Gbytes  = 3, "Gigabytes";
 }
 
 object EsMemSpaceInfo 
 {
-	UINT16 count;
-	UINT16 frac;
-	UINT8 unit;
-		@restriction = EsMemoryUnit;
-	UINT8 dummy;
+  UINT16 count;
+  UINT16 frac;
+  UINT8 unit;
+    @restriction = EsMemoryUnit;
+  UINT8 dummy;
 }
 
 /// RPC accessed filesystem - related structs and enums
@@ -181,37 +181,37 @@ object EsMemSpaceInfo
 /// File system item attribute enumeration
 enum EsFsItemAttribute
 {
-	ReadOnly				= 0x01, "Read only";
-	Hidden					= 0x02, "Hidden";
-	System					= 0x04, "System";
-	VolumeLabel			= 0x08, "Volume";
-	Directory				= 0x10, "Directory";
-	Archive					= 0x20, "Archive";
+  ReadOnly        = 0x01, "Read only";
+  Hidden          = 0x02, "Hidden";
+  System          = 0x04, "System";
+  VolumeLabel      = 0x08, "Volume";
+  Directory        = 0x10, "Directory";
+  Archive          = 0x20, "Archive";
 }
 
 /// File system request result enumeration
 enum EsFsResult 
 {
-	OK 									= 0, "Succeeded";
-	ErrHardware					= 1, "A hardware error occurred in the low level storage I/O layer";
-	ErrInternal					= 2, "Internal storage engine operation failed";
-	ErrNotReady					= 3, "The storage hardware is not ready";
-	ErrNoFile						= 4, "File is not found";
-	ErrNoPath						= 5, "Path is not found";
-	ErrNameInvalid			= 6, "The filesystem object's name is invalid";
-	ErrAccessDenied			= 7, "Access to filesystem object is denied";
-	ErrExist						= 8, "Filesystem object already exists";
-	ErrObjectInvalid		= 9, "Filesystem object is invalid";
-	ErrWriteProtected		= 10,"The storage is write protected";
-	ErrDriveInvalid			= 11,"The logical drive is invalid";
-	ErrNoWorkarea				= 12,"The volume has no work area";
-	ErrNoFilesystem			= 13,"There is no valid filesystem found";
-	ErrMakeFilesystem		= 14,"The 'make filesystem' call was aborted due to any parameter error";
-	ErrAccessTmo				= 15,"Could not acquire access the filesystem within defined period";
-	ErrLocked 					= 16,"The filesystem operation was rejected due to sharing violation";
-	ErrNotEnoughMem			= 17,"Working buffer could not be allocated, not enough memory";
-	ErrTooManyOpenFiles	= 18,"Open files count exceeds the allowed margin";
-	ErrParamInvalid			= 19,"Filesystem low level operation parameter is invalid";
+  OK                   = 0, "Succeeded";
+  ErrHardware          = 1, "A hardware error occurred in the low level storage I/O layer";
+  ErrInternal          = 2, "Internal storage engine operation failed";
+  ErrNotReady          = 3, "The storage hardware is not ready";
+  ErrNoFile            = 4, "File is not found";
+  ErrNoPath            = 5, "Path is not found";
+  ErrNameInvalid      = 6, "The filesystem object's name is invalid";
+  ErrAccessDenied      = 7, "Access to filesystem object is denied";
+  ErrExist            = 8, "Filesystem object already exists";
+  ErrObjectInvalid    = 9, "Filesystem object is invalid";
+  ErrWriteProtected    = 10,"The storage is write protected";
+  ErrDriveInvalid      = 11,"The logical drive is invalid";
+  ErrNoWorkarea        = 12,"The volume has no work area";
+  ErrNoFilesystem      = 13,"There is no valid filesystem found";
+  ErrMakeFilesystem    = 14,"The 'make filesystem' call was aborted due to any parameter error";
+  ErrAccessTmo        = 15,"Could not acquire access the filesystem within defined period";
+  ErrLocked           = 16,"The filesystem operation was rejected due to sharing violation";
+  ErrNotEnoughMem      = 17,"Working buffer could not be allocated, not enough memory";
+  ErrTooManyOpenFiles  = 18,"Open files count exceeds the allowed margin";
+  ErrParamInvalid      = 19,"Filesystem low level operation parameter is invalid";
 }
 
 // File system item struct. used in rpc
@@ -219,61 +219,64 @@ enum EsFsResult
 //
 object EsFsItem
 {
-	UINT32 f_size;		/// <file size
-	DATETIME f_ts;		/// <file time stamp
-	UINT8	f_attrs;		/// <file attributes
-	UINT8 f_name[13];	/// <file name (short)
-	
+  UINT32 f_size;    /// <file size
+  DATETIME f_ts;    /// <file time stamp
+  UINT8  f_attrs;    /// <file attributes
+  UINT8 f_name[13];  /// <file name (short)
+  
 /// Properties
 ///
 /// Item name access as string
-	property name;
-	read: { return EsStr::fromByteString(f_name$buffer); }
-	write: 
-	var bs = EsStr::toByteString(__value);
-	{	
-		bs#countSet(f_name$size);
-		bs[f_name$size-1] = 0;
-		f_name$buffer = bs; 
-	}
+  property name;
+  read: { return EsStr::fromByteString(f_name$buffer); }
+  write: 
+  var bs = EsStr::toByteString(__value);
+  {  
+    bs#countSet(f_name$size);
+    bs[f_name$size-1] = 0;
+    f_name$buffer = bs; 
+  }
 }
 
 /// File system enumeration|search result struct
 object EsFsItemResult
 {
-	UINT16 f_result;
-	if( EsFsResult$$OK == f_result )
-		EsFsItem f_item;
+  UINT16 f_result;
+  if( EsFsResult$$OK == f_result )
+    EsFsItem f_item;
 }
 
 /// File system space info
 object EsFsSpaceInfo
 {
-	EsMemSpaceInfo f_total;
-	EsMemSpaceInfo f_free;
+  EsMemSpaceInfo f_total;
+  EsMemSpaceInfo f_free;
 }
 
 /// File system free space info query result
 object EsFsSpaceInfoResult
 {
-	UINT16 f_result;
-	if( EsFsResult$$OK == f_result )
-		EsFsSpaceInfo f_info;
+  UINT16 f_result;
+  if( EsFsResult$$OK == f_result )
+    EsFsSpaceInfo f_info;
 }
 
 /// File read request result
 object EsFsFileReadRequest
 {
-	UINT16 f_result;
-	if( EsFsResult$$OK == f_result )
-		UINT32 f_chunks;
+  UINT16 f_result;
+  if( EsFsResult$$OK == f_result )
+    UINT32 f_chunks;
 }
 
 function fsResultStringGet(fsResult)
 {
-	if( fsResult in EsFsResult )
-		return EsFsResult.valueLabelGet(fsResult);
-		
-	return EsStr::format("Unknown filesystem operation result code: %d", fsResult);
+  if( fsResult in EsFsResult )
+    return EsFsResult.valueLabelGet(fsResult);
+  
+  if( !fsResult#isEmpty() )
+    return EsStr::format("Unknown filesystem operation result code: %d", fsResult);
+    
+  return "";
 }
 // --------------------------- end standard device objects

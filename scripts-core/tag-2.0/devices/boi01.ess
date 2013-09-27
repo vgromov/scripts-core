@@ -147,106 +147,102 @@ object BOI01 extends EsDeviceBase
   var plgItems, plgItem, plgDataTypeItems, plgDataTypeItem,
     plgDevBlockItems, plgDevBlockItem, plgSessionItems, plgSessionItem,
     plgRec, plgTypeRec, plgStr, plgDescr,  plgDataTypeStr, plgDataTypeDescr, sessName, sessTs,
-    deviceSerial,  plgDataDir, plgDataTypeDir, plgDeviceSessionsDir, result, internalResult,
+    deviceSerial,  plgDataDir, plgDataTypeDir, plgDeviceSessionsDir,
     pluginBlocks = [], pluginBlock = ["", null], 
     dataBlocks, dataBlock = ["", null], 
     deviceDataBlocks, deviceDataBlock = ["", null],
-    deviceSessions, deviceSession = ["", "", 0];
+    deviceSessions, deviceSession = ["", "", 0],
+    internalResult, result = dirItemsEnum("/", [".", ".."], EsFsItemAttribute$$Directory);
   {
     if( result[0] )
     {
-      result = dirItemsEnum("/", [".", ".."], EsFsItemAttribute$$Directory);
-      if( result[0] )
+      plgItems = result[1];
+      // for each plugin dir enumerate its data dir
+      foreach(plgItem in plgItems)
       {
-        plgItems = result[1];
-        // for each plugin dir enumerate its data dir
-        foreach(plgItem in plgItems)
+        // fill-in plugin block info
+        plgStr = plgItem$name;
+        plgRec = deviceHubPluginFunctionalityRecordGet(EsDeviceType$$BOI1, plgStr);
+        if( plgRec#isEmpty() )
+          plgDescr = EsStr::format("Unknown/unsupported plugin: '%s'", plgStr);
+        else
+          plgDescr = plgRec[EsHubDatabaseField$$PluginDescrLong];
+        pluginBlock[0] = plgDescr;
+        dataBlocks = [];
+        // enumerate only known|supported plugin data
+        if( !plgRec#isEmpty() )
         {
-          // fill-in plugin block info
-          plgStr = plgItem$name;
-          plgRec = deviceHubPluginFunctionalityRecordGet(EsDeviceType$$BOI1, plgStr);
-          if( plgRec#isEmpty() )
-            plgDescr = EsStr::format("Unknown/unsupported plugin: '%s'", plgStr);
-          else
-            plgDescr = plgRec[EsHubDatabaseField$$PluginDescrLong];
-          pluginBlock[0] = plgDescr;
-          dataBlocks = [];
-          // enumerate only known|supported plugin data
-          if( !plgRec#isEmpty() )
+          plgDataDir = "/"+plgStr+"/DATA/";
+          internalResult = dirItemsEnum(plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
+          if( internalResult[0] )
           {
-            plgDataDir = "/"+plgStr+"/DATA/";
-            internalResult = dirItemsEnum(plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
-            if( internalResult[0] )
+            plgDataTypeItems = internalResult[1];
+            // fill-in plugin data blocks
+            foreach(plgDataTypeItem in plgDataTypeItems)
             {
-              plgDataTypeItems = internalResult[1];
-              // fill-in plugin data blocks
-              foreach(plgDataTypeItem in plgDataTypeItems)
+              plgDataTypeStr = plgDataTypeItem$name;
+              plgTypeRec = deviceHubPluginDataTypeRecordGet(EsDeviceType$$BOI1, plgStr, plgDataTypeStr);
+              if( plgTypeRec#isEmpty() )
+                plgDataTypeDescr = EsStr::format("Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
+              else
+                plgDataTypeDescr = plgTypeRec[1];
+              
+              dataBlock[0] = plgDataTypeDescr;
+              deviceDataBlocks = [];
+              // enumerate device data blocks only for known data types
+              if( !plgTypeRec#isEmpty() )
               {
-                plgDataTypeStr = plgDataTypeItem$name;
-                plgTypeRec = deviceHubPluginDataTypeRecordGet(EsDeviceType$$BOI1, plgStr, plgDataTypeStr);
-                if( plgTypeRec#isEmpty() )
-                  plgDataTypeDescr = EsStr::format("Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
-                else
-                  plgDataTypeDescr = plgTypeRec[1];
-                
-                dataBlock[0] = plgDataTypeDescr;
-                deviceDataBlocks = [];
-                // enumerate device data blocks only for known data types
-                if( !plgTypeRec#isEmpty() )
+                plgDataTypeDir = plgDataDir+plgDataTypeStr+"/";
+                internalResult = dirItemsEnum(plgDataTypeDir, [".", ".."], EsFsItemAttribute$$Directory);
+                if( internalResult[0] )
                 {
-                  plgDataTypeDir = plgDataDir+plgDataTypeStr+"/";
-                  internalResult = dirItemsEnum(plgDataTypeDir, [".", ".."], EsFsItemAttribute$$Directory);
-                  if( internalResult[0] )
+                  plgDevBlockItems = internalResult[1];
+                  foreach(plgDevBlockItem in plgDevBlockItems)
                   {
-                    plgDevBlockItems = internalResult[1];
-                    foreach(plgDevBlockItem in plgDevBlockItems)
+                    deviceSerial = plgDevBlockItem$name;
+                    deviceDataBlock[0] = deviceSerial;
+                    deviceSessions = [];
+                    // enumerate device sessions
+                    plgDeviceSessionsDir = plgDataTypeDir+deviceSerial+"/";
+                    internalResult = dirItemsEnum(plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
+                    if( internalResult[0] )
                     {
-                      deviceSerial = plgDevBlockItem$name;
-                      deviceDataBlock[0] = deviceSerial;
-                      deviceSessions = [];
-                      // enumerate device sessions
-                      plgDeviceSessionsDir = plgDataTypeDir+deviceSerial+"/";
-                      internalResult = dirItemsEnum(plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
-                      if( internalResult[0] )
+                      plgSessionItems = internalResult[1];
+                      foreach(plgSessionItem in plgSessionItems)
                       {
-                        plgSessionItems = internalResult[1];
-                        foreach(plgSessionItem in plgSessionItems)
-                        {
-                          sessName = plgSessionItem$name;
-                          sessTs = sessionNameExpand(sessName);
-                          deviceSession[0] = plgDeviceSessionsDir+sessName;
-                          deviceSession[1] = sessTs;
-                          deviceSession[2] = plgSessionItem.f_size;
-                          
-                          deviceSessions#append(deviceSession);
-                        }
+                        sessName = plgSessionItem$name;
+                        sessTs = sessionNameExpand(sessName);
+                        deviceSession[0] = plgDeviceSessionsDir+sessName;
+                        deviceSession[1] = sessTs;
+                        deviceSession[2] = plgSessionItem.f_size;
+                        
+                        deviceSessions#append(deviceSession);
                       }
-                      else
-                        return internalResult;
-                      
-                      deviceDataBlock[1] = deviceSessions;
-                      deviceDataBlocks#append(deviceDataBlock);
                     }
+                    else
+                      return internalResult;
+                    
+                    deviceDataBlock[1] = deviceSessions;
+                    deviceDataBlocks#append(deviceDataBlock);
                   }
-                  else
-                    return internalResult;
                 }
-                
-                dataBlock[1] = deviceDataBlocks;
-                dataBlocks#append(dataBlock);
+                else
+                  return internalResult;
               }
+              
+              dataBlock[1] = deviceDataBlocks;
+              dataBlocks#append(dataBlock);
             }
-            else
-              return internalResult;
           }
-          
-          pluginBlock[1] = dataBlocks;
-          pluginBlocks#append(pluginBlock);
+          else
+            return internalResult;
         }
+        
+        pluginBlock[1] = dataBlocks;
+        pluginBlocks#append(pluginBlock);
       }
-      
-      result[1] = pluginBlocks;
     }
+    result[1] = pluginBlocks;
 
     return result;
   }
