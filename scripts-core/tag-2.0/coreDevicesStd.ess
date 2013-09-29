@@ -232,8 +232,8 @@ object EsFsItem
   write: 
   var bs = EsStr::toByteString(__value);
   {  
-    bs#countSet(f_name$size);
-    bs[f_name$size-1] = 0;
+    bs#countSet(13);
+    bs[12] = 0;
     f_name$buffer = bs; 
   }
 }
