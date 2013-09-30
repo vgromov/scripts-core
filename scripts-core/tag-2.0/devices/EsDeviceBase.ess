@@ -482,12 +482,14 @@ object EsDeviceBase
 /// Custom request handlers to simplify RPC FS operations
 ///
 /// Internal fsresult substitution helper. Must not be used directly
-  function checkFsResultOnSuccess( result )
+  function checkFsResultOnSuccess( result, fsItemName )
   {
     if( result[0] && EsFsResult$$OK != result[1] )
     {
       result[0] = false;
       result[1] = fsResultStringGet(result[1]);
+			if( !fsItemName#isEmpty() )
+				result[1] += ": '" + fsItemName + "'";
     }
     
     return result;
@@ -500,7 +502,7 @@ object EsDeviceBase
     // send zero-terminated buffer, including terminating 0
     bs += B'\0';
     result = rpcCall(EsRpcStdId$$DIR_LIST_START, bs);
-    result = checkFsResultOnSuccess( result );
+    result = checkFsResultOnSuccess( result, dirAbsPath );
     
     return result;
   }
@@ -545,7 +547,7 @@ object EsDeviceBase
     args += bs;
     args += force;
     result = rpcCall(EsRpcStdId$$DIR_DELETE, args);
-    result = checkFsResultOnSuccess( result );
+    result = checkFsResultOnSuccess( result, dirAbsPath );
     
     return result;
   }
@@ -557,7 +559,7 @@ object EsDeviceBase
     // send zero-terminated buffer, including terminating 0
     bs += B'\0';
     result = rpcCall(EsRpcStdId$$FILE_DELETE, bs);
-    result = checkFsResultOnSuccess( result );
+    result = checkFsResultOnSuccess( result, fileAbsPath );
     
     return result;
   }
@@ -603,7 +605,8 @@ object EsDeviceBase
       {
         result[0] = false;
         result[1] = fsResultStringGet(fsResult.f_result);
-        
+        if( !fileAbsPath#isEmpty() )
+					result[1] += ": '" + fileAbsPath + "'";
         // todo: notify action end with error
       }
       else

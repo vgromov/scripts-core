@@ -172,7 +172,7 @@ object BOI01 extends EsDeviceBase
         // enumerate only known|supported plugin data
         if( !plgRec#isEmpty() )
         {
-          plgDataDir = "/"+plgStr+"/DATA/";
+          plgDataDir = "/"+plgStr+"/DATA";
           internalResult = dirItemsEnum(plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
           if( internalResult[0] )
           {
@@ -192,7 +192,7 @@ object BOI01 extends EsDeviceBase
               // enumerate device data blocks only for known data types
               if( !plgTypeRec#isEmpty() )
               {
-                plgDataTypeDir = plgDataDir+plgDataTypeStr+"/";
+                plgDataTypeDir = plgDataDir+"/"+plgDataTypeStr;
                 internalResult = dirItemsEnum(plgDataTypeDir, [".", ".."], EsFsItemAttribute$$Directory);
                 if( internalResult[0] )
                 {
@@ -203,7 +203,7 @@ object BOI01 extends EsDeviceBase
                     deviceDataBlock[0] = deviceSerial;
                     deviceSessions = [];
                     // enumerate device sessions
-                    plgDeviceSessionsDir = plgDataTypeDir+deviceSerial+"/";
+                    plgDeviceSessionsDir = plgDataTypeDir+"/"+deviceSerial;
                     internalResult = dirItemsEnum(plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
                     if( internalResult[0] )
                     {
@@ -212,9 +212,9 @@ object BOI01 extends EsDeviceBase
                       {
                         sessName = plgSessionItem$name;
                         sessTs = sessionNameExpand(sessName);
-                        deviceSession[0] = plgDeviceSessionsDir+sessName;
+                        deviceSession[0] = plgDeviceSessionsDir+"/"+sessName;
                         deviceSession[1] = sessTs;
-                        deviceSession[2] = plgSessionItem.f_size;
+                        deviceSession[2] = plgSessionItem.f_size$value;
                         
                         deviceSessions#append(deviceSession);
                       }

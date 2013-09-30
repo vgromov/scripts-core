@@ -28,209 +28,76 @@ enum EsBinDataFileRegistry
 {
   Tags = 0;
   DataEntryTypes = 1;
-  LUX = 0;
-  CDM = 1;
-  KEO = 2;
-  TH = 3;
-  THV = 4;
-  IDX = 5;
-  BE = 6;
-  BEROT = 7;
 }
 
-const c_binDataFileRegistry = [[
-// pha-01 tags
+const c_binDataFileRegistry = [
+[
+/// pha-01 tags
+/// old ones
 "LUX     ", 
 "CDM     ", 
 "KEO     ",
-// mk-01 tags
+/// new ones
+"PHA01LUX",
+"PHA01CDM",
+"PHA01KEO",
+/// mk-01 tags
+/// old ones
 "TH      ", 
 "THV     ", 
-"IDX     "
+"IDX     ",
+/// new ones
+"ET01TH  ",
+"ET01THV ",
+"ET01IDX ",
+/// OCTAVA
+/// OCTAVA P381x
+"P381XGM ",
+"P381XCM ",
+"P381X50M",
+/// OCTAVA P380e
+"P380EST ",
+/// Radon radiometer RAD01
+"RAD01   "
 ],
+/// Data entry parsers registry
 [
-// pha-01 data entries
+/// pha-01 data entries
+/// old ones
 "EsBinDataFileIlluminosityEntry", 
 "EsBinDataFileLuminosityEntry",
 "EsBinDataFileKeoEntry",
-// mk-01 data entries
+/// new ones
+"EsBinDataFileIlluminosityEntry2", 
+"EsBinDataFileLuminosityEntry2",
+"EsBinDataFileKeoEntry",
+/// mk-01 data entries
+/// old ones
 "EsBinDataFileClimaticBaseEntry",
 "EsBinDataFileClimaticVelocityEntry",
-"EsBinDataFileClimaticIndexesEntry"
-]];
+"EsBinDataFileClimaticIndexesEntry",
+/// new ones
+"EsBinDataFileClimaticBaseEntry",
+"EsBinDataFileClimaticVelocityEntry",
+"EsBinDataFileClimaticIndexesEntry",
+/// OCTAVA entries
+/// OCTAVA P381x
+"P381xGeoDataEntry",
+"P381xConstDataEntry",
+"P381x50hzDataEntry",
+/// OCTAVA P380E
+"P380eDataEntry",
+/// Radon radiometer RAD-01
+"UINT16"
+]
+];
 
-// todo: new data entries tags
-// // ECOLIGHT01 == PHA01
-// const BYTE c_luxHdrTag[FileTag_SZE]        = "PHA01LUX";
-// const BYTE c_cdmHdrTag[FileTag_SZE]        = "PHA01CDM";
-// const BYTE c_keoHdrTag[FileTag_SZE]        = "PHA01KEO";
-// // EKOTERMA
-// const BYTE c_thHdrTag[FileTag_SZE]        = "ET01TH  ";
-// const BYTE c_thvHdrTag[FileTag_SZE]        = "ET01THV ";
-// const BYTE c_idxHdrTag[FileTag_SZE]        = "ET01IDX ";
-// // OCTAVA P381x
-// const BYTE c_p381xGeoHdrTag[FileTag_SZE]  = "P381XGM ";
-// const BYTE c_p381xConstHdrTag[FileTag_SZE]= "P381XCM ";
-// const BYTE c_p381x50hzHdrTag[FileTag_SZE] = "P381X50M";
-// // OCTAVA P380e
-// const BYTE c_p380eHdrTag[FileTag_SZE]      = "P380EST ";
-// // RAD01 radon radiometer
-// const BYTE c_rad01HdrTag[FileTag_SZE]      = "RAD01   ";
-
-// todo: new data structures
-// // RAD01 data header. NB! radiometer data file is one per spectrum
-// // i.e. session == spectrum
-// typedef struct {
-  // // custom header tag: RAD01
-  // BYTE tag[FileTag_SZE];
-  // // which hub was used to gather data
-  // HubFirmwareID hubId;
-  // // which appliance was used to gather data
-  // ApplianceFirmwareID applId;
-  // // spectrum header
-  // DATETIME ts;       // timestamp
-  // UINT32 errs;      // state of latched errors at the beginning of measurements
-  // UINT16 tPump;      // pumping duration in seconds
-  // UINT16 tMsr;      // measurement duration in minutes
-  // FLOAT na;          // calculated activity in marked windows
-  // UINT32 nt;
-  // FLOAT temperature;// temperature in C
-  // FLOAT humidity;    // relative humidity in %
-  // FLOAT pressure;    // pressure in mm Hg
-  // UINT8 state;      // radiometer state during measurement
-  // UINT8 pumpSpeed;  // pump speed at which measurement was made
-  // UINT8 markers[3];  // 3 spectrum markers, M0-M1-M2, used in activity measurements
-
-// } Rad01DataHdr;
-
-// // data entry recods
-// //
-// // ECOLIGHT1 AKA PHA01
-// //
-// // PHA01 - lux & cdm
-// typedef struct {
-  // DATETIME   ts;
-  // FLOAT      cdm;
-  // FLOAT      kp;
-
-// } CdmDataEntry;
-
-// typedef struct {
-  // DATETIME   ts;
-  // FLOAT     luxOrg;        // original illuminosity
-  // FLOAT     luxBgnd;      // measured background illuminosity
-  // FLOAT     lux;          // illuminosity-bgnd level
-  // FLOAT      kpOrg;        // original pulsation
-  // FLOAT      kp;            // resulting pulsation
-  // UINT16    bgndDuration; // duration of background measurements in seconds
-
-// } LuxDataEntry;
-
-// // PHA01 - keo
-// typedef struct {
-  // DATETIME   ts;        // timestamp of the base appliance data
-  // FLOAT      lux;      // base appliance lux
-  // FLOAT      luxExt;    // external appliance lux
-  // FLOAT      keo;      // calculated keo
-
-// } KeoDataEntry;
-
-// // EKOTERMA
-// //
-// // EKOTERMA-TH
-// typedef struct {
-  // DATETIME   ts;        // timestamp of the moment when data snapshot was taken
-  // UINT32    mask;
-  // FLOAT      tA;
-  // FLOAT      rH;
-  // FLOAT      tD;
-  // FLOAT      tW;
-  // FLOAT      p;
-
-// } ThDataEntry;
-
-// // EKOTERMA-THV
-// typedef struct {
-  // DATETIME   ts;        // timestamp of the moment when data snapshot was taken
-  // UINT32    mask;
-  // FLOAT      tA;
-  // FLOAT      rH;
-  // FLOAT      tD;
-  // FLOAT      tW;
-  // FLOAT      tR;
-  // FLOAT      t0;
-  // FLOAT      w;
-  // FLOAT      u;
-  // FLOAT      p;
-
-// } ThvDataEntry;
-
-// // EKOTERMA-IDX
-// typedef struct {
-  // DATETIME   ts;        // timestamp of the moment when data snapshot was taken
-  // UINT32    mask;  
-  // FLOAT      tA;
-  // FLOAT      rH;
-  // FLOAT      tD;
-  // FLOAT      tW;
-  // FLOAT      tG;
-  // FLOAT      wBgt;
-  // FLOAT      wBgts;
-  // FLOAT      p;
-
-// } IdxDataEntry;
-
-// // OCTAVA P381_X
-// //
-// // geomagnetic data
-// typedef struct {
-  // DATETIME   ts;  // timestamp of the moment when data snapshot was taken
-  // UINT32 duration; // msr duration in s
-  // FLOAT mktlExt;  // external field in mktl
-  // DATETIME extTs; // timestamp of external field measurement
-  // FLOAT mktlCur; // current field in mktl
-  // FLOAT mktlMin;  // minimum internal field in mktl detected during measurement
-  // FLOAT attCur;  // current attenuation 
-  // FLOAT attMax;  // maximal attenuation detected during measurement
-
-// } P381xGeoDataEntry;
-
-// // constant magnetic data
-// typedef struct {
-  // DATETIME   ts;  // timestamp of the moment when data snapshot was taken
-  // UINT32 duration; // msr duration in s
-  // FLOAT mktlCur; // current field in mktl
-  // FLOAT mktlMax;  // maximum field in mktl detected during measurement
-
-// } P381xConstDataEntry;
-
-// // 50hz magnetic data
-// typedef struct {
-  // DATETIME   ts;  // timestamp of the moment when data snapshot was taken
-  // UINT32 duration; // msr duration in s
-  // FLOAT mktlCur; // current field in mktl
-  // FLOAT mktlMax;  // maximum field in mktl detected during measurement
-
-// } P381x50hzDataEntry;
-
-// // OCTAVA P380E
-// //
-// // electrostatic data
-// typedef struct {
-  // DATETIME   ts;      // timestamp of the moment when data snapshot was taken
-  // UINT32 duration;  // msr duration in s
-  // FLOAT e;          // current field in V/m
-  // FLOAT eMin;        // minimum field in V/m detected during measurement
-  // FLOAT eMax;
-
-// } P380eDataEntry;
-
-function binDataFileRegistryTagFind(tag)
+function dataFileRegistryTagIdxFind(tag)
   var tagStr, tagIdx = 0;
 {
   foreach( tagStr in c_binDataFileRegistry[EsBinDataFileRegistry$$Tags] )
   {
-    if( tagStr == tag )
+    if( tag == tagStr )
       return tagIdx;
       
     ++tagIdx;
@@ -242,74 +109,56 @@ function binDataFileRegistryTagFind(tag)
 // tag class
 object EsBinDataFileTag
 {
-  UINT8 tag[EsBinDataFile$$TagSize];
+  UINT8 f_tagStr[EsBinDataFile$$TagSize];
   
   // tag services
   //
+	// string conversion
+	function asString()
+	{
+		return EsStr::fromByteString(f_tagStr$buffer);
+	}
+	
   // string comparison
   function compare(tagStr)
-    var idx;
   {
-    if( !tagStr#isEmpty() && 
-        EsBinDataFile$$TagSize == tagStr#countGet() )
-    {
-      for(idx = 0; idx < EsBinDataFile$$TagSize; ++idx)
-        if(tagStr[idx]#asByte() != tag[idx])
-          return -1;
+    if( tagStr != asString() )
+      return -1;
           
-      return 0;
-    }
-    
-    return -1;
+    return 0;
   }
   
+/// Properties
+	// access tag as string
+	property tag;
+	read: { return asString(); }
   // predefined headers check
-  function isHdrMain()
-  {
-    return 0 == compare(c_hdrMainTag);
-  }
-  
-  function isHdrMainAdditional()
-  {
-    return 0 == compare(c_hdrMainAdditionalTag);
-  }  
-  
-  function isHdr()
-  {
-    return 0 == compare(c_hdrTag);
-  }
-
-  function isHdrAdditional()
-  {
-    return 0 == compare(c_hdrAdditionalTag);
-  }
-  
-  function isData()
-  {
-    return 0 == compare(c_dataTag);
-  }
-  
-  function isDataAdditional()
-  {
-    return 0 == compare(c_dataAdditionalTag);
-  }  
-  
-  function isEmpty()
-  {
-    return 0 == compare(c_emptyTag);
-  }
+  property isHdrMain;
+  read: { return 0 == compare(c_hdrMainTag); }
+  property isHdrMainAdditional;
+	read: { return 0 == compare(c_hdrMainAdditionalTag); }  
+  property isHdr;
+  read: { return 0 == compare(c_hdrTag); }
+  property isHdrAdditional;
+  read: { return 0 == compare(c_hdrAdditionalTag); }
+  property isData;
+  read: { return 0 == compare(c_dataTag); }
+  property isDataAdditional;
+  read: { return 0 == compare(c_dataAdditionalTag); }  
+  property isEmpty;
+  read: { return 0 == compare(c_emptyTag); }
 }
 
-// ----------------------- page header record
+// ----------------------- Page header record
 object EsBinDataFilePageHdr
 {
-  EsBinDataFileTag tag;
+  EsBinDataFileTag f_tag;
   UINT32 entrySize;
   UINT32 entryCnt;
-  if( tag.isHdrMain() ||
-      tag.isHdrMainAdditional() ||
-      tag.isHdr() ||
-      tag.isHdrAdditional()  )
+  if( f_tag$isHdrMain ||
+      f_tag$isHdrMainAdditional ||
+      f_tag$isHdr ||
+      f_tag$isHdrAdditional )
   {
     EsBinDataFileTag contentTag;
     
@@ -324,6 +173,33 @@ object EsBinDataFilePageHdr
     if( c_binDataFileRegistry[EsBinDataFileRegistry$$Tags][EsBinDataFileRegistry$$KEO] == contentTag )
       EsFirmwareId auxApplId;
         @label = "Aux. appliance ID";
+		else if( RAD01 )		
+		{
+			DATETIME ts;
+				@label = "Timestamp";
+			UINT32 errs;
+				@label = "Latched errors at the beginning of measurements";
+			UINT16 tPump;
+				@label = "Pumping duration, s";
+			UINT16 tMsr;
+				@label = "Measurement duration, minutes";
+			FLOAT na;
+				@label = "Activity in marked windows";
+			UINT32 nt;
+				@label = "Thoron events";
+			FLOAT temperature;
+				@label = "Chamber temperature, °C";
+			FLOAT humidity;
+				@label = "Relative humidity, %";
+			FLOAT pressure;
+				@label = "Pressure, mm Hg";
+			UINT8 state;      
+				@label = "Radiometer peripheral state during measurement";
+			UINT8 pumpSpeed;
+				@label = "Pump speed at which measurement was made";
+			UINT8 markers[3];
+				@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
+		}
   }
 }
 
@@ -345,6 +221,25 @@ object EsBinDataFileIlluminosityEntry
     @label = "T, °C";
 }
 
+object  EsBinDataFileIlluminosityEntry2
+  @help = "Illuminosity data entry";
+{
+  DATETIME   ts;
+    @label = "Timestamp";
+  FLOAT     luxOrg;
+		@label = "Original illuminosity, lux";
+	FLOAT     luxBgnd;
+		@label = "Background illuminosity, lux";
+	FLOAT     lux;
+		@label = "Original-background illuminosity, lux";
+  FLOAT      kpOrg;
+		@label = "Original pulsation, %";
+  FLOAT      kp;
+		@label = "Resulting pulsation, %";
+  UINT16    bgndDuration;
+		@label = "Duration of background measurement, s";
+}
+
 /// PHA01-CDM
 object EsBinDataFileLuminosityEntry
   @help = "Luminosity data entry";
@@ -357,6 +252,17 @@ object EsBinDataFileLuminosityEntry
     @label = "Pulsation, %";  
   INT8      temp;
     @label = "T, °C";
+}
+
+object EsBinDataFileLuminosityEntry2
+  @help = "Luminosity data entry";
+{
+  DATETIME   ts;
+    @label = "Timestamp";
+  FLOAT      cdm;
+    @label = "Luminosity, cd/m";
+  UINT16    kp;
+    @label = "Pulsation, %";  
 }
 
 // PHA01-KEO
@@ -377,7 +283,7 @@ object EsBinDataFileKeoEntry
 //
 // MK01-TH
 object EsBinDataFileClimaticBaseEntry
-  @help = "Basic climatic data entry";
+  @help = "Basic climatic data";
 {
   DATETIME   ts;
     @label = "Timestamp";
@@ -396,17 +302,49 @@ object EsBinDataFileClimaticBaseEntry
 }
 
 // MK01-THV
-object EsBinDataFileClimaticVelocityEntry extends EsBinDataFileClimaticBaseEntry
-  @help = "Climatic data with air velocity entry";
+object EsBinDataFileClimaticVelocityEntry
+  @help = "Climatic data with air velocity";
 {
-  FLOAT      u;
-    @label = "Air velocity, m/s";
+  DATETIME   ts;
+    @label = "Timestamp";
+  UINT32     state;
+    @label = "Data state";
+  FLOAT      ta;
+    @label = "Air T, °C";
+  FLOAT      rh;
+    @label = "Relative humidity, %";
+  FLOAT      td;
+    @label = "Dew point, °C";
+  FLOAT      tw;
+    @label = "Natural wet-bulb T, °C";
+  FLOAT      tr;
+		@label = "Radiation temperature, when airflow is less than 1 m/s, °C";
+  FLOAT      t0;
+		@label = "Resulting temperature, °C";
+	FLOAT      w;
+		@label = "Heat ratiation density";
+	FLOAT      u;		
+		@label = "Air velocity, m/s";
+	FLOAT      p;
+    @label = "Barometric pressure, Pa";
 }
 
 // MK01-IDX
-object EsBinDataFileClimaticIndexesEntry extends EsBinDataFileClimaticBaseEntry
-  @help = "Full climatic data entry";
+object EsBinDataFileClimaticIndexesEntry
+  @help = "Climatic indexes";
 {
+  DATETIME   ts;
+    @label = "Timestamp";
+  UINT32     state;
+    @label = "Data state";
+  FLOAT      ta;
+    @label = "Air T, °C";
+  FLOAT      rh;
+    @label = "Relative humidity, %";
+  FLOAT      td;
+    @label = "Dew point, °C";
+  FLOAT      tw;
+    @label = "Natural wet-bulb T, °C";
   FLOAT      tg;
     @label = "Globe thermometer T, °C";
   FLOAT      wbgt;
@@ -417,8 +355,73 @@ object EsBinDataFileClimaticIndexesEntry extends EsBinDataFileClimaticBaseEntry
     @label = "Mean radiant T, °C";
   FLOAT      w;
     @label = "Heat transfer rate, W/m²";
-  FLOAT      to;
-    @label = "Operative T, °C";
+  FLOAT      p;
+    @label = "Barometric pressure, Pa";
+}
+
+/// OCTAVA P381_X
+object P381xGeoDataEntry
+	@help = "Geomagnetic field";
+{
+  DATETIME   	ts;
+		@label = "Timestamp";
+  UINT32 			duration;
+		@label = "Measurement duration, s";
+  FLOAT 			mktlExt;
+		@label = "External field, mktl";
+  DATETIME 		extTs;
+		@label = "Timestamp of external field measurement";
+  FLOAT 			mktlCur;
+		@label = "Current field, mktl";
+  FLOAT 			mktlMin;
+		@label = "Minimum internal field, detected during measurement, mktl";
+  FLOAT 			attCur; 
+		@label = "Current field attenuation";
+	FLOAT 			attMax;
+		@label = "Maximum attenuation, detected during measurement";
+}
+
+object P381xConstDataEntry
+	@help = "Constant magnetic field";
+{
+  DATETIME   ts;
+		@label = "Timestamp";
+  UINT32 		duration;
+		@label = "Measurement duration, s";
+  FLOAT 		mktlCur;
+		@label = "Current field, mktl";
+  FLOAT 		mktlMax;
+		@label = "Maximum field, detected during measurement, mktl";
+}
+
+object P381x50hzDataEntry
+	@help = "50hz magnetic field";
+{
+  DATETIME  	ts;
+		@label = "Timestamp";
+  UINT32 			duration;
+		@label = "Measurement duration, s";
+  FLOAT 			mktlCur;
+		@label = "Current field, mktl";
+  FLOAT 			mktlMax;
+		@label = "Maximum field, detected during measurement, mktl";
+}
+
+
+/// OCTAVA P380E
+object P380eDataEntry
+	@help = "Electrostatic field";
+{
+  DATETIME 		ts;
+		@label = "Timestamp";
+  UINT32 			duration;
+		@label = "Measurement duration, s";
+  FLOAT 			e;
+		@label = "Current field, V/m";
+  FLOAT 			eMin;
+		@label = "Minimum field, detected during measurement, V/m";
+  FLOAT 			eMax;
+		@label = "Maximum field, detected during measurement, V/m";
 }
 
 // --------------- bin file parser functions
@@ -443,10 +446,10 @@ function binDataFileBufferParse(buff)
       if( 0 == checksum16 )
       {
         hdr$buffer = chunk;
-        if( hdr.tag.isEmpty() )
+        if( hdr.f_tag.isEmpty() )
           break;
         else if( (1 == stage || 2 == stage) 
-                  && hdr.tag.isData() &&
+                  && hdr.f_tag.isData() &&
                   !tmpDataEntry#isEmpty() )
         {
           stage = 2;
