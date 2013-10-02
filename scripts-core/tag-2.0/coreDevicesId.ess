@@ -123,24 +123,15 @@ object EsDeviceUID
     return 0;
   }
   
-  // return generic string f_uid representation
+  /// Return generic string f_uid representation
   function asString()
   {
     return EsStr::fromByteString(f_id$buffer);
   }
-  
-  new()
-  var idx = 0;
-  {
-    while(idx < 32)
-      f_id[idx++] = B'0';
-  }
-  
-  // value property, to allow UID reading|writing as string
-  property value;
-  read: { return asString(); }
-  write:
-  var ch, str = EsStr::toUpper(__value#asString());
+	
+	/// Try to set f_uid from string representation
+  function uidFromString(uidStr)
+	var ch, str = EsStr::toUpper(uidStr#asString());
   { 
     if( 32 != str#countGet() )
       throw "UID string length must be 32 symbols";
@@ -148,7 +139,31 @@ object EsDeviceUID
       if( !EsStr::isHexChar(ch) )
         throw "UID string must contain only HEX symbols";
     f_id$buffer = EsStr::toByteString(str);
+  }	
+  
+  new()
+  var idx = 0;
+  {
+    while(idx < 32)
+      f_id[idx++] = B'0';
   }
+	
+	/// Custom stream writer
+	function streamWrite(stream)
+	{
+		stream.propertiesWrite(this);
+	}
+	
+	/// Custom stream reader
+	function streamRead(stream)
+	{
+		stream.propertiesRead(this);
+	}
+  
+  // value property, to allow UID reading|writing as string
+  property value;	@persistent;
+  read: { return asString(); }
+  write: { uidFromString(__value); }
 }
 
 // device firmware id as-string formatting flags

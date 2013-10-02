@@ -29,10 +29,18 @@ object EsBinDataFileTag
   
   // tag services
   //
-	// string conversion
+	/// To string conversion
 	function asString()
 	{
 		return EsStr::fromByteString(f_tagStr$buffer);
+	}
+	
+	/// From string conversion
+	function tagFromString(tagStr)
+	{
+	  if( EsBinDataFile$$TagSize != tagStr#countGet() )
+      throw EsStr::format("Tag string length must be %d symbols", EsBinDataFile$$TagSize);
+    f_tagStr$buffer = EsStr::toByteString(tagStr);
 	}
 	
   // string comparison
@@ -44,10 +52,23 @@ object EsBinDataFileTag
     return 0;
   }
   
+	/// Custom stream writer
+	function streamWrite(stream)
+	{
+		stream.propertiesWrite(this);
+	}
+	
+	/// Custom stream reader
+	function streamRead(stream)
+	{
+		stream.propertiesRead(this);
+	}
+	
 /// Properties
 	// access tag as string
-	property tag;
+	property tag; @persistent;
 	read: { return asString(); }
+	write: { tagFromString(__value); }
   // predefined headers check
   property isHdrMain;
   read: { return 0 == compare(c_hdrMainTag); }
@@ -63,159 +84,6 @@ object EsBinDataFileTag
   read: { return 0 == compare(c_dataAdditionalTag); }  
   property empty;
   read: { return 0 == compare(c_emptyTag); }
-}
-
-// ----------------------- Generalized page record
-object EsBinDataFilePage
-{
-	// member vars
-	var m_contentTagStr;
-	
-	// fields
-  EsBinDataFileTag f_tag;
-  UINT32 f_entrySize;
-  UINT32 f_entryCnt;
-	
-  if( f_tag$isHdrMain ||
-      f_tag$isHdrMainAdditional ||
-      f_tag$isHdr ||
-      f_tag$isHdrAdditional )
-  {
-    EsBinDataFileTag f_contentTag;
-		
-    if( f_contentTag$tag in [		/// pha-01 tags
-																/// old ones
-																"LUX     ", 
-																"CDM     ", 
-																"KEO     ",
-																/// new ones
-																"PHA01LUX",
-																"PHA01CDM",
-																"PHA01KEO",
-																/// mk-01 tags
-																/// old ones
-																"TH      ", 
-																"THV     ", 
-																"IDX     ",
-																/// new ones
-																"ET01TH  ",
-																"ET01THV ",
-																"ET01IDX ",
-																/// OCTAVA
-																/// OCTAVA P381x
-																"P381XGM ",
-																"P381XCM ",
-																"P381X50M",
-																/// OCTAVA P380e
-																"P380EST ",
-																/// Radon radiometer RAD01
-																"RAD01   "
-																] )
-    {
-      EsFirmwareId f_hubId;
-        @label = "Hub ID";
-      EsFirmwareId f_applId;
-        @label = "Appliance ID";
-    
-			if( f_contentTag$tag in ["KEO     ", "PHA01KEO"] )
-			{
-				EsFirmwareId f_auxApplId;
-					@label = "Aux. appliance ID";
-			}
-			else if( "RAD01   " == f_contentTag$tag )		
-			{
-				DATETIME f_ts;
-					@label = "Timestamp";
-				UINT32 f_errs;
-					@label = "Latched errors at the beginning of measurements";
-				UINT16 f_tPump;
-					@label = "Pumping duration, s";
-				UINT16 f_tMsr;
-					@label = "Measurement duration, minutes";
-				FLOAT f_na;
-					@label = "Activity in marked windows";
-				UINT32 f_nt;
-					@label = "Thoron events";
-				FLOAT f_temperature;
-					@label = "Chamber temperature, °C";
-				FLOAT f_humidity;
-					@label = "Relative humidity, %";
-				FLOAT f_pressure;
-					@label = "Pressure, mm Hg";
-				UINT8 f_state;      
-					@label = "Radiometer peripheral state during measurement";
-				UINT8 f_pumpSpeed;
-					@label = "Pump speed at which measurement was made";
-				UINT8 f_markers[3];
-					@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
-			}
-		}
-  }
-	else if( f_tag$isData ||
-					 f_tag$isDataAdditional	)
-	{
-		// conditional data arrays
-		if( "LUX     " == m_contentTagStr )
-			EsBinDataFileIlluminosityEntry f_nodes[f_entryCnt];
-		else if( "PHA01LUX" == m_contentTagStr )
-			EsBinDataFileIlluminosityEntrys f_nodes[f_entryCnt];
-		else if( "CDM     " ==  m_contentTagStr )
-			EsBinDataFileLuminosityEntry f_nodes[f_entryCnt];
-		else if( "PHA01CDM" ==  m_contentTagStr )
-			EsBinDataFileLuminosityEntry2 f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["KEO     ", "PHA01KEO"] )
-			EsBinDataFileKeoEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["TH      ", "ET01TH  "] )
-			EsBinDataFileClimaticBaseEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["THV     ", "ET01THV "] )
-			EsBinDataFileClimaticVelocityEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["IDX     ", "ET01IDX "] )
-			EsBinDataFileClimaticIndexesEntry f_nodes[f_entryCnt];
-		else if( "P381XGM " == m_contentTagStr )
-			P381xGeoDataEntry f_nodes[f_entryCnt];
-		else if( "P381XCM " == m_contentTagStr )
-			P381xConstDataEntry f_nodes[f_entryCnt];
-		else if( "P381X50M" == m_contentTagStr )
-			P381x50hzDataEntry f_nodes[f_entryCnt];
-		else if( "P380EST " == m_contentTagStr )
-			P380eDataEntry f_nodes[f_entryCnt];
-		else if( "RAD01   " == m_contentTagStr )
-			UINT16 f_nodes[f_entryCnt];
-	}
-	
-	new(contentTagStr)
-	{
-		m_contentTagStr = contentTagStr;
-	}
-	
-/// Properties
-///
-/// Delegated from f_tag
-  property isHdrMain;
-  read: { return f_tag$isHdrMain; }
-  property isHdrMainAdditional;
-	read: { return f_tag$isHdrMainAdditional; }  
-  property isHdr;
-  read: { return f_tag$isHdr; }
-  property isHdrAdditional;
-  read: { return f_tag$isHdrAdditional; }
-  property isData;
-  read: { return f_tag$isData; }
-  property isDataAdditional;
-  read: { return f_tag$isDataAdditional; }  
-  property empty;
-  read: { return f_tag$empty; }
-/// content tag string
-	property contentTagStr;
-	read: 
-	{
-		if( hasField("f_contentTag") )
-			return fieldGet("f_contentTag")$tag;
-		else if( !m_contentTagStr#isEmpty() )
-			return m_contentTagStr#asString();
-		
-		return "";
-	}
 }
 
 // ----------------------- data entry records
@@ -438,12 +306,181 @@ object P380eDataEntry
 		@label = "Maximum field, detected during measurement, V/m";
 }
 
+// ----------------------- Generalized page record
+object EsBinDataFilePage
+{
+	// member vars
+	var m_contentTagStr;
+	
+	// fields
+  EsBinDataFileTag f_tag;
+  UINT32 f_entrySize;
+  UINT32 f_entryCnt;
+	
+  if( f_tag$isHdrMain ||
+      f_tag$isHdrMainAdditional ||
+      f_tag$isHdr ||
+      f_tag$isHdrAdditional )
+  {
+    EsBinDataFileTag f_contentTag;
+		
+    if( f_contentTag$tag in [		/// pha-01 tags
+																// old ones
+																"LUX     ", 
+																"CDM     ", 
+																"KEO     ",
+																// new ones
+																"PHA01LUX",
+																"PHA01CDM",
+																"PHA01KEO",
+																// mk-01 tags
+																// old ones
+																"TH      ", 
+																"THV     ", 
+																"IDX     ",
+																// new ones
+																"ET01TH  ",
+																"ET01THV ",
+																"ET01IDX ",
+																// OCTAVA
+																// OCTAVA P381x
+																"P381XGM ",
+																"P381XCM ",
+																"P381X50M",
+																// OCTAVA P380e
+																"P380EST ",
+																// Radon radiometer RAD01
+																"RAD01   "
+																] )
+    {
+      EsFirmwareId f_hubId;
+        @label = "Hub ID";
+      EsFirmwareId f_applId;
+        @label = "Appliance ID";
+  
+			if( f_contentTag$tag in ["KEO     ", "PHA01KEO"] )
+			{
+				EsFirmwareId f_auxApplId;
+					@label = "Aux. appliance ID";
+			}
+			else if( "RAD01   " == f_contentTag$tag )		
+			{
+				DATETIME f_ts;
+					@label = "Timestamp";
+				UINT32 f_errs;
+					@label = "Latched errors at the beginning of measurements";
+				UINT16 f_tPump;
+					@label = "Pumping duration, s";
+				UINT16 f_tMsr;
+					@label = "Measurement duration, minutes";
+				FLOAT f_na;
+					@label = "Activity in marked windows";
+				UINT32 f_nt;
+					@label = "Thoron events";
+				FLOAT f_temperature;
+					@label = "Chamber temperature, °C";
+				FLOAT f_humidity;
+					@label = "Relative humidity, %";
+				FLOAT f_pressure;
+					@label = "Pressure, mm Hg";
+				UINT8 f_state;      
+					@label = "Radiometer peripheral state during measurement";
+				UINT8 f_pumpSpeed;
+					@label = "Pump speed at which measurement was made";
+				UINT8 f_markers[3];
+					@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
+			}
+		}
+  }
+	else if( f_tag$isData ||
+					 f_tag$isDataAdditional	)
+	{
+		//conditional data arrays
+		if( "LUX     " == m_contentTagStr )
+			EsBinDataFileIlluminosityEntry f_nodes[f_entryCnt];
+		else if( "PHA01LUX" == m_contentTagStr )
+			EsBinDataFileIlluminosityEntry2 f_nodes[f_entryCnt];
+		else if( "CDM     " ==  m_contentTagStr )
+			EsBinDataFileLuminosityEntry f_nodes[f_entryCnt];
+		else if( "PHA01CDM" ==  m_contentTagStr )
+			EsBinDataFileLuminosityEntry2 f_nodes[f_entryCnt];
+		else if( m_contentTagStr in ["KEO     ", "PHA01KEO"] )
+			EsBinDataFileKeoEntry f_nodes[f_entryCnt];
+		else if( m_contentTagStr in ["TH      ", "ET01TH  "] )
+			EsBinDataFileClimaticBaseEntry f_nodes[f_entryCnt];
+		else if( m_contentTagStr in ["THV     ", "ET01THV "] )
+			EsBinDataFileClimaticVelocityEntry f_nodes[f_entryCnt];
+		else if( m_contentTagStr in ["IDX     ", "ET01IDX "] )
+			EsBinDataFileClimaticIndexesEntry f_nodes[f_entryCnt];
+		else if( "P381XGM " == m_contentTagStr )
+			P381xGeoDataEntry f_nodes[f_entryCnt];
+		else if( "P381XCM " == m_contentTagStr )
+			P381xConstDataEntry f_nodes[f_entryCnt];
+		else if( "P381X50M" == m_contentTagStr )
+			P381x50hzDataEntry f_nodes[f_entryCnt];
+		else if( "P380EST " == m_contentTagStr )
+			P380eDataEntry f_nodes[f_entryCnt];
+		else if( "RAD01   " == m_contentTagStr )
+			UINT16 f_nodes[f_entryCnt];
+	}
+
+/// Methods
+///
+/// Custom stream writer
+	function streamWrite(stream)
+	{
+		stream.propertiesWrite(this);
+		stream.fieldsWrite(this);
+	}
+	
+/// Custom stream reader
+	function streamRead(stream)
+	{
+		stream.propertiesRead(this);
+		stream.fieldsRead(this);	
+	}
+	
+/// Properties
+///
+/// Delegated from f_tag
+  property isHdrMain;
+  read: { return f_tag$isHdrMain; }
+  property isHdrMainAdditional;
+	read: { return f_tag$isHdrMainAdditional; }  
+  property isHdr;
+  read: { return f_tag$isHdr; }
+  property isHdrAdditional;
+  read: { return f_tag$isHdrAdditional; }
+  property isData;
+  read: { return f_tag$isData; }
+  property isDataAdditional;
+  read: { return f_tag$isDataAdditional; }  
+  property empty;
+  read: { return f_tag$empty; }
+/// content tag string
+	property contentTagStr; @persistent;
+	read: 
+	{
+		if( hasField("f_contentTag") )
+			return fieldGet("f_contentTag")$tag;
+		else if( !m_contentTagStr#isEmpty() )
+			return m_contentTagStr#asString();
+		
+		return "";
+	}
+	write:
+	{
+		// NB! write only to the m_contentTagStr var, do not try to change f_contentTag field
+		m_contentTagStr = __value;
+	}
+}
+
 // --------------- bin file parser functions
 //
 function binDataFileBufferParse(buff)
  var cs16, cs16calc = new EsChecksum16(), pageIdx, pagesCnt, 
 	pageBuff, pageBuffStart = 0, pageBuffEnd = EsBinDataFile$$PageSize, 
-	curContentStr, pg = new EsBinDataFilePage(), result = [];
+	curContentTagStr, pg, result = [];
 {
   if( !buff#isEmpty() )
   {
@@ -456,9 +493,11 @@ function binDataFileBufferParse(buff)
 			cs16 = cs16calc$value;
       if( 0 == cs16 )
 			{
+				pg = new EsBinDataFilePage();
+				pg$contentTagStr = curContentTagStr;
 				pg$buffer = pageBuff;
-				EsScriptDebug::log("Page: %s", pg$contentTagStr);
-				
+				curContentTagStr = pg$contentTagStr;
+				result += pg;
 				pageBuffStart = pageBuffEnd;
 				pageBuffEnd += EsBinDataFile$$PageSize;
 			}
