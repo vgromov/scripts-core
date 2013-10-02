@@ -151,13 +151,13 @@ object EsDeviceUID
 	/// Custom stream writer
 	function streamWrite(stream)
 	{
-		stream.propertiesWrite(this);
+		stream.valueWrite(asString());
 	}
 	
 	/// Custom stream reader
 	function streamRead(stream)
 	{
-		stream.propertiesRead(this);
+		uidFromString(stream.valueRead());
 	}
   
   // value property, to allow UID reading|writing as string

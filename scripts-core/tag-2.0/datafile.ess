@@ -55,18 +55,18 @@ object EsBinDataFileTag
 	/// Custom stream writer
 	function streamWrite(stream)
 	{
-		stream.propertiesWrite(this);
+		stream.valueWrite( asString() );
 	}
 	
 	/// Custom stream reader
 	function streamRead(stream)
 	{
-		stream.propertiesRead(this);
+		tagFromString( stream.valueRead() );
 	}
 	
 /// Properties
 	// access tag as string
-	property tag; @persistent;
+	property tag;
 	read: { return asString(); }
 	write: { tagFromString(__value); }
   // predefined headers check
