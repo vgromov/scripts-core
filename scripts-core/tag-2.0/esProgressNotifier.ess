@@ -1,5 +1,5 @@
-// script progress notifier helper object
-//
+/// Script progress wrapper helper functions
+///
 object EsProgressNotifier
 {
 	var	m_curAction,
