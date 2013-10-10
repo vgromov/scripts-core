@@ -243,7 +243,7 @@ object EsBinDataFileClimaticIndexesEntry
 }
 
 /// OCTAVA P381_X
-object P381xGeoDataEntry
+object EsBinDataFileP381xGeomagneticEntry
 	@help = "Geomagnetic field";
 {
   DATETIME   	f_ts;
@@ -264,7 +264,7 @@ object P381xGeoDataEntry
 		@label = "Maximum attenuation, detected during measurement";
 }
 
-object P381xConstDataEntry
+object EsBinDataFileP381xConstMagneticEntry
 	@help = "Constant magnetic field";
 {
   DATETIME   f_ts;
@@ -277,7 +277,7 @@ object P381xConstDataEntry
 		@label = "Maximum field, detected during measurement, mktl";
 }
 
-object P381x50hzDataEntry
+object EsBinDataFileP381x50hzMagneticEntry
 	@help = "50hz magnetic field";
 {
   DATETIME  	f_ts;
@@ -291,7 +291,7 @@ object P381x50hzDataEntry
 }
 
 /// OCTAVA P380E
-object P380eDataEntry
+object EsBinDataFileP380eElectrostaticEntry
 	@help = "Electrostatic field";
 {
   DATETIME 		f_ts;
@@ -413,13 +413,13 @@ object EsBinDataFilePage
 		else if( m_contentTagStr in ["IDX     ", "ET01IDX "] )
 			EsBinDataFileClimaticIndexesEntry f_nodes[f_entryCnt];
 		else if( "P381XGM " == m_contentTagStr )
-			P381xGeoDataEntry f_nodes[f_entryCnt];
+			EsBinDataFileP381xGeomagneticEntry f_nodes[f_entryCnt];
 		else if( "P381XCM " == m_contentTagStr )
-			P381xConstDataEntry f_nodes[f_entryCnt];
+			EsBinDataFileP381xConstMagneticEntry f_nodes[f_entryCnt];
 		else if( "P381X50M" == m_contentTagStr )
-			P381x50hzDataEntry f_nodes[f_entryCnt];
+			EsBinDataFileP381x50hzMagneticEntry f_nodes[f_entryCnt];
 		else if( "P380EST " == m_contentTagStr )
-			P380eDataEntry f_nodes[f_entryCnt];
+			EsBinDataFileP380eElectrostaticEntry f_nodes[f_entryCnt];
 		else if( "RAD01   " == m_contentTagStr )
 			UINT16 f_nodes[f_entryCnt];
 	}
@@ -429,7 +429,8 @@ object EsBinDataFilePage
 /// Custom stream writer
 	function streamWrite(stream)
 	{
-		stream.propertiesWrite(this);
+		if( !hasField("f_contentTag") )
+			stream.propertiesWrite(this);
 		stream.fieldsWrite(this);
 	}
 	
