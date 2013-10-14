@@ -166,16 +166,13 @@ object EsDeviceBase
       throw "Device address value is out of range";
   }
   
-/// Assign address
+/// Assign io address
   function addrSet(addr)
   {
     addr = addr.asULong();
     addrAssert( addr );
     if( m_ioAddr != addr )
-    {
       m_ioAddr = addr;
-      evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, "ioAddr");
-    }
   }
   
 /// IO attempt handler
@@ -675,7 +672,7 @@ object EsDeviceBase
   property ioErrorCount;
   read: { return m_ioErrorCount.asULong(); }
   
-/// Return currently set io address
+/// Read current io address
   property ioAddr;
   read: { return m_ioAddr.asULong(); }
   
@@ -709,13 +706,19 @@ var batchItem;
 
 /// Try to read and return device firmware id object
 function deviceFwIdRead(rpcMaster)
-var fwId, rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
+var fwId, rpcResult;
 {
-  if( !rpcResult#isEmpty() )
-  {
-    fwId = new EsFirmwareId();
-    fwId$buffer = rpcResult#asBinBuffer();
-  }
-  
+	try
+	{
+		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
+		if( !rpcResult#isEmpty() )
+		{
+			fwId = new EsFirmwareId();
+			fwId$buffer = rpcResult#asBinBuffer();
+		}
+	}
+	catch
+	{}
+	
   return fwId;
 }
