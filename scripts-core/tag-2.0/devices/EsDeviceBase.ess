@@ -31,6 +31,42 @@ enum EsDeviceEvtId {
   customResponse  = 1008, "Response to the custom request";
 }
 
+/// Helper device object global services
+///
+/// Return true if batch results are all OK,
+/// false otherwise
+function deviceCheckBatchResultOk(batchResult)
+var batchItem;
+{
+  if( batchResult#isEmpty() || !batchResult#countGet() )
+    return false;
+  
+  foreach( batchItem in batchResult )
+    if( !batchItem[0] )
+      return false;
+      
+  return true;
+}
+
+/// Try to read and return device firmware id object
+function deviceFwIdRead(rpcMaster)
+var fwId, rpcResult;
+{
+	try
+	{
+		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
+		if( !rpcResult#isEmpty() )
+		{
+			fwId = new EsFirmwareId();
+			fwId$buffer = rpcResult#asBinBuffer();
+		}
+	}
+	catch
+	{}
+	
+  return fwId;
+}
+
 /// Base object for every device, like pha01, boi01, etc.
 /// Any derived device object must override the following base methods:
 /// -function rpcNameGetById(rpcId)
@@ -243,7 +279,12 @@ object EsDeviceBase
       // handle standard data requests
       // NB! health info query response, included here, should normally be overridden in derived devices
       // to return helth info object instead.
-      if(EsRpcStdId$$HW_UID_GET == rpcId)
+      if( EsRpcStdId$$FWID_GET == rpcId )
+			{
+				handlingResult = new EsFirmwareId();
+				handlingResult$buffer = rpcResult;
+			}
+			else if(EsRpcStdId$$HW_UID_GET == rpcId)
       {
         handlingResult = new EsDeviceUID();
         handlingResult$buffer = rpcResult;
@@ -478,6 +519,13 @@ object EsDeviceBase
   
 /// Custom request handlers to simplify RPC FS operations
 ///
+/// Query firmware id information at the currently set device address. Mainly, it's used as helper wrapper
+/// in device (network, p2p) maintenance task(s)
+	function fwIdQuery()
+	{
+		return rpcCall(EsRpcStdId$$FWID_GET, null);
+	}
+
 /// Internal fsresult substitution helper. Must not be used directly
   function checkFsResultOnSuccess( result, fsItemName )
   {
@@ -687,38 +735,4 @@ object EsDeviceBase
     m_payload = __value;
     evtPost("fromDevice", EsDeviceEvtId$$payloadChanged, "payload");
   }
-}
-
-/// Return true if batch results are all OK,
-/// false otherwise
-function deviceCheckBatchResultOk(batchResult)
-var batchItem;
-{
-  if( batchResult#isEmpty() || !batchResult#countGet() )
-    return false;
-  
-  foreach( batchItem in batchResult )
-    if( !batchItem[0] )
-      return false;
-      
-  return true;
-}
-
-/// Try to read and return device firmware id object
-function deviceFwIdRead(rpcMaster)
-var fwId, rpcResult;
-{
-	try
-	{
-		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
-		if( !rpcResult#isEmpty() )
-		{
-			fwId = new EsFirmwareId();
-			fwId$buffer = rpcResult#asBinBuffer();
-		}
-	}
-	catch
-	{}
-	
-  return fwId;
 }
