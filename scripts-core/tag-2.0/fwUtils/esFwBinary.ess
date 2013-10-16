@@ -52,7 +52,7 @@ object EsFwBinary
 			
 		while( tokenizer$moreTokens )
 		{
-			__scriptHost.dataPost(EsStr::format("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines));
+			EsScriptDebug::log("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines);
 		
 			rec = tokenizer$nextToken;
 			pos = 0;
