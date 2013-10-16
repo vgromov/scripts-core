@@ -15,7 +15,7 @@ enum PHA01_Rpid
   OperationModeSet    = 2056, "VOID_Call_UINT8|";
   OperationModeGet    = 2057, "UINT8_Call|";
   LiveDataGet          = 2058, "BYTEARRAY_Call|";
-  DataCountGet        = 2059, "UINT16_Call|";
+  DataCountGet        = 2059, "UINT16_Call|Return count of data saved in autonomous mode";
   DataAtIdxGet        = 2060, "BYTEARRAY_Call_UINT16|";
   DataClear            = 2061, "BOOL_Call|";
   RangeGet            = 2062, "UINT8_Call|";
