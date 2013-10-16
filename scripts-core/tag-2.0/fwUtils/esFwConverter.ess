@@ -3,18 +3,18 @@
 ##require("fwUtils/esFwBinary.ess");
 
 function convert(inFile, outFile)
-var hex, binary, inf, of, fp;
+var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
 {
   fp = EsPath::createFromFilePath(inFile);
-  inFile = fp.pathGet(EsPathFlag$$Default, "");
+  inFile = fp.pathGet(EsPathFlag$$Default, cwd);
   fp = EsPath::createFromFilePath(outFile);
-  outFile = fp.pathGet(EsPathFlag$$Default, "");
-  
+  outFile = fp.pathGet(EsPathFlag$$Default, cwd);
+    
   inf = new EsFile(inFile, EsFileFlag$$Read|EsFileFlag$$Text);
   inf.open();
   hex = inf.readAllAsString();
   inf.close();
-
+  EsScriptDebug::log("Converting hex to binary...");
   binary = new EsFwBinary(hex);
   EsScriptDebug::log("Writing conversion result...");
   of = new EsFile(outFile, EsFileFlag$$Write|EsFileFlag$$Text);

@@ -52,9 +52,13 @@ object EsFwBinary
 			
 		while( tokenizer$moreTokens )
 		{
-			EsScriptDebug::log("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines);
+//			EsScriptDebug::log("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines);
 		
 			rec = tokenizer$nextToken;
+			// skip empty tokens
+			if( 0 == rec#countGet() )
+				continue;
+			
 			pos = 0;
 			// record length
 			recLen = EsStr::hexToBinNibble(rec[pos++]) << 4;
