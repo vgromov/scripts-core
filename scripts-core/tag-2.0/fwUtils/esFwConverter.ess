@@ -5,11 +5,12 @@
 function convert(inFile, outFile)
 var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
 {
+  EsScriptDebug::log("cwd: %s", cwd);
   fp = EsPath::createFromFilePath(inFile);
   inFile = fp.pathGet(EsPathFlag$$Default, cwd);
   fp = EsPath::createFromFilePath(outFile);
   outFile = fp.pathGet(EsPathFlag$$Default, cwd);
-    
+      
   inf = new EsFile(inFile, EsFileFlag$$Read|EsFileFlag$$Text);
   inf.open();
   hex = inf.readAllAsString();
