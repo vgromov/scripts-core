@@ -49,7 +49,7 @@ object EsFwMoniker
 		m_binary.fwOffsAndSizeCheck(m_fwIdOffs, id$size);		
 		buff = m_binary.m_fw#sliceGet(m_fwIdOffs, m_fwIdOffs+id$size);
 		id$buffer = buff;
-		deviceFwIdValidate(id, m_fwTypeExpected, $type);
+		fwIdValidate(id, m_fwTypeExpected, $type);
 
 		m_tmpId = id;
 	}
@@ -60,7 +60,7 @@ object EsFwMoniker
 		if( m_tmpId.isKindOf("EsFirmwareId") )
 		{
 			m_binary.fwOffsAndSizeCheck(m_fwIdOffs, m_tmpId$size);
-			deviceFwIdValidate(m_tmpId, m_fwTypeExpected, $type);
+			fwIdValidate(m_tmpId, m_fwTypeExpected, $type);
 			m_tmpFw#replace(m_tmpId$buffer, m_fwIdOffs);
 		}
 		else

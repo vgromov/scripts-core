@@ -91,7 +91,7 @@ object EsUploaderBase extends EsProgressNotifier
 				// EsScriptDebug::log("Shutting down device via RPC command");
 				configurePowerOff(chnl);
 				configureBoot(chnl);
-				deviceScheduleShutdown(rpcMaster);
+				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
 				progressNotifyStart("Shutting down device...", 1);
 				EsCore::sleep(1000);
 				configurePowerOn(chnl);
@@ -106,7 +106,7 @@ object EsUploaderBase extends EsProgressNotifier
 			try
 			{
 				// EsScriptDebug::log("Performing Warm boot");
-				deviceWarmBoot(rpcMaster, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+				rpcMaster.VOID_Call_UINT32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
 				progressNotifyStart("Performing Warm Boot...", 1);
 				EsCore::sleep(1500);
 				result = true;
@@ -170,7 +170,8 @@ object EsUploaderBase extends EsProgressNotifier
 				if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
 						m_moniker.hasProperty("fwPrevCrc") )
 				{
-					swInfo = deviceSoftwareInfoRead(rpcMaster);
+					swInfo = new EsSoftwareInfo();
+					swInfo$buffer = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$SW_INFO_GET);
 					m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
 				}
 			}
