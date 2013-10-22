@@ -48,25 +48,6 @@ var batchItem;
   return true;
 }
 
-/// Try to read and return device firmware id object
-function deviceFwIdRead(rpcMaster)
-var fwId, rpcResult;
-{
-	try
-	{
-		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
-		if( !rpcResult#isEmpty() )
-		{
-			fwId = new EsFirmwareId();
-			fwId$buffer = rpcResult#asBinBuffer();
-		}
-	}
-	catch
-	{}
-	
-  return fwId;
-}
-
 /// Base object for every device, like pha01, boi01, etc.
 /// Any derived device object must override the following base methods:
 /// -function rpcNameGetById(rpcId)

@@ -398,4 +398,23 @@ object EsFirmwareId
   property order;
   read: { return f_serial.f_order; }
 }
+
+/// Try to read and return device firmware id object
+function deviceFwIdRead(rpcMaster)
+var fwId, rpcResult;
+{
+	try
+	{
+		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
+		if( !rpcResult#isEmpty() )
+		{
+			fwId = new EsFirmwareId();
+			fwId$buffer = rpcResult#asBinBuffer();
+		}
+	}
+	catch
+	{}
+	
+  return fwId;
+}
 // --------------------------- end device identification

@@ -1,8 +1,6 @@
 // base uploader object implementation
 //
-##require("esProgressNotifier.ess");
-
-object EsUploaderBase extends EsProgressNotifier
+object EsUploaderBase
 {
 	var m_moniker, 
 			m_defaultBaud,
@@ -78,10 +76,12 @@ object EsUploaderBase extends EsProgressNotifier
 	function configureForBoot(rpcMaster, supportedRpcs)
 	var chnl = rpcMaster$channel, 
 		result = false, tmo = 40, 
-		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
+		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+		progressTask = new EsProgressMonitorTask("configureForBoot");
 	{
 		// EsScriptDebug::log("configureForBoot");
-	
+		progressTask.attachTo(__scriptHost$progressMonitor);
+		
 		if( supportsPowerCtl && 
 				!chnl$useRS232 &&
 				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
@@ -92,7 +92,7 @@ object EsUploaderBase extends EsProgressNotifier
 				configurePowerOff(chnl);
 				configureBoot(chnl);
 				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-				progressNotifyStart("Shutting down device...", 1);
+				progressTask.pulse("Shutting down device...");
 				EsCore::sleep(1000);
 				configurePowerOn(chnl);
 				result = true;
@@ -107,7 +107,7 @@ object EsUploaderBase extends EsProgressNotifier
 			{
 				// EsScriptDebug::log("Performing Warm boot");
 				rpcMaster.VOID_Call_UINT32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
-				progressNotifyStart("Performing Warm Boot...", 1);
+				progressTask.pulse("Performing Warm Boot...");
 				EsCore::sleep(1500);
 				result = true;
 				
@@ -122,14 +122,13 @@ object EsUploaderBase extends EsProgressNotifier
 		{
 			configurePowerOff(chnl);		
 			configureBoot(chnl);
-			progressNotifyStart("Waiting for device to power down", tmo);
-			progressNotify(tmo);			
+			progressTask.initialize("Waiting for device to power down...", tmo, tmo);
 			
 			// wait for 40 seconds - standard poweroff timeout
 			while( tmo-- )
 			{
 				EsCore::sleep(1000);
-				progressNotify(tmo);
+				progressTask$position = tmo;
 			}
 			
 			configurePowerOn(chnl);
