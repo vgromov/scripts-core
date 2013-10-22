@@ -33,6 +33,14 @@ enum EsOctavaDeviceType
 	P3812		= 32003, 	"P3812   ";
 }
 
+// ids of TENZOR re-branded appliances && hubs
+const c_tenzorDeviceTypeBase = 40001;
+enum EsTenzorDeviceType
+{
+	TECOL1 	= 40001, 	"TECOL1  ";
+	TBOI1 	= 40002, 	"TBOI1   ";
+}
+
 enum EsDeviceDatabaseField
 {
 	Kind				= 0, "Device kind";
@@ -61,6 +69,11 @@ const c_octavaDeviceDatabase = [
 	[EsDeviceKind$$Appliance, 	"П3-81-2", 	"Измеритель магнитной индукции П3-81-2 мкТл"]
 ];
 
+const c_tenzorDeviceDatabase = [
+	[EsDeviceKind$$Appliance, 	"ГФ-01", 		"Головка фотометрическая ГФ-01"],
+	[EsDeviceKind$$HubFull, 		"БОИ-01-Т", "Блок отображения информации БОИ-01-Т"]
+];
+
 // known hubs devices database
 //
 // field indexes of the hub functionality record
@@ -84,7 +97,51 @@ const c_hubsDatabase = [
 					["CDM", "Яркость"],
 					["KEO", "Коэффициент естественной освещенности (КЕО)"]
 				],
-				[ EsDeviceType$$ECOL1 ]
+				[ EsDeviceType$$ECOL1,
+					EsTenzorDeviceType$$TECOL1 ]
+			],
+			["RAD", "'РАД'", "Радиометр радона 'РАД'",
+				[
+					["RAD1DAT", "Радиометрия"]
+				],
+				[ EsDeviceType$$RAD1 ]
+			],
+			["MC1", "'ЭКОТЕРМА'", "Изм. микроклимата 'ЭКОТЕРМА'",
+				[
+					["TH", "Микроклимат-базовый"],
+					["THV", "Микроклимат, анемометрия"],
+					["IDX", "Индексы"]
+				],
+				[ EsDeviceType$$ET ]
+			],
+			["P381X", "'П3-81-Х'", "Измеритель магнитного поля 'П3-81-X'",
+				[
+					["MGEO", "Геомагнитное поле"],
+					["MCONST", "Постоянное магнитное поле"],
+					["M50HZ", "Магнитное поле промышленной частоты"]
+				],
+				[ EsOctavaDeviceType$$P3811,
+				  EsOctavaDeviceType$$P3812 ]
+			],
+			["P380E", "'П3-80Е'", "Измеритель электростатического поля 'П3-80Е'",
+				[
+					["ESTAT", "Электростатика"]
+				],
+				[ EsOctavaDeviceType$$P380E ]
+			]
+		]
+	],
+	// boi-01-t functionality with plugins
+	[EsTenzorDeviceType$$TBOI1, 
+		[
+			["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'",
+				[ // plugin data types supported [data type directory name, data type description]
+					["LUX", "Освещенность"],
+					["CDM", "Яркость"],
+					["KEO", "Коэффициент естественной освещенности (КЕО)"]
+				],
+				[ EsDeviceType$$ECOL1,
+					EsTenzorDeviceType$$TECOL1 ]
 			],
 			["RAD", "'РАД'", "Радиометр радона 'РАД'",
 				[
@@ -132,6 +189,12 @@ function deviceTypeIsOctava( type )
 	return type in EsOctavaDeviceType;
 }
 
+function deviceTypeIsTenzor( type )
+	@help = "Check if 'type' is known Tenzor device type. Return 'true' if yes, false otherwise";
+{
+	return type in EsTenzorDeviceType;
+}
+
 // device descriptions access
 function deviceCodeNameGet( type )
 	@help = "Return code name for the 'type' device type. If device is unknown, empty value is returned";
@@ -140,6 +203,8 @@ function deviceCodeNameGet( type )
 		return EsDeviceType.valueLabelGet( type );
 	else if( deviceTypeIsOctava( type ) )	
 		return EsOctavaDeviceType.valueLabelGet( type );
+	else if( deviceTypeIsTenzor( type ) )
+		return EsTenzorDeviceType.valueLabelGet( type );;
 }
 
 function deviceDescriptionShortGet( type )
@@ -149,6 +214,8 @@ function deviceDescriptionShortGet( type )
 		return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrShort];
 	else if( deviceTypeIsOctava( type ) )
 		return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
+	else if( deviceTypeIsTenzor( type ) )
+		return c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
 }
 
 function deviceDescriptionLongGet( type )
@@ -158,6 +225,8 @@ function deviceDescriptionLongGet( type )
 		return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrLong];
 	else if( deviceTypeIsOctava( type ) )
 		return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
+	else if( deviceTypeIsTenzor( type ) )
+		return c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
 }
 
 function deviceIsHub( type )
@@ -172,6 +241,12 @@ function deviceIsHub( type )
 	}
 	else if( deviceTypeIsOctava( type ) )
 		return false;
+	else if( deviceTypeIsTenzor( type ) )
+	{
+		kind = c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];
+		return EsDeviceKind$$HubLight == kind ||
+			EsDeviceKind$$HubFull == kind;
+	}
 }
  
 function deviceIsHubLight( type )
@@ -181,6 +256,8 @@ function deviceIsHubLight( type )
 		return EsDeviceKind$$HubLight == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
 	else if( deviceTypeIsOctava( type ) )
 		return false;		
+	else if( deviceTypeIsTenzor( type ) )
+		return EsDeviceKind$$HubLight == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];
 }
 
 function deviceIsHubFull( type )
@@ -190,6 +267,8 @@ function deviceIsHubFull( type )
 		return EsDeviceKind$$HubFull == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
 	else if( deviceTypeIsOctava( type ) )
 		return false;	
+	else if( deviceTypeIsTenzor( type ) )
+		return EsDeviceKind$$HubFull == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];	
 }
 
 function deviceIsAppliance( type )
@@ -199,6 +278,8 @@ function deviceIsAppliance( type )
 		return EsDeviceKind$$Appliance == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
 	else if( deviceTypeIsOctava( type ) )
 		return true;
+	else if( deviceTypeIsTenzor( type ) )
+		return EsDeviceKind$$Appliance == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];	
 }
 
 function deviceTypeFromCodeNameGet(	codeName )
@@ -215,8 +296,20 @@ function deviceTypeFromCodeNameGet(	codeName )
 		++idx;
 	}
 	// check Octava devices
+	idx = 0;
 	values = EsOctavaDeviceType$values; 
 	labels = EsOctavaDeviceType$labels;	
+	foreach( lbl in labels )
+	{
+		if( lbl == codeName )
+			return values[idx];
+		
+		++idx;
+	}
+	// check Tenzor devices
+	idx = 0;
+	values = EsTenzorDeviceType$values; 
+	labels = EsTenzorDeviceType$labels;	
 	foreach( lbl in labels )
 	{
 		if( lbl == codeName )
