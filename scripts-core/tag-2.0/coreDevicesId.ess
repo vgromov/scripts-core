@@ -417,4 +417,22 @@ var fwId, rpcResult;
 	
   return fwId;
 }
+
+function deviceHwUidRead(rpcMaster)
+var hwUid, rpcResult;
+{
+	try
+	{
+		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$HW_UID_GET);
+		if( !rpcResult#isEmpty() )
+		{
+			hwUid = new EsDeviceUID();
+			hwUid$buffer = rpcResult#asBinBuffer();
+		}
+	}
+	catch
+	{}
+	
+  return hwUid;
+}
 // --------------------------- end device identification
