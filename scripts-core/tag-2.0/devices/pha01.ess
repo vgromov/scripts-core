@@ -260,7 +260,7 @@ object PHA01_Settings
   /// Constructor
   new(fwId)
   {
-    fwIdValidate(fwId, EsDeviceType$$ECOL1, "PHA01 settings");
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01 settings");
     f_fwId.copyFrom(fwId);
   }
 }
@@ -291,7 +291,7 @@ object PHA01 extends EsDeviceBase
   function fwIdAssert(fwId)
   {
     EsDeviceBase::fwIdAssert(fwId);
-    fwIdValidate(fwId, EsDeviceType$$ECOL1, "PHA01");
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01");
   }
 
   function fwIdDefaultSet()
