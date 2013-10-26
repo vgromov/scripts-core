@@ -40,16 +40,44 @@ object PHA01_Data
   UINT16    f_kp;
   INT8       f_temp;
   
+	function valueStr(val)
+	var fmt;
+	{
+		if( val < 0 )
+			val = 0;
+			
+		if( val < 10 )
+			fmt = "%0.2f";
+		else if( val < 100 )
+			fmt = "%0.1f";
+		else
+			fmt = "%0.f";
+		
+		return EsStr::format(fmt, val);
+	}
+	
   /// Properties
-  /// illumination
+	///
+  /// illuminosity
   property lux;
   read: { return f_lux$value; }
-  /// brightness
+	/// illuminosity value string
+	property luxStr;
+	read: { return valueStr(f_lux$value) + " lx"; }
+	
+  /// luminosity
   property cdm;
   read: { return f_cdm$value; }
+	/// luminosity value string
+  property cdmStr;
+  read: { return valueStr(f_cdm$value) + " cd/m2"; }
+	
   /// pulsation coefficient, in 100%
   property kp;
   read: { return f_kp / 10.; }
+	/// pilsation string
+	property kpStr;
+  read: { return valueStr(f_kp / 10.) + " %"; }
 }
 
 // added since 1.6 - background subtraction data packet
