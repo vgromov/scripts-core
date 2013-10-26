@@ -1,5 +1,4 @@
 // scripting device support for pha-01 photo-appliance
-##require("core.ess");
 ##require("EsDeviceBase.ess");
 
 // pha01-specific rpcs 
@@ -299,7 +298,7 @@ object PHA01 extends EsDeviceBase
     m_fwId = new EsFirmwareId(EsDeviceType$$ECOL1);
     m_fwId.f_serial.f_year = EsDateTime::now()$year;
     m_fwId.f_fwVer.f_major = 1;
-    m_fwId.f_fwVer.f_minor = 6;
+    m_fwId.f_fwVer.f_minor = 7;
   }
 
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)

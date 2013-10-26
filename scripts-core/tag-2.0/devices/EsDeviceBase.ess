@@ -1,7 +1,7 @@
 /// @file EsDeviceBase.ess
 /// Ekosf device framework base object && stuff
 
-##require("core.ess");
+##require("../core.ess");
 
 /// Device event structure is as follows:
 ///  evt_id=<some Id>, payload=deviceFwId<,payload>

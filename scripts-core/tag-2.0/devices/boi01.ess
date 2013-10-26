@@ -1,6 +1,5 @@
 // scripting device support for boi-01 hub
-##require("core.ess");
-##require("datafile.ess");
+##require("../datafile.ess");
 ##require("EsDeviceBase.ess");
 
 /// BOI01-specific rpcs 

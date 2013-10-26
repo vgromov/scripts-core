@@ -15,7 +15,7 @@ function devicesDeviceCreate(fwId)
   {
     if( EsDeviceType$$BOI1 == fwId$devType )
       return new BOI01(fwId);
-    else if( fwId$devType in [[EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1]] )
+    else if( fwId$devType in [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1] )
       return new PHA01(fwId);  
 // todo: add MK1 and RAD-01 device support
 //    if( EsDeviceType$$ET == fwId.devType )

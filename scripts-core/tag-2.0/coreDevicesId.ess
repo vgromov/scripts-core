@@ -413,7 +413,8 @@ var fwId, rpcResult;
 		}
 	}
 	catch
-	{}
+	{
+	}
 	
   return fwId;
 }
