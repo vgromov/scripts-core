@@ -31,6 +31,36 @@ enum PHA01_Rpid
   BgndPeriodLeftGet    = 2074, "UINT16_Call|";
 }
 
+function PHA01_ValueFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.2f";
+	else if( val < 100 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.f";
+	
+	return EsStr::format(fmt, val);
+}
+
+function PHA01_PulsationFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.f";
+	
+	return EsStr::format(fmt, val);
+}
+
 object PHA01_Data 
 {
   /// Fields
@@ -40,22 +70,6 @@ object PHA01_Data
   UINT16    f_kp;
   INT8       f_temp;
   
-	function valueStr(val)
-	var fmt;
-	{
-		if( val < 0 )
-			val = 0;
-			
-		if( val < 10 )
-			fmt = "%0.2f";
-		else if( val < 100 )
-			fmt = "%0.1f";
-		else
-			fmt = "%0.f";
-		
-		return EsStr::format(fmt, val);
-	}
-	
   /// Properties
 	///
   /// illuminosity
@@ -63,21 +77,21 @@ object PHA01_Data
   read: { return f_lux$value; }
 	/// illuminosity value string
 	property luxStr;
-	read: { return valueStr(f_lux$value) + " lx"; }
+	read: { return PHA01_ValueFmt(f_lux$value) + " lx"; }
 	
   /// luminosity
   property cdm;
   read: { return f_cdm$value; }
 	/// luminosity value string
   property cdmStr;
-  read: { return valueStr(f_cdm$value) + " cd/m2"; }
+  read: { return PHA01_ValueFmt(f_cdm$value) + " cd/m2"; }
 	
   /// pulsation coefficient, in 100%
   property kp;
   read: { return f_kp / 10.; }
-	/// pilsation string
+	/// pulsation string
 	property kpStr;
-  read: { return valueStr(f_kp / 10.) + " %"; }
+  read: { return PHA01_PulsationFmt(f_kp / 10.) + " %"; }
 }
 
 // added since 1.6 - background subtraction data packet
@@ -92,21 +106,39 @@ object PHA01_DataWoBgnd
   UINT16    f_bgndDuration; /// > duration of background measurements in seconds
   UINT16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
   
-  /// original illumination
+  /// original illuminosity
   property luxOrg;
   read: { return f_luxOrg$value; }
-  /// background illumination W|O
+	/// original illuminosity string
+	property luxOrgStr;
+	read: { return PHA01_ValueFmt(f_luxOrg$value) + " lx"; }	
+
+  /// background illuminosity
   property luxBgnd;
   read: { return f_luxBgnd$value; }
-  /// illumination W|O background
+  /// background illuminosity	string
+	property luxBgndStr;
+	read: { return PHA01_ValueFmt(f_luxBgnd$value) + " lx"; }	
+
+  /// illuminosity W|O background
   property lux;
   read: { return f_lux$value; }
+  /// illuminosity W|O background, string
+	property luxStr;
+	read: { return PHA01_ValueFmt(f_lux$value) + " lx"; }	
+
   /// original pulsation coefficient, in 100%
   property kpOrg;
   read: { return f_kpOrg / 10.; }  
+	property kpOrgStr;
+  read: { return PHA01_PulsationFmt(f_kpOrg / 10.) + " %"; }
+
   /// resulting pulsation coefficient, in 100%
   property kp;
   read: { return f_kp / 10.; }  
+	/// pulsation string
+	property kpStr;
+  read: { return PHA01_PulsationFmt(f_kp / 10.) + " %"; }
 }
 
 /// Calibration node
