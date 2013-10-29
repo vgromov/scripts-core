@@ -429,7 +429,7 @@ object PHA01 extends EsDeviceBase
   /// PHA01 custom response handlers
   ///
   /// Download settings object
-  function settingsDownload(rpcMaster)
+  function settingsDownload()
   var settings = new PHA01_Settings(m_fwId), rpcResult;
   {
     // optionally download software info
