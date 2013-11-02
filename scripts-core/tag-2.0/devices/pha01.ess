@@ -42,7 +42,7 @@ var fmt;
 	else if( val < 100 )
 		fmt = "%0.1f";
 	else
-		fmt = "%0.f";
+		fmt = "%0.0f";
 	
 	return EsStr::format(fmt, val);
 }
@@ -56,7 +56,7 @@ var fmt;
 	if( val < 10 )
 		fmt = "%0.1f";
 	else
-		fmt = "%0.f";
+		fmt = "%0.0f";
 	
 	return EsStr::format(fmt, val);
 }
@@ -437,7 +437,7 @@ object PHA01 extends EsDeviceBase
     {
       rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
       if( rpcResult[0] )
-        settings.f_swInfo = rpcResult[1];
+        settings.f_swInfo.copyFrom( rpcResult[1] );
       else
         return rpcResult;
     }
@@ -445,7 +445,7 @@ object PHA01 extends EsDeviceBase
     {
       rpcResult = rpcCall(PHA01_Rpid$$HysteresisGet, null);
       if( rpcResult[0] )
-        settings.f_hys = rpcResult[1];
+        settings.f_hys.copyFrom( rpcResult[1] );
       else
         return rpcResult;
     }
@@ -456,12 +456,12 @@ object PHA01 extends EsDeviceBase
       return rpcResult;
     rpcResult = rpcCall(PHA01_Rpid$$LinFactorsGet, null);
     if( rpcResult[0] )
-      settings.f_lin = rpcResult[1];
+      settings.f_lin.copyFrom( rpcResult[1] );
     else
       return rpcResult;
     rpcResult = rpcCall(PHA01_Rpid$$CalibrationGet, null);
     if( rpcResult[0] )
-      settings.f_cal = rpcResult[1];
+      settings.f_cal.copyFrom( rpcResult[1] );
     else
       return rpcResult;
     
