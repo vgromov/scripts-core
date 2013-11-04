@@ -25,11 +25,9 @@ object EsFirmwareSwInfo
   UINT8 f_file[32];
   EsSoftwareCrcInfo f_crc;
   
-  property name;
-  read: { return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251); }
-  write: 
-  var idx = 0, ch, name = EsStr::toByteString(__value, EsStrByteEncoding$$CP1251);
-  {
+	function nameFromString(str)
+  var idx = 0, ch, name = EsStr::toByteString(str, EsStrByteEncoding$$CP1251);
+	{
     foreach( ch in name )
     {
       f_name[idx] = ch;
@@ -39,13 +37,16 @@ object EsFirmwareSwInfo
     }
     // add zero-terminator if name string is shorter than 64 symbols, and there is no terminator at the end already
     if( idx < 64 && 0 != f_name[idx-1] )
-      f_name[idx] = 0;
-  }
-  
-  property file;
-  read: { return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251); }
-  write:
-  var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper( __value ), EsStrByteEncoding$$CP1251);
+      f_name[idx] = 0;	
+	}
+	
+	function nameAsString()
+	{
+		return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251);
+	}
+	
+	function fileFromString(str)
+	var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper(str), EsStrByteEncoding$$CP1251);
   {
     foreach( ch in file )
     {
@@ -57,7 +58,40 @@ object EsFirmwareSwInfo
     // add zero-terminator if file string is shorter than 32 symbols, and there is no terminator at the end already
     if( idx < 32 && 0 != f_file[idx-1] )
       f_file[idx] = 0;
-  }
+	}
+	
+	function fileAsString()
+	{
+		return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251);
+	}
+	
+/// Custom stream reader
+	function streamRead(stream)
+	var str, crc;
+	{
+		str = stream.valueRead("name", "");
+		nameFromString(str);
+		str = stream.valueRead("file", "");
+		fileFromString(str);
+		f_crc.copyFrom( stream.valueRead("crc", null) );
+	}
+	
+/// Custom stream writer
+	function streamWrite(stream)
+	{
+		stream.valueWrite("name", nameAsString());
+		stream.valueWrite("file", fileAsString());
+		stream.valueWrite("crc", f_crc);		
+	}
+	
+/// Properties	
+  property name;
+  read: { return nameAsString(); }
+  write: { nameFromString(__value); }
+  
+  property file;
+  read: { return fileAsString(); }
+  write: { fileFromString(__value); }
 
   property crcInfo;
   read: { return f_crc; }
