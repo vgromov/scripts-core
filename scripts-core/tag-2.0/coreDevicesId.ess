@@ -369,9 +369,8 @@ object EsFirmwareId
     f_devType = type;
   }
   
-  // device id string (includes only description and firmware version)
   property fwIdString;
-  read: { return asString(EsFirmwareIdFmtFlag$$DescrLong | EsFirmwareIdFmtFlag$$Version); }
+  read: { return asString(); }
   
   // read-only access to the dev id components
   property devType;

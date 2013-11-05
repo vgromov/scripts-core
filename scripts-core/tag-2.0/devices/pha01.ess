@@ -31,6 +31,61 @@ enum PHA01_Rpid
   BgndPeriodLeftGet    = 2074, "UINT16_Call|";
 }
 
+// settings defaults
+enum PHA01_Defs
+{
+  // autosave intervals in sec
+  AutoIntervalMin = 1;
+  AutoIntervalMax = 600;
+  AutoIntervalDef = 2;
+  // background photo measurement length, in sec
+  BgndIntervalMin = 5;
+  BgndIntervalMax = 60;
+  BgndIntervalDef = 15;
+}
+
+// calibration data types
+enum PHA01_CalType
+{
+  Lux = 0, "Illuminance calibration";
+  Cdm = 1, "Luminance calibration";
+  Kp  = 2, "Pulsation calibration";
+  All = 3, "All calibration data";
+}
+
+// photo appliance operation modes
+enum PHA01_OpMode 
+{
+  None           = 0, "NONE";
+  Idle           = 1, "IDLE operation";
+  Live           = 2, "LIVE operation";
+  Autonomous     = 3, "KEO operation";
+  LiveWoBgnd     = 4, "LIVE operation with background subtraction";
+  Oscilloscope   = 5, "OSCILLOSCOPE operation";
+}
+
+// photo appliance amplification ranges
+enum PHA01_OpRange
+{
+  Low           = 0, "LOW signal, high amplification";
+  High          = 1, "HIGH signal, low amplification";
+}  
+
+// health error flags & masks
+enum PHA01_Error
+{
+  Batt           = 0x00000001, "Battery Low"; // low battery flag
+  I2c            = 0x00000002, "I2C bus error"; // i2c bus error
+  Spi            = 0x00000004, "SPI bus error"; // spi bus error
+  RTC            = 0x00000008, "RTC error";  // RTC error
+  RTCDateTime    = 0x00000010, "RTC date time corrupt"; // DateTime value error
+  Storage        = 0x00000020, "Storage initialization error";  // data storage initialization
+  StorageData    = 0x00000040, "Data storage corrupt"; // data storage error
+  StorageSystem  = 0x00000080, "System storage corrupt"; // system data storage error
+  Calibration    = 0x00000100, "Calibration is missing or incomplete"; // appliance calibration error (lost|never calibrated)
+  Linearization  = 0x00000200, "Linearization is missing"; // appliance linearization error (lost|never linearized)
+}
+
 function PHA01_ValueFmt(val)
 var fmt;
 {
@@ -154,6 +209,34 @@ object PHA01_Calibration
   PHA01_CalNode f_lux[4];
   PHA01_CalNode f_cdm[4];
   PHA01_CalNode f_kp[2];
+	
+	function checkEmpty(calType)
+	var node, nodes;
+	{
+		if( calType in PHA01_CalType)
+		{
+			if( PHA01_CalType$$Lux == calType )
+				nodes = f_lux;
+			else if( PHA01_CalType$$Cdm == calType )
+				nodes = f_cdm;
+			else if( PHA01_CalType$$Kp == calType )
+				nodes = f_kp;
+			else
+				return checkEmpty(PHA01_CalType$$Lux) &&
+					checkEmpty(PHA01_CalType$$Cdm) &&
+					checkEmpty(PHA01_CalType$$Kp);
+				
+			foreach( node in nodes )
+			{
+				if( node.f_1 != 0. || node.f_2 != 0. )
+					return false;
+			}
+		}
+		else
+			throw "Calibration type value is out of range";
+			
+		return true;
+	}
 }
 
 // linearization coeffs, for firmware newer than or equal to 1.4
@@ -174,61 +257,6 @@ object PHA01_Hysteresis
 {
   UINT16 f_loHi;
   UINT16 f_hiLo;
-}
-
-// settings defaults
-enum PHA01_Defs
-{
-  // autosave intervals in sec
-  AutoIntervalMin = 1;
-  AutoIntervalMax = 600;
-  AutoIntervalDef = 2;
-  // background photo measurement length, in sec
-  BgndIntervalMin = 5;
-  BgndIntervalMax = 60;
-  BgndIntervalDef = 15;
-}
-
-// calibration data types
-enum PHA01_CalType
-{
-  Lux = 0, "Illuminance calibration";
-  Cdm = 1, "Luminance calibration";
-  Kp  = 2, "Pulsation calibration";
-  All = 3, "All calibration data";
-}
-
-// photo appliance operation modes
-enum PHA01_OpMode 
-{
-  None           = 0, "NONE";
-  Idle           = 1, "IDLE operation";
-  Live           = 2, "LIVE operation";
-  Autonomous     = 3, "KEO operation";
-  LiveWoBgnd     = 4, "LIVE operation with background subtraction";
-  Oscilloscope   = 5, "OSCILLOSCOPE operation";
-}
-
-// photo appliance amplification ranges
-enum PHA01_OpRange
-{
-  Low           = 0, "LOW signal, high amplification";
-  High          = 1, "HIGH signal, low amplification";
-}  
-
-// health error flags & masks
-enum PHA01_Error
-{
-  Batt           = 0x00000001, "Battery Low"; // low battery flag
-  I2c            = 0x00000002, "I2C bus error"; // i2c bus error
-  Spi            = 0x00000004, "SPI bus error"; // spi bus error
-  RTC            = 0x00000008, "RTC error";  // RTC error
-  RTCDateTime    = 0x00000010, "RTC date time corrupt"; // DateTime value error
-  Storage        = 0x00000020, "Storage initialization error";  // data storage initialization
-  StorageData    = 0x00000040, "Data storage corrupt"; // data storage error
-  StorageSystem  = 0x00000080, "System storage corrupt"; // system data storage error
-  Calibration    = 0x00000100, "Calibration is missing or incomplete"; // appliance calibration error (lost|never calibrated)
-  Linearization  = 0x00000200, "Linearization is missing"; // appliance linearization error (lost|never linearized)
 }
 
 object PHA01_Health
