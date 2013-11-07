@@ -64,7 +64,7 @@ object BOI01 extends EsDeviceBase
   function fwIdAssert(fwId)
   {
     EsDeviceBase::fwIdAssert(fwId);
-    fwIdValidate(fwId, EsDeviceType$$BOI1, "BOI01");
+    fwIdValidate(fwId, [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1], "BOI01");
   }
 
   function fwIdDefaultSet()
@@ -161,7 +161,7 @@ object BOI01 extends EsDeviceBase
       {
         // fill-in plugin block info
         plgStr = plgItem$name;
-        plgRec = deviceHubPluginFunctionalityRecordGet(EsDeviceType$$BOI1, plgStr);
+        plgRec = deviceHubPluginFunctionalityRecordGet(m_fwId$devType, plgStr);
         if( plgRec#isEmpty() )
           plgDescr = EsStr::format("Unknown/unsupported plugin: '%s'", plgStr);
         else
@@ -180,7 +180,7 @@ object BOI01 extends EsDeviceBase
             foreach(plgDataTypeItem in plgDataTypeItems)
             {
               plgDataTypeStr = plgDataTypeItem$name;
-              plgTypeRec = deviceHubPluginDataTypeRecordGet(EsDeviceType$$BOI1, plgStr, plgDataTypeStr);
+              plgTypeRec = deviceHubPluginDataTypeRecordGet(m_fwId$devType, plgStr, plgDataTypeStr);
               if( plgTypeRec#isEmpty() )
                 plgDataTypeDescr = EsStr::format("Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
               else
