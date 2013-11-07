@@ -201,6 +201,9 @@ object PHA01_CalNode
 {
   FLOAT f_1;
   FLOAT f_2;
+	
+	property notEmpty;
+	read: { return f_1 != 0. || f_2 != 0.; }
 }
 
 /// All calibration info
@@ -228,7 +231,7 @@ object PHA01_Calibration
 				
 			foreach( node in nodes )
 			{
-				if( node.f_1 != 0. || node.f_2 != 0. )
+				if( node$notEmpty )
 					return false;
 			}
 		}
