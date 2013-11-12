@@ -1,6 +1,6 @@
 // prepare firmware hex image for
 // compiled-in usage in firmware programmer module
-##require("fwUtils/esFwBinary.ess");
+##require("esFwBinary.ess");
 
 function convert(inFile, outFile)
 var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
