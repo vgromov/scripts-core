@@ -27,7 +27,7 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
   of.uint32Write(binary.m_startAddr);
   of.stringWrite(";\nconst c_offs = ");
   of.uint32Write(binary.m_offs);
-  of.stringWrite(";\nconst c_bin = \"");
+  of.stringWrite(";\nconst c_bin = B\"");
   of.binBufferWrite(binary.m_fw);
   of.stringWrite("\";\nconst c_created = \"");
   of.stringWrite( EsDateTime::now() );
