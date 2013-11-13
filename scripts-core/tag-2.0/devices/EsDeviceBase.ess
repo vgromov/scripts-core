@@ -6,7 +6,6 @@
 /// Device event structure is as follows:
 ///  evt_id=<some Id>, payload=deviceFwId<,payload>
 ///    payload = Change|RPC (batch) request|RPC (batch) response|custom request|custom response
-///     Change=[changed value property name, changed value property name, ... , changed value property name]
 ///     RPC response (batch) = RPC request (batch) parameters, RPC response (batch) data
 ///     RPC request = [rpcId, args]
 ///     RPC request (batch) = [[rpcId 0, args 0], ... [rpcId N, args N]]
@@ -21,12 +20,10 @@
 /// Device event Ids
 enum EsDeviceEvtId {
   idChanged       = 1000, "Device FW ID changed";
-  ioStateChanged  = 1001, "Device IO state changed";
   rpcRequest      = 1002, "Queued RPC request";
   rpcRequestBatch  = 1003, "Queued batch RPC request";
   rpcResponse      = 1004, "Device responded to RPC request";
   rpcResponseBatch = 1005, "Device responded to RPC batch request";
-  payloadChanged  = 1006, "Device payload contents changed";
   customRequest    = 1007, "Custom device request";
   customResponse  = 1008, "Response to the custom request";
 }
@@ -79,10 +76,7 @@ object EsDeviceBase
     m_ioAttemptTs,  /// > Last io attempt timestamp, 0 if never contacted
     m_ioErrorCount,  /// > Count of io errors since last successfull communication attempt. if 0 - consider device alive and well
     m_ioAddr,        /// > Device protocol address. 255 (broadcast) by default
-    m_ioErrorLog,  /// > Last IO error string
-
-/// Arbitrary user-defined device payload data
-    m_payload;
+    m_ioErrorLog;  /// > Last IO error string
       
 /// Methods:
 ///
@@ -135,6 +129,13 @@ object EsDeviceBase
     m_ioAddr = 255;
     m_ioErrorLog = [];
   }
+	
+/// Reset all io related stuff (reset assigned io master as well)
+	function ioReset()
+	{
+		ioStateReset();
+		m_ioMaster = null;
+	}
   
 /// fwId assertion. Base implementation just checks for null and properly typed argument, 
 /// must be overridden in derived objects
@@ -159,14 +160,14 @@ object EsDeviceBase
       m_fwId = fwId;
       m_tmpFwIdStr = m_fwId.asString();
       m_fwInitialized = true;
-      evtPost("fromDevice", EsDeviceEvtId$$idChanged, null);
+      evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
     }
     else if( m_fwId.asString() != fwId.asString() ) // insignificant differences
     {
       m_fwId = fwId;
       m_tmpFwIdStr = m_fwId.asString();
       m_fwInitialized = true;
-      evtPost("fromDevice", EsDeviceEvtId$$idChanged, null);
+      evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
     }
   }
   
@@ -179,7 +180,7 @@ object EsDeviceBase
 /// Address check
   function addrAssert(addr)
   {
-    if( !(addr in [0 .. 254]) )
+    if( !(addr in [0 .. 255]) )
       throw "Device address value is out of range";
   }
   
@@ -200,30 +201,17 @@ object EsDeviceBase
   
 /// IO success condition handler
   function onIoSuccess()
-  var change = [];
   {
     m_ioSuccessTs = EsDateTime::now();
     m_ioErrorCount = 0;
     m_ioErrorLog = [];
-    // post event with changes
-    change += "ioSuccessTs";
-    change += "ioAttemptTs";
-    change += "ioErrorCount";
-    change += "ioLastError";
-    evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, change);
   }
   
 /// IO error condition handler
   function onIoError(error)
-  var change = [];
   {
     ++m_ioErrorCount;
     m_ioErrorLog += error.asString();
-    // post event with changes
-    change += "ioAttemptTs";
-    change += "ioErrorCount";
-    change += "ioLastError";
-    evtPost("fromDevice", EsDeviceEvtId$$ioStateChanged, change);
   }
   
 /// Common initializer
@@ -704,16 +692,9 @@ object EsDeviceBase
 /// Read current io address
   property ioAddr;
   read: { return m_ioAddr.asULong(); }
+	write: { addrSet(__value); }
   
 /// Return error log collection, if any
   property ioErrorLog;
   read: { return m_ioErrorLog; }
-  
-/// Payload access
-  property payload;
-  read: { return m_payload; }
-  write: { 
-    m_payload = __value;
-    evtPost("fromDevice", EsDeviceEvtId$$payloadChanged, "payload");
-  }
 }
