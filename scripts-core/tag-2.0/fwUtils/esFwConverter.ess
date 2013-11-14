@@ -13,7 +13,7 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
       
   inf = new EsFile(inFile, EsFileFlag$$Read|EsFileFlag$$Text);
   inf.open();
-  hex = inf.readAllAsString();
+  hex = inf.readAllAsBinBuffer();
   inf.close();
   EsScriptDebug::log("Converting hex to binary...");
   binary = new EsFwBinary(hex);
