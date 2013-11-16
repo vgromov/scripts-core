@@ -43,16 +43,17 @@ object EsFwBinary
 			throw "Firmware hex image is too small or empty";
 		allLines = tokenizer$remainingTokens;
 
+		pmTask = new EsProgressMonitorTask("hex2bin", "Converting hex to binary...", allLines, 0);
+		pmTask.attachTo(__scriptHost$progressMonitor);
+		
 		// try to predict binary size to minimize buffer re-allocations
 		if( buffLenEstimate % 4 )
 			buffLenEstimate = ((buffLenEstimate + 3)/4) * 4;
-		
 		m_fw = EsVar::as(EsVariantType$$VAR_BIN_BUFFER, buffLenEstimate);
-		//EsScriptDebug::log( "m_fw estimated size set to: %d", buffLenEstimate );
-			
+		
 		while( tokenizer$moreTokens )
 		{
-//			EsScriptDebug::log("Converting hex to binary... %0.1f%%", 100.*(allLines-tokenizer$remainingTokens)/allLines);
+			pmTask$position = allLines-tokenizer$remainingTokens;
 		
 			rec = tokenizer$nextToken;
 			// skip empty tokens
@@ -168,6 +169,8 @@ object EsFwBinary
 			m_fw#countSet( buffLen );
 			//EsScriptDebug::log( "final m_fw size truncated from %d to %d", buffLenEstimate, buffLen );
 		}
+		
+		pmTask.end();
 	}
 
 	// ctor
