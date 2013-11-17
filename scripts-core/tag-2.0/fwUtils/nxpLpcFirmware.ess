@@ -399,7 +399,7 @@ object EsMcuprogLpc
           }
           
           requestStringSend(chnl, "G 10356\r\n");
-          EsCore::sleep(200);
+          EsThreadWorker::sleep(200);
           tries = 0;
         }
         else if( B"Synchronized\r\n" == response )

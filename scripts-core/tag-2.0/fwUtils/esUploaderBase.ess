@@ -11,28 +11,28 @@ object EsUploaderBase
 	{
 		// EsScriptDebug::log("configurePowerOn");
 		chnl.devicePowerSet(true);
-		EsCore::sleep(200);
+		EsThreadWorker::sleep(200);
 	}
 
 	function configurePowerOff(chnl)
 	{
 		// EsScriptDebug::log("configurePowerOff");
 		chnl.devicePowerSet(false);
-		EsCore::sleep(200);
+		EsThreadWorker::sleep(200);
 	}
 			
 	function configureBoot(chnl)
 	{
 		// EsScriptDebug::log("configureBoot");
 		chnl.deviceProgrammingModeSet(true);
-		EsCore::sleep(200);		
+		EsThreadWorker::sleep(200);		
 	}
 	
 	function configureNormal(chnl)
 	{
 		// EsScriptDebug::log("configureNormal");
 		chnl.deviceProgrammingModeSet(false);
-		EsCore::sleep(200);	
+		EsThreadWorker::sleep(200);	
 	}
 	
 	function setDevicePowerOnInNormalMode(chnl)
@@ -93,7 +93,7 @@ object EsUploaderBase
 				configureBoot(chnl);
 				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
 				progressTask.pulse("Shutting down device...");
-				EsCore::sleep(1000);
+				EsThreadWorker::sleep(1000);
 				configurePowerOn(chnl);
 				result = true;
 			}
@@ -108,7 +108,7 @@ object EsUploaderBase
 				// EsScriptDebug::log("Performing Warm boot");
 				rpcMaster.VOID_Call_UINT32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
 				progressTask.pulse("Performing Warm Boot...");
-				EsCore::sleep(1500);
+				EsThreadWorker::sleep(1500);
 				result = true;
 				
 				if( result && supportsPowerCtl && !chnl$useRS232 )
@@ -127,7 +127,7 @@ object EsUploaderBase
 			// wait for 40 seconds - standard poweroff timeout
 			while( tmo-- )
 			{
-				EsCore::sleep(1000);
+				EsThreadWorker::sleep(1000);
 				progressTask$position = tmo;
 			}
 			
