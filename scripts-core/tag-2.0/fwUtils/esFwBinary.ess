@@ -37,12 +37,13 @@ object EsFwBinary
     buffLen = 0, realAddr = 0, binOffsDefined = false,
     tokenizer = new EsStringTokenizer(EsStr::fromByteString(hex), "\r\n :"),
     rec, pos, recAddr, recType, recLen,
-    nib, hexVal, idx, allLines, pmTask, notifyCounter = 0;
+    nib, hexVal, idx, allLines, pmTask, notifyCounter = 0, notifyThreshold;
   {
     if( !tokenizer$moreTokens )
       throw "Firmware hex image is too small or empty";
     allLines = tokenizer$remainingTokens;
-
+    notifyThreshold = allLines/1000; if( notifyThreshold < 1 ) notifyThreshold = 1;
+		
     pmTask = new EsProgressMonitorTask("hex2bin", "Converting hex to binary...", allLines, 0);
     pmTask.attachTo(__scriptHost$progressMonitor);
     
@@ -51,10 +52,10 @@ object EsFwBinary
       buffLenEstimate = ((buffLenEstimate + 3)/4) * 4;
     m_fw = EsVar::as(EsVariantType$$VAR_BIN_BUFFER, buffLenEstimate);
 		EsScriptDebug::log( "m_fw esimate is set to: %d", buffLenEstimate );
-    
+		
     while( tokenizer$moreTokens )
     {
-			if( notifyCounter++ > 10 )
+			if( notifyCounter++ > notifyThreshold )
 			{
 				notifyCounter = 0;
 				pmTask$position = allLines-tokenizer$remainingTokens;
