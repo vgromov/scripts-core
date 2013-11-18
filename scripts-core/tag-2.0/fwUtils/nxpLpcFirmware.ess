@@ -285,7 +285,7 @@ object EsMcuprogLpc
              tm < timeOutMilliseconds && 
              nr < wantedNrs );
     
-		EsScriptDebug::log("dataRecieve returns '%s'", data);
+	//	EsScriptDebug::log("dataRecieve(chnl, maxDataLen: %d, wantedNrs: %d, timeOutMilliseconds: %d) '%s'", maxDataLen, wantedNrs, timeOutMilliseconds, data);
     return data;
   }
   
@@ -380,6 +380,7 @@ object EsMcuprogLpc
       requestStringSend(chnl, "?");
       response = dataRecieve(chnl, c_responseLenMax, 1, 100);
       response = responseStringExtract(response);
+		//	EsScriptDebug::log("responseStringExtract '%s'", response);
       if( !response#isEmpty() )
       {
         if( B"Bootloader\r\n" == response )
