@@ -35,7 +35,7 @@ object EsFwBinary
   function hexSet(hex)
   var buffLenEstimate = hex#countGet()/2,
     buffLen = 0, realAddr = 0, binOffsDefined = false,
-    tokenizer = new EsStringTokenizer(EsStr::fromByteString(hex), "\r\n :"),
+    tokenizer = new EsStringTokenizer(hex, "\r\n :"),
     rec, pos, recAddr, recType, recLen,
     nib, hexVal, idx, allLines, pmTask, notifyCounter = 0, notifyThreshold;
   {
