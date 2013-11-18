@@ -284,7 +284,8 @@ object EsMcuprogLpc
     } while( dataLen < maxDataLen && 
              tm < timeOutMilliseconds && 
              nr < wantedNrs );
-             
+    
+		EsScriptDebug::log("dataRecieve returns '%s'", data);
     return data;
   }
   
