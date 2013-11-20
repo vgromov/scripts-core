@@ -251,7 +251,7 @@ object EsMcuprogLpc
     return sent;
   }
   
-  function dataRecieve(chnl, maxDataLen, wantedNrs, timeOutMilliseconds)
+  function dataReceive(chnl, maxDataLen, wantedNrs, timeOutMilliseconds)
   var idx, data, dataLen = 0, tmpData, tmpDataLen, 
       tm = 0, nr = 0, prev = 0, b;
   {
@@ -285,7 +285,7 @@ object EsMcuprogLpc
              tm < timeOutMilliseconds && 
              nr < wantedNrs );
     
-	//	EsScriptDebug::log("dataRecieve(chnl, maxDataLen: %d, wantedNrs: %d, timeOutMilliseconds: %d) '%s'", maxDataLen, wantedNrs, timeOutMilliseconds, data);
+	//	EsScriptDebug::log("dataReceive(chnl, maxDataLen: %d, wantedNrs: %d, timeOutMilliseconds: %d) '%s'", maxDataLen, wantedNrs, timeOutMilliseconds, data);
     return data;
   }
   
@@ -305,9 +305,9 @@ object EsMcuprogLpc
         wantedNrs = 2;
       }
       
-      response = dataRecieve(chnl, c_responseLenMax, wantedNrs, 5000);
+      response = dataReceive(chnl, c_responseLenMax, wantedNrs, 5000);
       m_regex$text = EsStr::fromByteString(response);
-      //EsScriptDebug::log("cmd_request '%s'; cmd_response '%s'", requestString, m_regex$text);
+      EsScriptDebug::log("cmd_request '%s'; cmd_response '%s'", requestString, m_regex$text);
 
       if( !m_regex$matches )
         throw EsStr::format(errFmt, "Wrong answer");
@@ -378,7 +378,7 @@ object EsMcuprogLpc
     for( tries = 0; tries < syncRetries; ++tries )
     {
       requestStringSend(chnl, "?");
-      response = dataRecieve(chnl, c_responseLenMax, 1, 100);
+      response = dataReceive(chnl, c_responseLenMax, 1, 100);
       response = responseStringExtract(response);
 		//	EsScriptDebug::log("responseStringExtract '%s'", response);
       if( !response#isEmpty() )
@@ -391,7 +391,7 @@ object EsMcuprogLpc
           
           requestStr = "T " + ticks;
           requestStringSend(chnl, requestStr+"\n");
-          response = dataRecieve(chnl, c_responseLenMax, 1, 100);
+          response = dataReceive(chnl, c_responseLenMax, 1, 100);
           if( B"OK\r\n" != response )
           {
             if( doThrow )
@@ -421,7 +421,7 @@ object EsMcuprogLpc
     else
     {
       requestStringSend(chnl, requestStr+"\n");
-      response = dataRecieve(chnl, c_responseLenMax, 2, 1000);
+      response = dataReceive(chnl, c_responseLenMax, 2, 1000);
 
       m_regex$pattern = requestStr + "(?:\r|\n)\n?OK\r\n";
       m_regex$text = EsStr::fromByteString(response);
@@ -441,7 +441,7 @@ object EsMcuprogLpc
   {
     requestStr = m_moniker.m_xtalHz/1000;
     requestStringSend(chnl, requestStr+"\n");
-    response = dataRecieve(chnl, c_responseLenMax, 2, 1000);
+    response = dataReceive(chnl, c_responseLenMax, 2, 1000);
 
     m_regex$pattern = requestStr+"(?:\r|\n)\n?OK\r\n";
     m_regex$text = EsStr::fromByteString(response);
@@ -458,7 +458,7 @@ object EsMcuprogLpc
   var requestStr = "K", response;
   {
     requestStringSend(chnl, requestStr + "\n");
-    response = dataRecieve(chnl, c_responseLenMax, 4, 5000);
+    response = dataReceive(chnl, c_responseLenMax, 4, 5000);
     
     m_regex$pattern = requestStr+"(?:\r|\n)\n?0\r\n([0-9]+)\r\n([0-9]+)";
     m_regex$text = EsStr::fromByteString(response);
@@ -473,7 +473,7 @@ object EsMcuprogLpc
       responseStr, id, info, infoIdx = 0, found = false;
   {
     requestStringSend(chnl, requestStr+"\n");
-    response = dataRecieve(chnl, c_responseLenMax, 3, 5000);
+    response = dataReceive(chnl, c_responseLenMax, 3, 5000);
     responseStr = EsStr::fromByteString(response);
     m_regex$pattern = requestStr+"(?:\r|\n)\n?0\r\n([0-9]+)";
     m_regex$text = responseStr;
@@ -572,7 +572,7 @@ object EsMcuprogLpc
     requestStringSend(chnl, requestStr);
     if( EsMcuprogLpcFirmwareFlag$$NO_ECHO != (m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO) )
     {
-      response = dataRecieve(chnl, c_responseLenMax, 1, 5000);
+      response = dataReceive(chnl, c_responseLenMax, 1, 5000);
       responseStr = EsStr::fromByteString(response);
       if( responseStr != requestStr )
         throw "Error writing data at " + tmpPos + ", sent '" + requestStr#asEscapedString() + "', got '" + responseStr#asEscapedString() + "'";
@@ -598,7 +598,7 @@ object EsMcuprogLpc
     
     //EsScriptDebug::log("blockCrcWrite_request '%s'", requestStr);
     requestStringSend(chnl, requestStr);
-    response = dataRecieve(chnl, c_responseLenMax, expectedNrs, 5000);
+    response = dataReceive(chnl, c_responseLenMax, expectedNrs, 5000);
     //EsScriptDebug::log("blockCrcWrite_response '%s'", EsStr::fromByteString(response));
     if( response != expectedResponse )
       throw "Error writing block CRC";
