@@ -197,6 +197,7 @@ object EsMcuprogLpc
 {
   var m_regex,
       m_flags,
+			m_noEcho,
       m_syncRetries,
       m_bootloaderVer,
       m_mcuInfoIdx, 
@@ -240,10 +241,11 @@ object EsMcuprogLpc
   }
   
   function requestStringSend(chnl, requestString)
-  var sent, toSend,  request = EsStr::toByteString(requestString);
+  var sent, toSend, request = EsStr::toByteString(requestString);
   {
     toSend = request#countGet();
     sent = chnl.bytesPut(request, chnl.txTimeEstimateGet(toSend));
+		// EsScriptDebug::log("requestStringSend sent %d, from: '%s'", sent, requestString);
     if( sent != toSend )
       throw EsStr::format("Could not send bootloader command '%s'; to send %d, sent %d bytes", 
         requestString, toSend, sent);
@@ -285,7 +287,7 @@ object EsMcuprogLpc
              tm < timeOutMilliseconds && 
              nr < wantedNrs );
     
-	//	EsScriptDebug::log("dataReceive(chnl, maxDataLen: %d, wantedNrs: %d, timeOutMilliseconds: %d) '%s'", maxDataLen, wantedNrs, timeOutMilliseconds, data);
+		// EsScriptDebug::log("dataReceive(chnl, maxDataLen: %d, wantedNrs: %d, timeOutMilliseconds: %d) '%s'", maxDataLen, wantedNrs, timeOutMilliseconds, data);
     return data;
   }
   
@@ -294,7 +296,7 @@ object EsMcuprogLpc
   {
     if( requestStringSend(chnl, requestString + "\n") )
     {
-      if( m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO )
+      if( m_noEcho )
       {
         m_regex$pattern = "([0-9]+)\r\n";
         wantedNrs = 1;
@@ -307,7 +309,7 @@ object EsMcuprogLpc
       
       response = dataReceive(chnl, c_responseLenMax, wantedNrs, 5000);
       m_regex$text = EsStr::fromByteString(response);
-      EsScriptDebug::log("cmd_request '%s'; cmd_response '%s'", requestString, m_regex$text);
+      // EsScriptDebug::log("cmd_request '%s'; cmd_response '%s'; pattern: '%s'", requestString, m_regex$text, m_regex$pattern);
 
       if( !m_regex$matches )
         throw EsStr::format(errFmt, "Wrong answer");
@@ -570,7 +572,7 @@ object EsMcuprogLpc
     requestStr += "\n";
     //EsScriptDebug::log("blockWrite '%s'", requestStr);
     requestStringSend(chnl, requestStr);
-    if( EsMcuprogLpcFirmwareFlag$$NO_ECHO != (m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO) )
+    if( !m_noEcho )
     {
       response = dataReceive(chnl, c_responseLenMax, 1, 5000);
       responseStr = EsStr::fromByteString(response);
@@ -585,7 +587,7 @@ object EsMcuprogLpc
   var requestStr, expectedResponse, response, expectedNrs;
   {
     requestStr = EsStr::format("%d\r\n", crc);
-    if( m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO )
+    if( m_noEcho )
     {
       expectedNrs = 1;
       expectedResponse = B"OK\r\n";
@@ -647,6 +649,7 @@ object EsMcuprogLpc
   function echoDisable(chnl)
   {
     requestSendCmdResponseGetAndVerify(chnl, "A 0", "Error executing 'Echo OFF' command: '%s'");
+		m_noEcho = true;
   }
   
   function program(chnl, isAlreadySynched)
@@ -663,15 +666,15 @@ object EsMcuprogLpc
     // EsScriptDebug::log("Programming, already synched: %s, don't sync flag: %s", isAlreadySynched, (m_flags & EsMcuprogLpcFirmwareFlag$$DONT_SYNC));
     if( !isAlreadySynched )
       syncWithBootloader(chnl, m_syncRetries, true);
-    
+
     oscCommandSend(chnl);
     flashUnlock(chnl);
     bootcodeVerRead(chnl);
     partIdRead(chnl);
-    
+			
     if( m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO )
       echoDisable(chnl);
-    
+
     if( !(m_flags & EsMcuprogLpcFirmwareFlag$$DETECT_ONLY) )
     {
       binaryIvtChecksumPrepare();
@@ -803,6 +806,7 @@ object EsMcuprogLpc
     m_flags = flags#asULong();
     m_syncRetries = retries#asULong();
     m_moniker = moniker;
+		m_noEcho = false;
   }
 }
 
