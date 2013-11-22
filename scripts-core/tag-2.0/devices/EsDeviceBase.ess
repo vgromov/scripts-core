@@ -171,11 +171,10 @@ object EsDeviceBase
     }
   }
   
-/// Assign default FW id to the device. Must be overridden in derived classes
+/// Assign default FW id to the device. Should be overridden in derived classes
+/// to create default empty device object with meaningful device type
   function fwIdDefaultSet()
-  {
-    throw "fwIdDefaultSet must be overridden!";
-  }
+  {}
   
 /// Address check
   function addrAssert(addr)
@@ -654,6 +653,24 @@ object EsDeviceBase
     
     return result;
   }
+	
+/// Custom serialization
+	function streamWrite(stream)
+	{
+		stream.valueWrite("id", m_fwId);
+		stream.valueWrite("caps", m_caps);
+	}
+	
+	function streamRead(stream)
+	var id;
+	{
+	  m_fwInitialized = false;    
+    internalInit();
+    
+		id = stream.valueRead("id", null);
+		fwIdSet(id);
+		m_caps = stream.valueRead("caps", []);
+	}
   
 /// Properties:
 ///   
