@@ -90,14 +90,24 @@ object EsDeviceBase
       
     __scriptHost.eventPost(cat, id, payload);
   }
-  
+	
+/// Push request to the dispatcher
+  function evtRequestPost(requestId, request)
+	{
+		if( requestId in [EsDeviceEvtId$$rpcRequest, EsDeviceEvtId$$rpcRequestBatch, EsDeviceEvtId$$customRequest] )
+			evtPost("toDevice", requestId, request);
+ 	}
+	  
 /// Push response to the dispatcher queue
   function evtResponsePost(responseId, request, response)
   var responseData = [];
   {
-    responseData#append(request);
-    responseData#append(response);
-    evtPost("fromDevice", responseId, responseData);
+    if( responseId in [EsDeviceEvtId$$idChanged, EsDeviceEvtId$$rpcResponse, EsDeviceEvtId$$rpcResponseBatch, EsDeviceEvtId$$customResponse] )
+		{
+			responseData#append(request);
+			responseData#append(response);
+			evtPost("fromDevice", responseId, responseData);
+		}
   }
   
 /// Return user-friendly RPC name string, or 'Unknown RPC with <id>'.
@@ -452,6 +462,28 @@ object EsDeviceBase
     return batchResult;
   }
   
+/// Queue rpc request to ourselves - async request call
+	function rpcCallQueue(rpcId, rpcArgs)
+	var data = [];
+	{
+		data += rpcId; data#append(rpcArgs);
+		evtRequestPost(EsDeviceEvtId$$rpcRequest, data);
+	}
+	
+/// Queue batch rpc request to ourselves - async request call
+	function rpcBatchCallQueue(batch)
+	{
+		evtRequestPost(EsDeviceEvtId$$rpcRequestBatch, batch);
+	}
+
+/// Queue custom request to ourselves - async request call
+	function customCallQueue(name, args)
+	var data = [];
+	{
+		data += name; data#append(args);
+		evtRequestPost(EsDeviceEvtId$$customRequest, data);
+	}
+	
 /// Handle -to device event. Default implementation handles
 /// single, batch, and custom requests
   function evtDestAssert(devIdStr)

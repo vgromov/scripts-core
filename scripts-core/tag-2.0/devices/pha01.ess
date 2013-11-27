@@ -300,7 +300,7 @@ object PHA01_Health
   /// Return health errors as string
   function asString()
   {
-    return EsStr::fromArray(errorsAsStrings(), ";", "", "");
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
   }
   /// return true if health critical error was latched
   property hasCriticalError;
@@ -547,4 +547,10 @@ object PHA01 extends EsDeviceBase
 
     return batchItem;
   }
+	
+/// Properties
+///
+/// Currently opmode
+	property opmode;
+	read: { return m_opMode; }
 }
