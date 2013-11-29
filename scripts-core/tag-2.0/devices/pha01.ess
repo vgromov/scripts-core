@@ -132,21 +132,21 @@ object PHA01_Data
   read: { return f_lux$value; }
 	/// illuminosity value string
 	property luxStr;
-	read: { return PHA01_ValueFmt(f_lux$value) + " lx"; }
+	read: { return PHA01_ValueFmt( $lux ) + " lx"; }
 	
   /// luminosity
   property cdm;
   read: { return f_cdm$value; }
 	/// luminosity value string
   property cdmStr;
-  read: { return PHA01_ValueFmt(f_cdm$value) + " cd/m2"; }
+  read: { return PHA01_ValueFmt( $cdm ) + " cd/m2"; }
 	
   /// pulsation coefficient, in 100%
   property kp;
   read: { return f_kp / 10.; }
 	/// pulsation string
 	property kpStr;
-  read: { return PHA01_PulsationFmt(f_kp / 10.) + " %"; }
+  read: { return PHA01_PulsationFmt( $kp ) + " %"; }
 }
 
 // added since 1.6 - background subtraction data packet
@@ -166,34 +166,34 @@ object PHA01_DataWoBgnd
   read: { return f_luxOrg$value; }
 	/// original illuminosity string
 	property luxOrgStr;
-	read: { return PHA01_ValueFmt(f_luxOrg$value) + " lx"; }	
+	read: { return PHA01_ValueFmt( $luxOrg ) + " lx"; }	
 
   /// background illuminosity
   property luxBgnd;
   read: { return f_luxBgnd$value; }
   /// background illuminosity	string
 	property luxBgndStr;
-	read: { return PHA01_ValueFmt(f_luxBgnd$value) + " lx"; }	
+	read: { return PHA01_ValueFmt( $luxBgnd ) + " lx"; }	
 
   /// illuminosity W|O background
   property lux;
   read: { return f_lux$value; }
   /// illuminosity W|O background, string
 	property luxStr;
-	read: { return PHA01_ValueFmt(f_lux$value) + " lx"; }	
+	read: { return PHA01_ValueFmt( $lux ) + " lx"; }	
 
   /// original pulsation coefficient, in 100%
   property kpOrg;
   read: { return f_kpOrg / 10.; }  
 	property kpOrgStr;
-  read: { return PHA01_PulsationFmt(f_kpOrg / 10.) + " %"; }
+  read: { return PHA01_PulsationFmt( $kpOrg ) + " %"; }
 
   /// resulting pulsation coefficient, in 100%
   property kp;
   read: { return f_kp / 10.; }  
 	/// pulsation string
 	property kpStr;
-  read: { return PHA01_PulsationFmt(f_kp / 10.) + " %"; }
+  read: { return PHA01_PulsationFmt( $kp ) + " %"; }
 }
 
 /// Calibration node
