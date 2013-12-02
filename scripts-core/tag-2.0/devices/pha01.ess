@@ -116,6 +116,45 @@ var fmt;
 	return EsStr::format(fmt, val);
 }
 
+/// Multi part value string creation
+function PHA01_strMultiGet(val, unit)
+var mul = 1., result = []; 
+{
+	result += PHA01_ValueFmt( val );
+	if( val > 1000. )
+	{
+		mul = 1000.;
+		val /= mul;
+	}	
+	result += PHA01_ValueFmt( val );
+	result += mul;
+	result += unit;
+	
+	return result;
+}
+
+/// Multi part pulsation string 
+function PHA01_pulsationStrMultiGet(val)
+var result = [];
+{
+	result += PHA01_PulsationFmt( val );
+	result += "%";
+	return result;
+}
+
+/// Create simple string from multistring
+function PHA01_fromStrMulti(multi)
+{
+	return multi[1] + " " + multi[3];
+}
+
+/// The same as above, but for pulsation multistring
+function PHA01_pulsationFromStrMulti(multi)
+{
+	return multi[0] + " " + multi[1];
+}
+
+/// Simpla PHA01 data object
 object PHA01_Data 
 {
   /// Fields
@@ -130,23 +169,32 @@ object PHA01_Data
   /// illuminosity
   property lux;
   read: { return f_lux$value; }
+	/// illuminosity string components property
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, I"lx"); }
 	/// illuminosity value string
 	property luxStr;
-	read: { return PHA01_ValueFmt( $lux ) + " lx"; }
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
 	
-  /// luminosity
+  /// Luminosity
   property cdm;
   read: { return f_cdm$value; }
-	/// luminosity value string
+	/// Luminosity string components
+	property cdmStrMulti;
+	read: { return PHA01_strMultiGet( $lux, I"cd/m<sup>2</sup>"); }
+	/// Luminosity value string
   property cdmStr;
-  read: { return PHA01_ValueFmt( $cdm ) + " cd/m2"; }
+  read: { return PHA01_fromStrMulti( $cdmStrMulti ); }
 	
-  /// pulsation coefficient, in 100%
+  /// pulsation coefficient, in %
   property kp;
   read: { return f_kp / 10.; }
+	/// pulsation string components
+	property kpStrMulti;
+	read: {	return PHA01_pulsationStrMultiGet( $kp ); }
 	/// pulsation string
 	property kpStr;
-  read: { return PHA01_PulsationFmt( $kp ) + " %"; }
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
 }
 
 // added since 1.6 - background subtraction data packet
@@ -164,36 +212,50 @@ object PHA01_DataWoBgnd
   /// original illuminosity
   property luxOrg;
   read: { return f_luxOrg$value; }
+	/// original illuminosity string components
+	property luxOrgStrMulti;
+	read: { return PHA01_strMultiGet( $luxOrg, I"lx"); }
 	/// original illuminosity string
 	property luxOrgStr;
-	read: { return PHA01_ValueFmt( $luxOrg ) + " lx"; }	
+	read: { return PHA01_fromStrMulti( $luxOrgStrMulti ); }	
 
   /// background illuminosity
   property luxBgnd;
   read: { return f_luxBgnd$value; }
+  /// background illuminosity	string components
+	property luxBgndStrMulti;
+	read: { return PHA01_strMultiGet( $luxBgnd, I"lx"); }
   /// background illuminosity	string
 	property luxBgndStr;
-	read: { return PHA01_ValueFmt( $luxBgnd ) + " lx"; }	
+	read: { return PHA01_fromStrMulti( $luxBgndStrMulti ); }	
 
   /// illuminosity W|O background
   property lux;
   read: { return f_lux$value; }
+  /// illuminosity W|O background, string components
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, I"lx"); }
   /// illuminosity W|O background, string
 	property luxStr;
-	read: { return PHA01_ValueFmt( $lux ) + " lx"; }	
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
 
-  /// original pulsation coefficient, in 100%
+  /// original pulsation coefficient, %
   property kpOrg;
-  read: { return f_kpOrg / 10.; }  
+  read: { return f_kpOrg / 10.; }
+	property kpOrgStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kpOrg ); }
 	property kpOrgStr;
-  read: { return PHA01_PulsationFmt( $kpOrg ) + " %"; }
+  read: { return PHA01_pulsationFromStrMulti( $kpOrgStrMulti ); }
 
-  /// resulting pulsation coefficient, in 100%
+  /// resulting pulsation coefficient, %
   property kp;
-  read: { return f_kp / 10.; }  
+  read: { return f_kp / 10.; }
+	/// pulsation multi string
+	property kpStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kp ); }
 	/// pulsation string
 	property kpStr;
-  read: { return PHA01_PulsationFmt( $kp ) + " %"; }
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
 }
 
 /// Calibration node
