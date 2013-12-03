@@ -127,7 +127,7 @@ var mul = 1., result = [];
 		val /= mul;
 	}	
 	result += PHA01_ValueFmt( val );
-	result += mul;
+	result += EsStr::format("x%d", mul);
 	result += unit;
 	
 	return result;
@@ -564,6 +564,7 @@ object PHA01 extends EsDeviceBase
     
     return rpcResult;
   }
+	
   /// Upload settings object
   function settingsUpload(settings)
   var batch = [], batchItem = [];
