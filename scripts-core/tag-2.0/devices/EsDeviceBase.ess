@@ -59,6 +59,7 @@ var batchItem;
 /// the standard RPC response structure: [true|false, data]
 ///
 object EsDeviceBase
+@nomarhsal;
 {
   var m_fwInitialized,
 /// Device id. Null, if never identified

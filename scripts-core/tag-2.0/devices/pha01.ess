@@ -419,6 +419,7 @@ object PHA01_Settings
 
 /// PHA01 device object
 object PHA01 extends EsDeviceBase
+@nomarhsal;
 {
 /// Device-specific vars
   var m_opMode;
