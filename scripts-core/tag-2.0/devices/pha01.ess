@@ -256,6 +256,14 @@ object PHA01_DataWoBgnd
 	/// pulsation string
 	property kpStr;
   read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
+	
+	/// Data validity check
+	property valid;
+	read: { return 0 == f_bgndETA; }
+	
+	/// Bgnd ETA read access
+	property eta;
+	read: { return f_bgndETA$value; }
 }
 
 /// Calibration node
@@ -419,7 +427,7 @@ object PHA01_Settings
 
 /// PHA01 device object
 object PHA01 extends EsDeviceBase
-@nomarhsal;
+@nomarshal;
 {
 /// Device-specific vars
   var m_opMode;

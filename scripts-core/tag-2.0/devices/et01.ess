@@ -1,0 +1,3 @@
+// scripting device support for et-01 microclimate-appliance
+##require("EsDeviceBase.ess");
+
