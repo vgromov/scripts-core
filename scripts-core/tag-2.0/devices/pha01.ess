@@ -1,6 +1,10 @@
 // scripting device support for pha-01 photo-appliance
 ##require("EsDeviceBase.ess");
 
+const c_pha01_unitE = "lx";
+const c_pha01_unitL = "cd/m<sup>2</sup>";
+const c_pha01_unitP = "%";
+
 // pha01-specific rpcs 
 enum PHA01_Rpid
 {
@@ -138,7 +142,7 @@ function PHA01_pulsationStrMultiGet(val)
 var result = [];
 {
 	result += PHA01_PulsationFmt( val );
-	result += "%";
+	result += c_pha01_unitP;
 	return result;
 }
 
@@ -171,7 +175,7 @@ object PHA01_Data
   read: { return f_lux$value; }
 	/// illuminosity string components property
 	property luxStrMulti;
-	read: { return PHA01_strMultiGet( $lux, I"lx"); }
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
 	/// illuminosity value string
 	property luxStr;
 	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
@@ -181,7 +185,7 @@ object PHA01_Data
   read: { return f_cdm$value; }
 	/// Luminosity string components
 	property cdmStrMulti;
-	read: { return PHA01_strMultiGet( $lux, I"cd/m<sup>2</sup>"); }
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitL); }
 	/// Luminosity value string
   property cdmStr;
   read: { return PHA01_fromStrMulti( $cdmStrMulti ); }
@@ -214,7 +218,7 @@ object PHA01_DataWoBgnd
   read: { return f_luxOrg$value; }
 	/// original illuminosity string components
 	property luxOrgStrMulti;
-	read: { return PHA01_strMultiGet( $luxOrg, I"lx"); }
+	read: { return PHA01_strMultiGet( $luxOrg, c_pha01_unitE); }
 	/// original illuminosity string
 	property luxOrgStr;
 	read: { return PHA01_fromStrMulti( $luxOrgStrMulti ); }	
@@ -224,7 +228,7 @@ object PHA01_DataWoBgnd
   read: { return f_luxBgnd$value; }
   /// background illuminosity	string components
 	property luxBgndStrMulti;
-	read: { return PHA01_strMultiGet( $luxBgnd, I"lx"); }
+	read: { return PHA01_strMultiGet( $luxBgnd, c_pha01_unitE); }
   /// background illuminosity	string
 	property luxBgndStr;
 	read: { return PHA01_fromStrMulti( $luxBgndStrMulti ); }	
@@ -234,7 +238,7 @@ object PHA01_DataWoBgnd
   read: { return f_lux$value; }
   /// illuminosity W|O background, string components
 	property luxStrMulti;
-	read: { return PHA01_strMultiGet( $lux, I"lx"); }
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
   /// illuminosity W|O background, string
 	property luxStr;
 	read: { return PHA01_fromStrMulti( $luxStrMulti ); }

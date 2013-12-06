@@ -1,3 +1,330 @@
 // scripting device support for et-01 microclimate-appliance
 ##require("EsDeviceBase.ess");
 
+const c_et01_unitT = "<sup>o</sup>C";
+const c_et01_unitU = "m/s";
+const c_et01_unitW = "W/m<sup>2</sup>";
+const c_et01_unitP = "Pa";
+const c_et01_unitH = "%";
+
+// et01-specific rpcs 
+enum ET01_Rpid
+{
+	OperationModeSet 	= 2056, "VOID_Call_UINT8|";
+	OperationModeGet 	= 2057, "UINT8_Call|";
+	LiveDataGet				= 2058,	"BYTEARRAY_Call|";
+	AllowChargingSet	= 2067, "VOID_Call_BOOL|";
+}
+
+enum ET01_OpMode
+{
+	Idle							=	1, "Idle";
+	LiveLimited				=	2, "T, H, Tdew, Sphere";
+	LiveUnlimited			=	3, "T, H, Tdew, Sphere + V";
+	LiveUnlimitedRaw	=	4, "T, H, Tdew, Sphere + V in ADC codes";
+}
+
+// flags.mask bits
+enum ET01_Flag
+{
+	No_tA			= 0x0001;
+	No_rH			= 0x0002;
+	No_tD			= 0x0004;
+	No_tW			= 0x0008;
+	No_u			= 0x0010;
+	No_tG			= 0x0020;
+	No_wBgt		= 0x0040;
+	No_wBgts	= 0x0080;
+	No_tR			= 0x0100;
+	No_w			= 0x0200;
+	No_p			= 0x0400;
+	No_t0			= 0x0800;
+	Invalid		= 0x0FFF;
+}
+
+/// Microclimate data object
+///
+object ET01_Flags
+{
+	UINT32	f_mask;							// flags bit mask
+	UINT8		f_heaterTimer;			// if heaterTimer == 0xFF - heater is off
+															// if heaterTimer > 0 && heaterTimer < 0xFF count of seconds before velocity data is valid
+	UINT32	f_taAvrTimer;				// if air temperature averaging mode is on - this value in seconds will indicate the value averaging time
+	UINT32	f_uAvrTime;					// air flow averaging period in seconds 
+	
+/// Properties
+///
+	property valid;
+	read: { return ET01_Flag$$Invalid != (f_mask & ET01_Flag$$Invalid); }
+}
+
+object ET01_DataBlock
+{
+	FLOAT		f_tA;								// temperature, in C
+	FLOAT		f_rH;								// relative humidity in %
+	FLOAT		f_tD;								// dewpoint, in C
+	FLOAT		f_tW;								// wet thermometer temperature, in C
+	FLOAT		f_u;								// air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
+	FLOAT		f_tG;								// temperature inside black sphere, valid if sphere is connected
+	FLOAT		f_wBgt;							// index WBGT, valid if sphere is connected
+	FLOAT		f_wBgts;						// index WBGTs, valid if sphere is connected
+	FLOAT		f_tR;								// radiation temperature when airflow is less than 1 m/s
+	FLOAT		f_w;								// heat ratiation density
+	FLOAT		f_p;								// pressure
+	FLOAT		f_t0;								// resulting temperature
+	FLOAT		f_reserved[2];
+}
+
+/// Value formatting helpers
+function ET01_valFmt(val, decimals, isValid)
+{
+	if( isValid )
+		return EsStr::format("%0."+decimals+"f", val);
+	
+	return "--";
+}
+
+function ET01_strMultiGet(str, unit)
+var result = [];
+{
+	result += str;
+	result += unit;
+	
+	return result;
+}
+
+function ET01_fromStrMulti(multi)
+{
+	return multi[0] + " " + multi[1];
+}
+
+object ET01_Data
+{
+/// Vars
+///
+	var m_opmode;
+
+/// Fields
+///
+	DATETIME				f_ts;						// timestamp (not used, ET does not have RTC)
+	ET01_Flags 			f_flags;				// flags block
+	ET01_DataBlock	f_data;					// data block
+	UINT32					f_gradient;			// data change tendency indicator
+	
+/// Non-default ctor with opmode assignment
+	new(opmode)
+	{
+		if( opmode in ET01_OpMode )
+			m_opmode = opmode;
+		else
+			throw "Invalid ET opmode value";
+	}
+	
+/// Properties
+///
+	property valid;
+	read: { return f_flags$valid; }
+	// is heater switched off?
+	property heaterIsOff;
+	read: { return 0xFF == f_flags.f_heaterTimer; }
+	// how long (in sec) before heater is ready
+	property heaterEta;
+	read: { return $heaterIsOff ? 0 : f_flags.f_heaterTimer$value; }
+	
+/// Data read access
+///
+	/// Air temperature
+	property tA;
+	read: { return f_data.f_tA$value; }
+	property tAvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_tA); }
+	property tAstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($tA, 1, $tAvalid), c_et01_unitT ); }
+	property tAstr;
+	read: { return ET01_fromStrMulti( $tAstrMulti ); }
+	
+	/// Relative humidity
+	property rH;
+	read: { return f_data.f_rH$value; }
+	property rHvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_rH); }
+	property rHstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($rH, 0, $rHvalid), c_et01_unitH ); }
+	property rHstr;
+	read: { return ET01_fromStrMulti( $rHstrMulti ); }
+	
+	/// Dewpoint temperature
+	property tD;
+	read: { return f_data.f_tD$value; }
+	property tDvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_tD); }
+	property tDstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($tD, 1, $tDvalid), c_et01_unitT ); }
+	property tDstr;
+	read: { return ET01_fromStrMulti( $tDstrMulti ); }
+	
+	/// Wet thermometer temperature
+	property tW;
+	read: { return f_data.f_tW$value; }
+	property tWvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_tW); }
+	property tWstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($tW, 1, $tWvalid), c_et01_unitT ); }
+	property tWstr;
+	read: { return ET01_fromStrMulti( $tWstrMulti ); }
+	
+	/// Air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
+	property u;
+	read: { return f_data.f_u$value; }
+	property uValid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_u) && 0 == $heaterEta && !m_opmode#isEmpty() && ET01_OpMode$$LiveUnlimited <= m_opmode; }
+	property uStrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($u, 2, $uValid), c_et01_unitU ); }
+	property uStr;
+	read: { return ET01_fromStrMulti( $uStrMulti ); }
+	
+	/// Temperature inside black sphere, valid if sphere is connected
+	property tG;
+	read: { return f_data.f_tG$value; }
+	property tGvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_tG); }
+	property tGstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($tG, 1, $tGvalid), c_et01_unitT ); }
+	property tGstr;
+	read: { return ET01_fromStrMulti( $tGstrMulti ); }
+
+	/// Index WBGT, valid if sphere is connected
+	property wBgt;
+	read: { return f_data.f_wBgt$value; }
+	property wBgtValid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_wBgt); }
+	property wBgtStrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($wBgt, 1, $wBgtValid), c_et01_unitW ); }
+	property wBgtStr;
+	read: { return ET01_fromStrMulti( $wBgtStrMulti ); }
+
+	/// Index WBGTs, valid if sphere is connected
+	property wBgts;
+	read: { return f_data.f_wBgts$value; }
+	property wBgtsValid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_wBgts); }
+	property wBgtsStrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($wBgts, 1, $wBgtsValid), c_et01_unitW ); }
+	property wBgtsStr;
+	read: { return ET01_fromStrMulti( $wBgtsStrMulti ); }	
+
+	// Radiation temperature when airflow is less than 1 m/s
+	property tR;
+	read: { return f_data.f_tR$value; }
+	property tRvalid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_tR); }
+	property tRstrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($tR, 1, $tRvalid), c_et01_unitT ); }
+	property tRstr;
+	read: { return ET01_fromStrMulti( $tRstrMulti ); }
+	
+	/// Heat ratiation density
+	property w;
+	read: { return f_data.f_w$value; }
+	property wValid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_w); }
+	property wStrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($w, 1, $wValid), c_et01_unitW ); }
+	property wStr;
+	read: { return ET01_fromStrMulti( $wStrMulti ); }
+
+	/// Pressure
+	property p;
+	read: { return f_data.f_p$value; }
+	property pValid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_p); }
+	property pStrMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($p, 1, $pValid), c_et01_unitP ); }
+	property pStr;
+	read: { return ET01_fromStrMulti( $pStrMulti ); }
+	
+	/// Resulting temperature
+	property t0;
+	read: { return f_data.f_t0$value; }
+	property t0valid;
+	read: { return !(f_flags.f_mask & ET01_Flag$$No_t0); }
+	property t0strMulti;
+	read: { return ET01_strMultiGet( ET01_valFmt($t0, 1, $t0valid), c_et01_unitT ); }
+	property t0str;
+	read: { return ET01_fromStrMulti( $t0strMulti ); }
+}
+
+/// ET01 device object
+object ET01 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in ET01_Rpid )
+      return ET01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in ET01_Rpid )
+      return rpcSigGet(ET01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsDeviceType$$ET, "ET01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ET);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 46;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+		if( ET01_Rpid$$LiveDataGet == rpcId )
+    {
+      result = new ET01_Data(m_opMode);
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( ET01_Rpid$$OperationModeGet == rpcId )
+    {
+      result = rpcResult;
+      m_opMode = result;
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = ET01_OpMode$$Idle;
+  }
+  
+  new(fwId)
+  {
+    m_opMode = ET01_OpMode$$Idle;
+  }
+  
+/// Properties
+///
+/// Currently opmode
+	property opmode;
+	read: { return m_opMode; }
+}
