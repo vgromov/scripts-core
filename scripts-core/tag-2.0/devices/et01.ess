@@ -18,10 +18,11 @@ enum ET01_Rpid
 
 enum ET01_OpMode
 {
-	Idle							=	1, "Idle";
-	LiveLimited				=	2, "T, H, Tdew, Sphere";
-	LiveUnlimited			=	3, "T, H, Tdew, Sphere + V";
-	LiveUnlimitedRaw	=	4, "T, H, Tdew, Sphere + V in ADC codes";
+	None							= 0, "NONE";
+	Idle							=	1, "IDLE";
+	LiveLimited				=	2, "LIMITED: T, H, Tdew, Sphere";
+	LiveUnlimited			=	3, "UNLIMITED: T, H, Tdew, Sphere + V";
+	LiveUnlimitedRaw	=	4, "CALIBRATION: T, H, Tdew, Sphere + V in ADC codes";
 }
 
 // flags.mask bits
