@@ -41,8 +41,11 @@ object BOI01_ColorScheme
 
 /// BOI01 Settings object
 
+/// BOI01 Health object
+
 /// BOI01 device object
 object BOI01 extends EsDeviceBase
+@nomarshal;
 {
 /// Mandatory overrides
   function rpcNameGetById(rpcId)
