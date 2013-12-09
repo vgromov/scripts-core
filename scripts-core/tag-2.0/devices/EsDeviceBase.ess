@@ -497,7 +497,7 @@ object EsDeviceBase
   var result, request, devIdStr = evtPayload[0];
   {
     evtDestAssert(devIdStr);
-    
+			
     if( EsDeviceEvtId$$rpcRequest == evtId )
     {
       request = evtPayload[1];
@@ -506,7 +506,7 @@ object EsDeviceBase
     }
     else if( EsDeviceEvtId$$rpcRequestBatch == evtId )
     {
-      request = evtPayload[1];
+			request = evtPayload[1];
       result = rpcBatchCall(request);
       evtResponsePost(EsDeviceEvtId$$rpcResponseBatch, request, result);
     }

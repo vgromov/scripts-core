@@ -5,8 +5,8 @@
 /// BOI01-specific rpcs 
 enum BOI01_Rpid
 {
-  ColorSchemeGet  = 2048, "BYTEARRAY_RpcSig|Read GUI color scheme";
-  ColorSchemeSet  = 2049, "VOID_RpcSig_BYTEARRAY|Set GUI color scheme";
+  ColorSchemeGet  = 2048, "BYTEARRAY_Call|Read GUI color scheme";
+  ColorSchemeSet  = 2049, "VOID_Call_BYTEARRAY|Set GUI color scheme";
 }
 
 /// ESGUI color type
@@ -79,7 +79,7 @@ object BOI01 extends EsDeviceBase
   }
   
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
-  var result;
+  var result = null;
   {
     if( BOI01_Rpid$$ColorSchemeGet == rpcId )
     {
