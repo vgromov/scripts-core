@@ -134,6 +134,13 @@ object ET01_Data
 	
 /// Data read access
 ///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+	
 	/// Air temperature
 	property tA;
 	read: { return f_data.f_tA$value; }
@@ -300,6 +307,7 @@ object ET01 extends EsDeviceBase
     {
       result = new ET01_Data(m_opMode);
       result$buffer = rpcResult#asBinBuffer();
+			result.f_ts = EsDateTime::now();
     }
     else if( ET01_Rpid$$OperationModeGet == rpcId )
     {

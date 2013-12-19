@@ -91,75 +91,145 @@ object EsBinDataFileTag
 // PHA01 appliance
 //
 // PHA01-LUX
-object EsBinDataFileIlluminosityEntry
-  @help = "Illuminosity data entry";
+object EsBinDataFileIlluminanceEntry
+  @help = "Illuminance data entry";
 {
   DATETIME   f_ts;
     @label = "Timestamp";
   FLOAT      f_lux;
-    @label = "Illuminosity, lux";
+    @label = "Illuminance, lux";
   UINT16    f_kp;
     @label = "Pulsation, %";
   INT8      f_temp;
     @label = "T, °C";
+		
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }
+	
+	property lux;
+	read: { return f_lux$value; }
+	
+	property kp;
+	read: { return f_kp$value; }
 }
 
-object  EsBinDataFileIlluminosityEntry2
-  @help = "Illuminosity data entry";
+object  EsBinDataFileIlluminanceEntry2
+  @help = "Illuminance data entry";
 {
   DATETIME   f_ts;
     @label = "Timestamp";
   FLOAT     f_luxOrg;
-		@label = "Original illuminosity, lux";
+		@label = "Original illuminance, lux";
 	FLOAT     f_luxBgnd;
-		@label = "Background illuminosity, lux";
+		@label = "Background illuminance, lux";
 	FLOAT     f_lux;
-		@label = "Original-background illuminosity, lux";
+		@label = "Original-background illuminance, lux";
   FLOAT      f_kpOrg;
 		@label = "Original pulsation, %";
   FLOAT      f_kp;
 		@label = "Resulting pulsation, %";
   UINT16    f_bgndDuration;
 		@label = "Duration of background measurement, s";
+
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }
+
+	property luxOrg;
+	read: { return f_luxOrg$value; }
+
+	property luxBgnd;
+	read: { return f_luxBgnd$value; }
+	
+	property lux;
+	read: { return f_lux$value; }
+	
+	property kpOrg;
+	read: { return f_kpOrg$value; }
+
+	property kp;
+	read: { return f_kp$value; }
+
+	property bgndExp;
+	read: { return f_bgndDuration$value; }	
 }
 
 /// PHA01-CDM
-object EsBinDataFileLuminosityEntry
-  @help = "Luminosity data entry";
+object EsBinDataFileLuminanceEntry
+  @help = "Luminance data entry";
 {
   DATETIME   f_ts;
     @label = "Timestamp";
   FLOAT      f_cdm;
-    @label = "Luminosity, cd/m";
+    @label = "Luminance, cd/m<sup>2</sup>";
   UINT16    f_kp;
     @label = "Pulsation, %";  
   INT8      f_temp;
     @label = "T, °C";
+		
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }
+	
+	property cdm;
+	read: { return f_cdm$value; }
+	
+	property kp;
+	read: { return f_kp$value; }		
 }
 
-object EsBinDataFileLuminosityEntry2
-  @help = "Luminosity data entry";
+object EsBinDataFileLuminanceEntry2
+  @help = "Luminance data entry";
 {
   DATETIME   f_ts;
     @label = "Timestamp";
   FLOAT      f_cdm;
-    @label = "Luminosity, cd/m";
+    @label = "Luminance, cd/m<sup>2</sup>";
   UINT16    f_kp;
     @label = "Pulsation, %";  
+
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }
+	
+	property cdm;
+	read: { return f_cdm$value; }
+	
+	property kp;
+	read: { return f_kp$value; }		
 }
 
 // PHA01-KEO
-object EsBinDataFileKeoEntry 
+object EsBinDataFileDfEntry 
   @help = "KEO data entry";
 {
   DATETIME   f_ts;
     @label = "Timestamp";
   FLOAT      f_luxIndoors;
-    @label = "Indoors illuminosity, lux";    
+    @label = "Indoors illuminance, lux";    
   FLOAT      f_luxOutdoors;
-    @label = "Outdoors illuminosity, lux";
-  FLOAT      f_keo;
+    @label = "Outdoors illuminance, lux";
+  FLOAT      f_df;
     @label = "KEO, %";
+
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }
+	
+	property luxIndoors;
+	read: { return f_luxIndoors$value; }
+	
+	property luxOutdoors;
+	read: { return f_luxOutdoors$value; }
+
+	property df;
+	read: { return f_df$value; }
 }
 
 // MK01 appliance
@@ -397,15 +467,15 @@ object EsBinDataFilePage
 	{
 		//conditional data arrays
 		if( "LUX     " == m_contentTagStr )
-			EsBinDataFileIlluminosityEntry f_nodes[f_entryCnt];
+			EsBinDataFileIlluminanceEntry f_nodes[f_entryCnt];
 		else if( "PHA01LUX" == m_contentTagStr )
-			EsBinDataFileIlluminosityEntry2 f_nodes[f_entryCnt];
+			EsBinDataFileIlluminanceEntry2 f_nodes[f_entryCnt];
 		else if( "CDM     " ==  m_contentTagStr )
-			EsBinDataFileLuminosityEntry f_nodes[f_entryCnt];
+			EsBinDataFileLuminanceEntry f_nodes[f_entryCnt];
 		else if( "PHA01CDM" ==  m_contentTagStr )
-			EsBinDataFileLuminosityEntry2 f_nodes[f_entryCnt];
+			EsBinDataFileLuminanceEntry2 f_nodes[f_entryCnt];
 		else if( m_contentTagStr in ["KEO     ", "PHA01KEO"] )
-			EsBinDataFileKeoEntry f_nodes[f_entryCnt];
+			EsBinDataFileDfEntry f_nodes[f_entryCnt];
 		else if( m_contentTagStr in ["TH      ", "ET01TH  "] )
 			EsBinDataFileClimaticBaseEntry f_nodes[f_entryCnt];
 		else if( m_contentTagStr in ["THV     ", "ET01THV "] )

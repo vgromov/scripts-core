@@ -172,7 +172,10 @@ object PHA01_Data
 	///
 	/// Timestamp
 	property ts;
-	read: { return f_ts.asString(); }
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
 	
   /// illuminosity
   property lux;
@@ -221,7 +224,10 @@ object PHA01_DataWoBgnd
 	///
 	/// Timestamp
 	property ts;
-	read: { return f_ts.asString(); }
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
  
   /// original illuminosity
   property luxOrg;
