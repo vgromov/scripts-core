@@ -143,122 +143,158 @@ object ET01_Data
 	
 	/// Air temperature
 	property tA;
+    @label = "Air temperature";	
 	read: { return f_data.f_tA$value; }
 	property tAvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_tA); }
 	property tAstrMulti;
+    @label = "Air temperature";	
 	read: { return ET01_strMultiGet( ET01_valFmt($tA, 1, $tAvalid), c_et01_unitT ); }
 	property tAstr;
+    @label = "Air temperature";	
 	read: { return ET01_fromStrMulti( $tAstrMulti ); }
 	
 	/// Relative humidity
 	property rH;
+		@label = "Relative humidity";
 	read: { return f_data.f_rH$value; }
 	property rHvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_rH); }
 	property rHstrMulti;
+		@label = "Relative humidity";
 	read: { return ET01_strMultiGet( ET01_valFmt($rH, 0, $rHvalid), c_et01_unitH ); }
 	property rHstr;
+		@label = "Relative humidity";
 	read: { return ET01_fromStrMulti( $rHstrMulti ); }
 	
 	/// Dewpoint temperature
 	property tD;
+		@label = "Dew point temperature";	
 	read: { return f_data.f_tD$value; }
 	property tDvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_tD); }
 	property tDstrMulti;
+		@label = "Dew point temperature";	
 	read: { return ET01_strMultiGet( ET01_valFmt($tD, 1, $tDvalid), c_et01_unitT ); }
 	property tDstr;
+		@label = "Dew point temperature";	
 	read: { return ET01_fromStrMulti( $tDstrMulti ); }
 	
 	/// Wet thermometer temperature
 	property tW;
+		@label = "Wet thermometer temperature";
 	read: { return f_data.f_tW$value; }
 	property tWvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_tW); }
 	property tWstrMulti;
+		@label = "Wet thermometer temperature";
 	read: { return ET01_strMultiGet( ET01_valFmt($tW, 1, $tWvalid), c_et01_unitT ); }
 	property tWstr;
+		@label = "Wet thermometer temperature";
 	read: { return ET01_fromStrMulti( $tWstrMulti ); }
 	
 	/// Air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
 	property u;
+		@label = "Air flow velocity";
 	read: { return f_data.f_u$value; }
-	property uValid;
+	property uvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_u) && 0 == $heaterEta && !m_opmode#isEmpty() && ET01_OpMode$$LiveUnlimited <= m_opmode; }
 	property uStrMulti;
-	read: { return ET01_strMultiGet( ET01_valFmt($u, 2, $uValid), c_et01_unitU ); }
+		@label = "Air flow velocity";
+	read: { return ET01_strMultiGet( ET01_valFmt($u, 2, $uvalid), c_et01_unitU ); }
 	property uStr;
+		@label = "Air flow velocity";
 	read: { return ET01_fromStrMulti( $uStrMulti ); }
 	
-	/// Temperature inside black sphere, valid if sphere is connected
+	/// Temperature inside black globe, valid if sphere is connected
 	property tG;
+		@label = "Black globe temperature";
 	read: { return f_data.f_tG$value; }
 	property tGvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_tG); }
 	property tGstrMulti;
+		@label = "Black globe temperature";
 	read: { return ET01_strMultiGet( ET01_valFmt($tG, 1, $tGvalid), c_et01_unitT ); }
 	property tGstr;
+		@label = "Black globe temperature";
 	read: { return ET01_fromStrMulti( $tGstrMulti ); }
 
 	/// Index WBGT, valid if sphere is connected
 	property wBgt;
+		@label = "Index WBGT";
 	read: { return f_data.f_wBgt$value; }
-	property wBgtValid;
+	property wBgtvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_wBgt); }
 	property wBgtStrMulti;
-	read: { return ET01_strMultiGet( ET01_valFmt($wBgt, 1, $wBgtValid), c_et01_unitW ); }
+		@label = "Index WBGT";
+	read: { return ET01_strMultiGet( ET01_valFmt($wBgt, 1, $wBgtvalid), c_et01_unitW ); }
 	property wBgtStr;
+		@label = "Index WBGT";
 	read: { return ET01_fromStrMulti( $wBgtStrMulti ); }
 
 	/// Index WBGTs, valid if sphere is connected
 	property wBgts;
+		@label = "Index WBGTs";
 	read: { return f_data.f_wBgts$value; }
-	property wBgtsValid;
+	property wBgtsvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_wBgts); }
 	property wBgtsStrMulti;
-	read: { return ET01_strMultiGet( ET01_valFmt($wBgts, 1, $wBgtsValid), c_et01_unitW ); }
+		@label = "Index WBGTs";	
+	read: { return ET01_strMultiGet( ET01_valFmt($wBgts, 1, $wBgtsvalid), c_et01_unitW ); }
 	property wBgtsStr;
+		@label = "Index WBGTs";	
 	read: { return ET01_fromStrMulti( $wBgtsStrMulti ); }	
 
 	// Radiation temperature when airflow is less than 1 m/s
 	property tR;
+		@label = "Radiation temperature";
 	read: { return f_data.f_tR$value; }
 	property tRvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_tR); }
 	property tRstrMulti;
+		@label = "Radiation temperature";
 	read: { return ET01_strMultiGet( ET01_valFmt($tR, 1, $tRvalid), c_et01_unitT ); }
 	property tRstr;
+		@label = "Radiation temperature";
 	read: { return ET01_fromStrMulti( $tRstrMulti ); }
 	
 	/// Heat ratiation density
 	property w;
+		@label = "Heat ratiation density";
 	read: { return f_data.f_w$value; }
-	property wValid;
+	property wvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_w); }
 	property wStrMulti;
-	read: { return ET01_strMultiGet( ET01_valFmt($w, 1, $wValid), c_et01_unitW ); }
+		@label = "Heat ratiation density";
+	read: { return ET01_strMultiGet( ET01_valFmt($w, 1, $wvalid), c_et01_unitW ); }
 	property wStr;
+		@label = "Heat ratiation density";
 	read: { return ET01_fromStrMulti( $wStrMulti ); }
 
 	/// Pressure
 	property p;
+		@label = "Pressure";
 	read: { return f_data.f_p$value; }
-	property pValid;
+	property pvalid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_p); }
 	property pStrMulti;
-	read: { return ET01_strMultiGet( ET01_valFmt($p, 1, $pValid), c_et01_unitP ); }
+		@label = "Pressure";
+	read: { return ET01_strMultiGet( ET01_valFmt($p, 1, $pvalid), c_et01_unitP ); }
 	property pStr;
+		@label = "Pressure";
 	read: { return ET01_fromStrMulti( $pStrMulti ); }
 	
 	/// Resulting temperature
 	property t0;
+		@label = "Resulting temperature";
 	read: { return f_data.f_t0$value; }
 	property t0valid;
 	read: { return !(f_flags.f_mask & ET01_Flag$$No_t0); }
 	property t0strMulti;
+		@label = "Resulting temperature";
 	read: { return ET01_strMultiGet( ET01_valFmt($t0, 1, $t0valid), c_et01_unitT ); }
 	property t0str;
+		@label = "Resulting temperature";
 	read: { return ET01_fromStrMulti( $t0strMulti ); }
 }
 

@@ -16,7 +16,7 @@ function devicesDeviceCreate(fwId)
 		return new BOI01(fwId);
 	else if( fwId$devType in [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1] )
 		return new PHA01(fwId);  
-	else if( EsDeviceType$$ET == fwId.devType )
+	else if( EsDeviceType$$ET == fwId$devType )
     return new ET01(fwId);
 //    else if( EsDeviceType$$LD1V == fwId.devType)
 //      return new lad01v(fwId);

@@ -252,6 +252,41 @@ object EsBinDataFileClimaticBaseEntry
     @label = "Natural wet-bulb T, °C";
   FLOAT      f_p;
     @label = "Barometric pressure, Pa";
+		
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }		
+	
+	/// Air temperature
+	property tA;
+	read: { return f_ta$value; }
+	property tAvalid;
+	read: { return !(f_state & ET01_Flag$$No_tA); }
+	
+	/// Relative humidity
+	property rH;
+	read: { return f_rh$value; }
+	property rHvalid;
+	read: { return !(f_state & ET01_Flag$$No_rH); }
+	
+	/// Dewpoint temperature
+	property tD;
+	read: { return f_td$value; }
+	property tDvalid;
+	read: { return !(f_state & ET01_Flag$$No_tD); }
+	
+	/// Wet thermometer temperature
+	property tW;
+	read: { return f_tw$value; }
+	property tWvalid;
+	read: { return !(f_state & ET01_Flag$$No_tW); }
+
+	/// Pressure
+	property p;
+	read: { return f_p$value; }
+	property pvalid;
+	read: { return !(f_state & ET01_Flag$$No_p); }
 }
 
 // MK01-THV
@@ -280,6 +315,65 @@ object EsBinDataFileClimaticVelocityEntry
 		@label = "Air velocity, m/s";
 	FLOAT      f_p;
     @label = "Barometric pressure, Pa";
+		
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }		
+	
+	/// Air temperature
+	property tA;
+	read: { return f_ta$value; }
+	property tAvalid;
+	read: { return !(f_state & ET01_Flag$$No_tA); }
+	
+	/// Relative humidity
+	property rH;
+	read: { return f_rh$value; }
+	property rHvalid;
+	read: { return !(f_state & ET01_Flag$$No_rH); }
+	
+	/// Dewpoint temperature
+	property tD;
+	read: { return f_td$value; }
+	property tDvalid;
+	read: { return !(f_state & ET01_Flag$$No_tD); }
+	
+	/// Wet thermometer temperature
+	property tW;
+	read: { return f_tw$value; }
+	property tWvalid;
+	read: { return !(f_state & ET01_Flag$$No_tW); }
+	
+	/// Radiation temperature when airflow is less than 1 m/s
+	property tR;
+	read: { return f_tr$value; }
+	property tRvalid;
+	read: { return !(f_state & ET01_Flag$$No_tR); }
+
+	/// Resulting temperature
+	property t0;
+	read: { return f_t0$value; }
+	property t0valid;
+	read: { return !(f_state & ET01_Flag$$No_t0); }
+	
+	/// Heat ratiation density
+	property w;
+	read: { return f_w$value; }
+	property wvalid;
+	read: { return !(f_state & ET01_Flag$$No_w); }
+	
+	/// Air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
+	property u;
+	read: { return f_u$value; }
+	property uvalid;
+	read: { return !(f_state & ET01_Flag$$No_u); }
+
+	/// Pressure
+	property p;
+	read: { return f_p$value; }
+	property pvalid;
+	read: { return !(f_state & ET01_Flag$$No_p); }		
 }
 
 // MK01-IDX
@@ -310,6 +404,71 @@ object EsBinDataFileClimaticIndexesEntry
     @label = "Heat transfer rate, W/m²";
   FLOAT      f_p;
     @label = "Barometric pressure, Pa";
+		
+/// Properties
+///
+	property ts;
+	read: { return f_ts$value; }		
+	
+	/// Air temperature
+	property tA;
+	read: { return f_ta$value; }
+	property tAvalid;
+	read: { return !(f_state & ET01_Flag$$No_tA); }
+	
+	/// Relative humidity
+	property rH;
+	read: { return f_rh$value; }
+	property rHvalid;
+	read: { return !(f_state & ET01_Flag$$No_rH); }
+	
+	/// Dewpoint temperature
+	property tD;
+	read: { return f_td$value; }
+	property tDvalid;
+	read: { return !(f_state & ET01_Flag$$No_tD); }
+	
+	/// Wet thermometer temperature
+	property tW;
+	read: { return f_tw$value; }
+	property tWvalid;
+	read: { return !(f_state & ET01_Flag$$No_tW); }
+	
+	/// Temperature inside black sphere, valid if sphere is connected
+	property tG;
+	read: { return f_tg$value; }
+	property tGvalid;
+	read: { return !(f_state & ET01_Flag$$No_tG); }
+
+	/// Index WBGT, valid if sphere is connected
+	property wBgt;
+	read: { return f_wbgt$value; }
+	property wBgtvalid;
+	read: { return !(f_state & ET01_Flag$$No_wBgt); }
+
+	/// Index WBGTs, valid if sphere is connected
+	property wBgts;
+	read: { return f_wbgts$value; }
+	property wBgtsvalid;
+	read: { return !(f_state & ET01_Flag$$No_wBgts); }
+	
+	/// Radiation temperature when airflow is less than 1 m/s
+	property tR;
+	read: { return f_tr$value; }
+	property tRvalid;
+	read: { return !(f_state & ET01_Flag$$No_tR); }
+	
+	/// Heat ratiation density
+	property w;
+	read: { return f_w$value; }
+	property wValid;
+	read: { return !(f_state & ET01_Flag$$No_w); }
+	
+	/// Pressure
+	property p;
+	read: { return f_p$value; }
+	property pvalid;
+	read: { return !(f_state & ET01_Flag$$No_p); }		
 }
 
 /// OCTAVA P381_X
