@@ -681,13 +681,28 @@ object EsBinDataFilePage
   read: { return f_tag$isHdr; }
   property isHdrAdditional;
   read: { return f_tag$isHdrAdditional; }
+	property isAnyHeader;
+	read: { return $isHdrMain || $isHdrMainAdditional || $isHdr || $isHdrAdditional; }
+	
   property isData;
   read: { return f_tag$isData; }
   property isDataAdditional;
   read: { return f_tag$isDataAdditional; }  
+	property isAnyData;
+	read: { return $isData || $isDataAdditional; }
+
   property empty;
   read: { return f_tag$empty; }
-/// content tag string
+	
+	property entryCnt;
+	read: { return f_entryCnt#asULong(); }
+	property nodes;
+	read: { 
+		if( hasField("f_nodes") )
+			return fieldGet("f_nodes"); 
+	}
+
+	/// Content tag string
 	property contentTagStr; @persistent;
 	read: 
 	{
@@ -731,7 +746,8 @@ function binDataFileBufferParse(buff)
 				pageBuffStart = pageBuffEnd;
 				pageBuffEnd += EsBinDataFile$$PageSize;
 			}
-// todo: report invalid page cs16	else
+			else
+				throw "Data file page CRC is invalid";
     }
   }
   
