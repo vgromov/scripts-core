@@ -660,7 +660,7 @@ object EsDeviceBase
       }
       else
       {
-        chunks = fsResult.f_chunks;
+        chunks = fsResult.f_chunks#asULong();
         chunk = 0;
         // re-notify file read start action with known range now
 				task$range = chunks;
@@ -723,7 +723,7 @@ object EsDeviceBase
 /// Read-only access to the device fwid string
   property fwIdStr;
   read: { return m_tmpFwIdStr; }
-  
+
 /// Read-only access to the device fwid
   property fwId;
   read: var tmp = new EsFirmwareId(); { 

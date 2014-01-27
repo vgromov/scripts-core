@@ -694,6 +694,22 @@ object EsBinDataFilePage
   property empty;
   read: { return f_tag$empty; }
 	
+	property hubIdStr;
+	read: {
+		if( hasField("f_hubId") )
+			return fieldGet("f_hubId")#asString();
+	}
+	property applianceIdStr;
+	read: {
+	  if( hasField("f_applId") )
+      return fieldGet("f_applId")#asString();
+  }
+	property auxApplianceIdStr;
+	read: {
+		if( hasField("f_auxApplId") )
+			return fieldGet("f_auxApplId")#asString();
+	}
+	
 	property entryCnt;
 	read: { return f_entryCnt#asULong(); }
 	property nodes;
