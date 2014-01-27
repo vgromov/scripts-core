@@ -739,7 +739,7 @@ object EsBinDataFilePage
 // --------------- bin file parser functions
 //
 function binDataFileBufferParse(buff)
- var cs16, cs16calc = new EsChecksum16(), pageIdx, pagesCnt, 
+ var cs16calc = new EsChecksum16(), pageIdx, pagesCnt, 
 	pageBuff, pageBuffStart = 0, pageBuffEnd = EsBinDataFile$$PageSize, 
 	curContentTagStr, pg, result = [];
 {
@@ -751,8 +751,7 @@ function binDataFileBufferParse(buff)
     {
 		  pageBuff = buff#sliceGet(pageBuffStart, pageBuffEnd);
 			cs16calc$buffer = pageBuff;
-			cs16 = cs16calc$value;
-      if( 0 == cs16 )
+      if( 0 == cs16calc$value )
 			{
 				pg = new EsBinDataFilePage();
 				pg$contentTagStr = curContentTagStr;
