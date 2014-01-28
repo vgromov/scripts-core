@@ -576,7 +576,7 @@ object EsDeviceBase
       {
         // return 'prepared' EsFsItem object, instead of 'compound' EsFsItemResult
         result[1] = new EsFsItem();
-        result[1].copyFrom(fsResult.f_item);
+        result[1].copyFrom(fsResult$item);
       }
     }
      
@@ -649,10 +649,10 @@ object EsDeviceBase
 			task.attachTo(__scriptHost$progressMonitor);
 			task$text = EsStr::format("Downloading: '%s'", fileAbsPath);
       fsResult = result[1];
-      if( EsFsResult$$OK != fsResult.f_result )
+      if( !fsResult$isOk )
       {
         result[0] = false;
-        result[1] = fsResultStringGet(fsResult.f_result);
+        result[1] = fsResultStringGet(fsResult$result);
         if( !fileAbsPath#isEmpty() )
 					result[1] += ": '" + fileAbsPath + "'";
         // notify action end with error
@@ -660,7 +660,7 @@ object EsDeviceBase
       }
       else
       {
-        chunks = fsResult.f_chunks#asULong();
+        chunks = fsResult$chunks;
         chunk = 0;
         // re-notify file read start action with known range now
 				task$range = chunks;

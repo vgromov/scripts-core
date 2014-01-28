@@ -278,6 +278,18 @@ object EsFsItemResult
   UINT16 f_result;
   if( EsFsResult$$OK == f_result )
     EsFsItem f_item;
+
+	property isOk;
+	read: { return EsFsResult$$OK == f_result; }
+	
+	property result;
+	read: { return f_result$value; }
+
+	property item;
+	read: { 		
+		if( hasField("f_item") )
+			return fieldGet("f_item");
+	}
 }
 
 /// File system space info
@@ -293,6 +305,18 @@ object EsFsSpaceInfoResult
   UINT16 f_result;
   if( EsFsResult$$OK == f_result )
     EsFsSpaceInfo f_info;
+		
+	property isOk;
+	read: { return EsFsResult$$OK == f_result; }
+	
+	property result;
+	read: { return f_result$value; }
+	
+	property info;
+	read: { 
+		if( hasField("f_info") )
+			return fieldGet("f_info");
+	}
 }
 
 /// File read request result
@@ -301,6 +325,18 @@ object EsFsFileReadRequest
   UINT16 f_result;
   if( EsFsResult$$OK == f_result )
     UINT32 f_chunks;
+		
+	property isOk;
+	read: { return EsFsResult$$OK == f_result; }
+	
+	property result;
+	read: { return f_result$value; }
+	
+	property chunks;
+	read: { 
+		if( hasField("f_chunks") )
+			return fieldGet("f_chunks")$value;
+	}
 }
 
 function fsResultStringGet(fsResult)

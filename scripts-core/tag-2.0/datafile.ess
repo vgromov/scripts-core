@@ -587,7 +587,9 @@ object EsBinDataFilePage
       EsFirmwareId f_applId;
         @label = "Appliance ID";
   
-			if( f_contentTag$tag in ["KEO     ", "PHA01KEO"] )
+			if( f_contentTag$tag in [	"KEO     ", 
+																"PHA01KEO"
+															] )
 			{
 				EsFirmwareId f_auxApplId;
 					@label = "Aux. appliance ID";
