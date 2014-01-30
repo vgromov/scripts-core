@@ -491,6 +491,32 @@ object EsBinDataFileP381xGeomagneticEntry
 		@label = "Current field attenuation";
 	FLOAT 			f_attMax;
 		@label = "Maximum attenuation, detected during measurement";
+	
+	/// Properties
+	///	
+	property ts;
+	read: { return f_ts$value; }
+	
+	property duration;
+	read: { return f_duration$value; }
+	
+	property b;
+	read: { return f_mktlCur$value; }
+	
+	property bMin;
+	read: { return f_mktlMin$value; }
+
+	property bOutdoors;
+	read: { return f_mktlExt$value; }
+	
+	property tsOutdoors;
+	read: { return f_extTs$value; }
+	
+	property attCur;
+	read: { return f_attCur$value; }
+	
+	property attMax;
+	read: { return f_attMax$value; }
 }
 
 object EsBinDataFileP381xConstMagneticEntry
@@ -504,6 +530,20 @@ object EsBinDataFileP381xConstMagneticEntry
 		@label = "Current field, mktl";
   FLOAT 		f_mktlMax;
 		@label = "Maximum field, detected during measurement, mktl";
+		
+	/// Properties
+	///	
+	property ts;
+	read: { return f_ts$value; }
+	
+	property duration;
+	read: { return f_duration$value; }
+	
+	property b;
+	read: { return f_mktlCur$value; }
+	
+	property bMax;
+	read: { return f_mktlMax$value; }		
 }
 
 object EsBinDataFileP381x50hzMagneticEntry
@@ -517,6 +557,20 @@ object EsBinDataFileP381x50hzMagneticEntry
 		@label = "Current field, mktl";
   FLOAT 			f_mktlMax;
 		@label = "Maximum field, detected during measurement, mktl";
+		
+	/// Properties
+	///	
+	property ts;
+	read: { return f_ts$value; }
+	
+	property duration;
+	read: { return f_duration$value; }
+	
+	property b;
+	read: { return f_mktlCur$value; }
+	
+	property bMax;
+	read: { return f_mktlMax$value; }		
 }
 
 /// OCTAVA P380E
@@ -533,6 +587,58 @@ object EsBinDataFileP380eElectrostaticEntry
 		@label = "Minimum field, detected during measurement, V/m";
   FLOAT 			f_eMax;
 		@label = "Maximum field, detected during measurement, V/m";
+		
+	/// Properties
+	///	
+	property ts;
+	read: { return f_ts$value; }
+	
+	property duration;
+	read: { return f_duration$value; }
+	
+	property e;
+	read: { return f_e$value; }
+
+	property eMin;
+	read: { return f_eMin$value; }		
+	
+	property eMax;
+	read: { return f_eMax$value; }		
+}
+
+/// RAD spectrum header
+object EsBinDataRadSpecHeader
+	@help = "RAD-01 spectrum header";
+{
+	DATETIME f_ts;
+		@label = "Timestamp";
+	UINT32 f_errs;
+		@label = "Latched errors at the beginning of measurements";
+	UINT16 f_tPump;
+		@label = "Pumping duration, s";
+	UINT16 f_tMsr;
+		@label = "Measurement duration, minutes";
+	FLOAT f_na;
+		@label = "Activity in marked windows";
+	UINT32 f_nt;
+		@label = "Thoron events";
+	FLOAT f_temperature;
+		@label = "Chamber temperature, °C";
+	FLOAT f_humidity;
+		@label = "Relative humidity, %";
+	FLOAT f_pressure;
+		@label = "Pressure, mm Hg";
+	UINT8 f_state;      
+		@label = "Radiometer peripheral state during measurement";
+	UINT8 f_pumpSpeed;
+		@label = "Pump speed at which measurement was made";
+	UINT8 f_markers[3];
+		@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
+		
+	/// Properties
+	///
+	property ts;
+	read: { return f_ts$value; }
 }
 
 // ----------------------- Generalized page record
@@ -596,30 +702,8 @@ object EsBinDataFilePage
 			}
 			else if( "RAD01   " == f_contentTag$tag )		
 			{
-				DATETIME f_ts;
-					@label = "Timestamp";
-				UINT32 f_errs;
-					@label = "Latched errors at the beginning of measurements";
-				UINT16 f_tPump;
-					@label = "Pumping duration, s";
-				UINT16 f_tMsr;
-					@label = "Measurement duration, minutes";
-				FLOAT f_na;
-					@label = "Activity in marked windows";
-				UINT32 f_nt;
-					@label = "Thoron events";
-				FLOAT f_temperature;
-					@label = "Chamber temperature, °C";
-				FLOAT f_humidity;
-					@label = "Relative humidity, %";
-				FLOAT f_pressure;
-					@label = "Pressure, mm Hg";
-				UINT8 f_state;      
-					@label = "Radiometer peripheral state during measurement";
-				UINT8 f_pumpSpeed;
-					@label = "Pump speed at which measurement was made";
-				UINT8 f_markers[3];
-					@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
+				EsBinDataRadSpecHeader f_specHdr;
+					@label = "RAD Spectrum header"
 			}
 		}
   }
