@@ -1,15 +1,58 @@
-// scripting device support for p3-80E Octava appliances
-##require("core.ess");
+// scripting device support for P3-80E Octava appliances
 ##require("p3xx_base.ess");
+##require("../math.ess");
 
-// device live data 
-//
+// P3_80E units
+const c_p3_80_units = ["V/m", "kV/m"];
 
-// P3_80E
-object p3_80Edata 
+/// Value formatters
+function P3_80E_ValueFmt(val)
+var fmt;
 {
-	UINT32 f_flags;				// data state flags
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.2f";
+	else if( val < 100 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+function P3_80E_strMultiGet( val )
+var result = [], unitIdx = 0;
+{
+	result += P3_80E_ValueFmt( val );
+	if( val > 1000. )
+	{
+		val /= 1000.;
+		unitIdx = 1;
+	}	
+	result += P3_80E_ValueFmt( val );
+	result += c_p3_80_units[unitIdx];
+	
+	return result;
+}
+
+function P3_80E_fromStrMulti( multi )
+{
+	return multi[1] + " " + multi[2];
+}
+
+// P3_80E Device live data 
+//
+object P3_80E_Data
+{
+	var m_ts; // timestamp is not included in object data structure,
+						// P3_80E does not have RTC. Use simulated one (ts. at the moment of reception)
+
+	P3XX_State f_state;		// data state flags
+		@label = "Measurement state";
 	UINT32 f_msrLen; 			// measurement length in sec
+		@label = "Measurement length in s";
 	FLOAT f_calibration;	// calibration value in db
 	FLOAT f_refLevel; 		// reference level in db
 	FLOAT f_sensitivity; 	// sensor sensitivity factor
@@ -19,41 +62,165 @@ object p3_80Edata
 	FLOAT f_e;
 	FLOAT f_eMin;
 	FLOAT f_eMax;
-}
-
-// octava device
-//
-object p3_80E
-{
-	var m_state;
 	
-	// ctor
-	new(fwId)
+	/// Services
+	function reset()
 	{
-		deviceFwIdValidate(fwId, EsOctavaDeviceType$$P380E, "p3_80E device");
-		m_state = new p3xx_state(fwId);
+		f_e = 0;
+		f_eMin = 0;
+		f_eMax = 0;	
 	}
 	
-	// control methods
-	//
-	function liveDataGet(rpcMaster)
-		var liveData, buff;
-	{
-		buff = rpcMaster.BYTEARRAY_Call(p3xx_rpid$$GetLiveData);
-		if( !buff#isEmpty() )
-		{
-			liveData = new p3_80Edata();
-			liveData$buffer = buff;
-		}
-		
-		return liveData;
-	}	
-	
-	// standard properties
-	//
-	property fwId;
-	read: { return m_state$m_fwId; }
-	
+	/// Properties
+	///
+	/// State object access
 	property state;
-	read: { return m_state; }	
+	read: { return f_state; }
+	
+	/// Timestamp access
+	property ts;
+	read: { return m_ts; }
+	/// Timestamp string
+	property tsStr;
+	read: { return m_ts.asString(); }
+
+	/// Measurement duration
+	property duration;
+	read: { return f_msrLen$value; }
+	
+	/// current data and minimax
+	property e;
+	read: { return f_e$value; }
+	property eStrMulti;
+	read: { return P3_80E_strMultiGet( $e ); }
+	property eStr;
+	read: { return P3_80E_fromStrMulti( $eStrMulti ); }
+	
+	property eMin;
+	read: { return f_eMin$value; }
+	property eMinStrMulti;
+	read: { return P3_80E_strMultiGet( $eMin ); }
+	property eMinStr;
+	read: { return P3_80E_fromStrMulti( $eMinStrMulti ); }
+	
+	property eMax;
+	read: { return f_eMax$value; }
+	property eMaxStrMulti;
+	read: { return P3_80E_strMultiGet( $eMax ); }
+	property eMaxStr;
+	read: { return P3_80E_fromStrMulti( $eMaxStrMulti ); }
+}
+
+// Octava P3_80E device
+//
+object P3_80E extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+///
+/// Local opmode
+  var m_opMode,
+/// current minmax accumulators
+	m_min, m_max;
+	
+/// Specific services
+	function minimaxReset()
+	{
+		m_max = 0;
+		m_min = c_math_FLT_MAX;
+	}
+	
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return P3XX_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return rpcSigGet(P3XX_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsOctavaDeviceType$$P380E, "P3_80E");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsOctavaDeviceType$$P380E);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new P3XX_Health(rpcResult);    // use P380E health implementation instead of unparsed standard one
+    else if( P3XX_Rpid$$GetMode == rpcId )
+    {
+      result = rpcResult;
+			// in addition, save opmode in internal cache
+      m_opMode = result;
+    }
+    else if( P3XX_Rpid$$GetLiveData == rpcId )
+    {
+      result = new P3_80E_Data();
+      result$buffer = rpcResult#asBinBuffer();
+			result.m_ts = EsDateTime::now();
+			
+			// reset|accumulate minimax accumilator, if not running
+			if( result$state$isRunning )
+			{
+				if( m_min > result$e )
+					m_min = result$e;
+				if( m_max < result$e )
+					m_max = result$e;
+
+				result.f_eMin = m_min;
+				result.f_eMax = m_max;
+			}	
+			else
+			{
+				minimaxReset();
+				result.reset();
+			}
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = P3XX_OpMode$$None;
+		minimaxReset();
+  }
+  
+  new(fwId)
+  {
+    m_opMode = P3XX_OpMode$$None;
+		minimaxReset();
+  }
+
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	
+	/// Return current opmode string
+	property opmodeStr;
+	read: { return P3XX_OpMode.valueLabelGet(m_opMode); }
 }

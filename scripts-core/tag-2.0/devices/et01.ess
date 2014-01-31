@@ -372,4 +372,7 @@ object ET01 extends EsDeviceBase
 /// Currently opmode
 	property opmode;
 	read: { return m_opMode; }
+	/// Return opmode string
+	property opmodeStr;
+	read: { return ET01_OpMode.valueLabelGet(m_opMode); }
 }

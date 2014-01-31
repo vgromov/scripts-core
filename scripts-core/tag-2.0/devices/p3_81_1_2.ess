@@ -1,12 +1,32 @@
 // scripting device support for p3-81-1|2 Octava appliances
-##require("core.ess");
 ##require("p3xx_base.ess");
+##require("../math.ess");
 
-// device live data 
+// Value formatters
+//
+// A/m to mkT convertion
+const c_p3_81xx_am2mktl = 1.2566371;
+// P3_81xx units
+const c_p3_81xx_unitsB = ["mkT", "mT", "T"];
+const c_p3_81xx_unitsH = ["A/m", "kA/m", "MA/m"];
+
+/// Value formatters
+///
+function P3_81_1_2_am2mkt( val )
+{
+	return val*c_p3_81xx_am2mktl;
+}
+
+function P3_81_1_2_fromStrMulti( multi )
+{
+	return multi[1] + " " + multi[2];
+}
+
+// Device live data 
 //
 
 // P3_81_1_2
-object p3_81_1_2node
+object P3_81_1_2_Node
 {
 	FLOAT f_mx;
 	FLOAT f_my;
@@ -18,51 +38,363 @@ object p3_81_1_2node
 	FLOAT f_mdbMax;
 }
 
-object p3_81_1_2data
+object P3_81_1_2_Data
 {
-	UINT32 f_flags;				// data state flags
+	var m_devType, // some formatting procs are device type-dependent
+			// timestamp is not included in object data structure,
+			// P3_80E does not have RTC. Use simulated one (ts. at the moment of reception)
+			m_ts,
+			// Calculated minimax variables			
+			m_h0Min, 
+			m_h0Max,
+			m_h25Min, 
+			m_h25Max,
+			m_h50Min, 
+			m_h50Max;
+						
+	P3XX_State f_state;		// data state flags
+		@label = "Measurement state";	
 	UINT32 f_msrLen; 			// measurement length in sec
+		@label = "Measurement length in s";	
 	FLOAT f_calibration;	// calibration value in db
 	FLOAT f_refLevel; 		// reference level in db
 	FLOAT f_sensitivity; 	// sensor sensitivity factor
-	p3_81_1_2node	f_m0;
-	p3_81_1_2node	f_m50;
-	p3_81_1_2node	f_m25;
-}
-
-// octava device
-//
-object p3_81_1_2
-{
-	var m_state;
+	P3_81_1_2_Node	f_m0;
+	P3_81_1_2_Node	f_m50;
+	P3_81_1_2_Node	f_m25;
 	
-	// ctor
-	new(fwId)
+	/// Services
+	///
+	function valueFmt(val)
+	var fmt;
 	{
-		deviceFwIdValidate(fwId, [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812], "p3_81_1_2 device");
-		m_state = new p3xx_state(fwId);
+		if( val < 0 )
+			val = 0;
+			
+		if( val < 10 && EsOctavaDeviceType$$P3811 == m_devType )
+			fmt = "%0.1f";
+		else
+			fmt = "%0.0f";
+		
+		return EsStr::format(fmt, val);
 	}
-	
-	// control methods
-	//
-	function liveDataGet(rpcMaster)
-		var liveData, buff;
+
+	function strMultiGet( val, isAm )
+	var result = [], unitIdx = 0;
 	{
-		buff = rpcMaster.BYTEARRAY_Call(p3xx_rpid$$GetLiveData);
-		if( !buff#isEmpty() )
+		result += valueFmt( val );
+
+		if( val > 1000. )
 		{
-			liveData = new p3_81_1_2data();
-			liveData$buffer = buff;
+			if( val < 1000000. )
+			{
+				unitIdx = 1;
+				val /= 1000.;
+			}
+			else 
+			{
+				unitIdx = 2;
+				val /= 1000000.;
+			}
 		}
 		
-		return liveData;
+		result += valueFmt( val );
+		result += isAm ? c_p3_81xx_unitsH[unitIdx] : c_p3_81xx_unitsB[unitIdx];
+		
+		return result;
 	}	
 	
-	// standard properties
-	//
-	property fwId;
-	read: { return m_state$m_fwId; }
+	function reset()
+	{
+		f_m0.f_mxyz = 0;
+		m_h0Min = 0; m_h0Max = 0;
+		f_m25.f_mxyz = 0;
+		m_h25Min = 0; m_h25Max = 0;
+		f_m50.f_mxyz = 0;
+		m_h50Min = 0; m_h50Max = 0;
+	}
 	
+	/// Properties
+	///
+	/// State object access
 	property state;
-	read: { return m_state; }	
+	read: { return f_state; }
+	
+	/// Timestamp access
+	property ts;
+	read: { return m_ts; }
+	/// Timestamp string
+	property tsStr;
+	read: { return m_ts.asString(); }	
+	
+	/// Measurement duration
+	property duration;
+	read: { return f_msrLen$value; }	
+	
+	/// Teslas (field induction)
+	///
+	/// Const|Geostatic 
+	property b0;
+	read: { return P3_81_1_2_am2mkt(f_m0.f_mxyz$value); }
+	property b0StrMulti;
+	read: { return strMultiGet( $b0, false ); }
+	property b0Str;
+	read: { return P3_81_1_2_fromStrMulti( $b0StrMulti ); }
+	
+	property b0Min;
+	read: { return P3_81_1_2_am2mkt(m_h0Min); }
+	property b0MinStrMulti;
+	read: { return strMultiGet( $b0Min, false ); }
+	property b0MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b0MinStrMulti ); }
+	
+	property b0Max;
+	read: { return P3_81_1_2_am2mkt(m_h0Max); }
+	property b0MaxStrMulti;
+	read: { return strMultiGet( $b0Max, false ); }
+	property b0MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b0MaxStrMulti ); }	
+	
+	/// 25 Hz
+	property b25;
+	read: { return P3_81_1_2_am2mkt(f_m25.f_mxyz$value); }
+	property b25StrMulti;
+	read: { return strMultiGet( $b25, false ); }
+	property b25Str;
+	read: { return P3_81_1_2_fromStrMulti( $b25StrMulti ); }
+	
+	property b25Min;
+	read: { return P3_81_1_2_am2mkt(m_h25Min); }
+	property b25MinStrMulti;
+	read: { return strMultiGet( $b25Min, false ); }
+	property b25MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b25MinStrMulti ); }
+	
+	property b25Max;
+	read: { return P3_81_1_2_am2mkt(m_h25Max); }
+	property b25MaxStrMulti;
+	read: { return strMultiGet( $b25Max, false ); }
+	property b25MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b25MaxStrMulti ); }
+
+	/// 50 Hz
+	property b50;
+	read: { return P3_81_1_2_am2mkt(f_m50.f_mxyz$value); }
+	property b50StrMulti;
+	read: { return strMultiGet( $b50, false ); }
+	property b50Str;
+	read: { return P3_81_1_2_fromStrMulti( $b50StrMulti ); }
+	
+	property b50Min;
+	read: { return P3_81_1_2_am2mkt(m_h50Min); }
+	property b50MinStrMulti;
+	read: { return strMultiGet( $b50Min, false ); }
+	property b50MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b50MinStrMulti ); }
+	
+	property b50Max;
+	read: { return P3_81_1_2_am2mkt(m_h50Max); }
+	property b50MaxStrMulti;
+	read: { return strMultiGet( $b50Max, false ); }
+	property b50MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b50MaxStrMulti ); }		
+
+	/// A/m (field strength)
+	///
+	/// Const|Geostatic 
+	property h0;
+	read: { return f_m0.f_mxyz$value; }
+	property h0StrMulti;
+	read: { return strMultiGet( $h0, true ); }
+	property h0Str;
+	read: { return P3_81_1_2_fromStrMulti( $h0StrMulti ); }
+	
+	property h0Min;
+	read: { return m_h0Min; }
+	property h0MinStrMulti;
+	read: { return strMultiGet( $h0Min, true ); }
+	property h0MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h0MinStrMulti ); }
+	
+	property h0Max;
+	read: { return m_h0Max; }
+	property h0MaxStrMulti;
+	read: { return strMultiGet( $h0Max, true ); }
+	property h0MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h0MaxStrMulti ); }	
+	
+	/// 25 Hz
+	property h25;
+	read: { return f_m25.f_mxyz$value; }
+	property h25StrMulti;
+	read: { return strMultiGet( $h25, true ); }
+	property h25Str;
+	read: { return P3_81_1_2_fromStrMulti( $h25StrMulti ); }
+	
+	property h25Min;
+	read: { return m_h25Min; }
+	property h25MinStrMulti;
+	read: { return strMultiGet( $h25Min, true ); }
+	property h25MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h25MinStrMulti ); }
+	
+	property h25Max;
+	read: { return m_h25Max; }
+	property h25MaxStrMulti;
+	read: { return strMultiGet( $h25Max, true ); }
+	property h25MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h25MaxStrMulti ); }
+
+	/// 50 Hz
+	property h50;
+	read: { return f_m50.f_mxyz$value; }
+	property h50StrMulti;
+	read: { return strMultiGet( $h50, true ); }
+	property h50Str;
+	read: { return P3_81_1_2_fromStrMulti( $h50StrMulti ); }
+	
+	property h50Min;
+	read: { return m_h50Min; }
+	property h50MinStrMulti;
+	read: { return strMultiGet( $h50Min, true ); }
+	property h50MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h50MinStrMulti ); }
+	
+	property h50Max;
+	read: { return m_h50Max; }
+	property h50MaxStrMulti;
+	read: { return strMultiGet( $h50Max, true ); }
+	property h50MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }		
+}
+
+// Octava P3_81_1_2 device
+//
+object P3_81_1_2 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+///
+/// Local opmode
+  var m_opMode,
+/// current minmax accumulators
+	m_min0, m_max0,
+	m_min25, m_max25,
+	m_min50, m_max50;
+	
+/// Specific services
+	function minimaxReset()
+	{
+		m_min0 = c_math_FLT_MAX; m_max0 = 0;
+		m_min25 = c_math_FLT_MAX; m_max25 = 0;
+		m_min50 = c_math_FLT_MAX; m_max50 = 0;
+	}
+	
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return P3XX_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return rpcSigGet(P3XX_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812], "P3_81X");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsOctavaDeviceType$$P3811);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new P3XX_Health(rpcResult);    // use P381xx health implementation instead of unparsed standard one
+    else if( P3XX_Rpid$$GetMode == rpcId )
+    {
+      result = rpcResult;
+			// in addition, save opmode in internal cache
+      m_opMode = result;
+    }
+    else if( P3XX_Rpid$$GetLiveData == rpcId )
+    {
+      result = new P3_81_1_2_Data();
+      result$buffer = rpcResult#asBinBuffer();
+			result.m_devType = $devType;
+			result.m_ts = EsDateTime::now();
+			
+			// reset|accumulate minimax accumilator, if not running
+			if( result$state$isRunning )
+			{
+				if( m_min0 > result$h0 )
+					m_min0 = result$h0;
+				if( m_max0 < result$h0 )
+					m_max0 = result$h0;
+				result.m_h0Min = m_min0;
+				result.m_h0Max = m_max0;
+
+				if( m_min25 > result$h25 )
+					m_min25 = result$h25;
+				if( m_max25 < result$h25 )
+					m_max25 = result$h25;
+				result.m_h25Min = m_min25;
+				result.m_h25Max = m_max25;
+
+				if( m_min50 > result$h50 )
+					m_min50 = result$h50;
+				if( m_max50 < result$h50 )
+					m_max50 = result$b50;
+				result.m_h50Min = m_min50;
+				result.m_h50Max = m_max50;
+			}	
+			else
+			{
+				minimaxReset();
+				result.reset();
+			}
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = P3XX_OpMode$$None;
+		minimaxReset();
+  }
+  
+  new(fwId)
+  {
+    m_opMode = P3XX_OpMode$$None;
+		minimaxReset();
+  }
+
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	
+	/// Return current opmode string
+	property opmodeStr;
+	read: { return P3XX_OpMode.valueLabelGet(m_opMode); }
 }

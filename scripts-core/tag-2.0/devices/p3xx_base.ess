@@ -1,124 +1,113 @@
-// octava P3_80 | P3_81_82 base declarations
-//
-##require("core.ess");
+// Octava devices P3_80 | P3_81_82 base declarations
+##require("EsDeviceBase.ess");
 
-// p3-81-1|2,-80E - specific rpcs 
-enum p3xx_rpid
+// P3-81-1|2,-80E - specific rpcs 
+enum P3XX_Rpid
 {
-	Restart							= 2048, "VOID_RpcSig|Restart measurements";
-	GetMode 						= 2049, "UINT16_RpcSig|Read current working mode";
-	GetLiveData 				= 2050, "BYTEARRAY_RpcSig|Get live data packet";
+	Start						= 2048, "VOID_RpcSig|Start measurements";
+	Stop						= 2049, "VOID_RpcSig|Stop measurements";
+	Reset						= 2050, "VOID_RpcSig|Reset measurements";
+	GetMode 				= 2051, "UINT16_RpcSig|Read current working mode";
+	GetLiveData 		= 2052, "BYTEARRAY_RpcSig|Get live data packet";
 }
 
-// health error flags & masks
-enum p3xxError
+// Health error flags & masks
+enum P3XX_Error
 {
- 	Batt 				= 0x00000001; // low battery flag
+ 	Batt 						= 0x00000001, "Battery low";
 }
 
-	// measurement state flags
-enum p3xxStateFlag
+// P3XX parsed health implementation
+object P3XX_Health
 {
-	Running		= 0x000001, "Running";
-	Overload	= 0x000002, "Input overload detected";
+	UINT32 f_errors;
+	
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & P3XX_Error$$Batt)
+      result += P3XX_Error$$Batt$$label;
+  
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return false; }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return false; }
+	/// Return true if error flags contain warnings
+	property hasWarning;
+	read: { return f_errors & P3XX_Error$$Batt; }
+  /// return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  /// return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }	
+}
+
+// Measurement state flags
+enum P3XX_StateFlag
+{
+	Running					= 0x000001, "Running";
+	Overload				= 0x000002, "Input overload detected";
 	OverloadLatched = 0x000004, "Input overload latched";
 }
 
-enum p3xxOpMode
+// Measurement state object
+object P3XX_State
 {
-	// octava working modes
-	None			= 0;
-	Idle 			= 1;
-	Running		= 2;
+	UINT32 f_state;
+	
+	/// Return state as string array
+	function stateAsStrings()
+	var result = [];
+	{
+		if( f_state & P3XX_StateFlag$$Running )
+			result += P3XX_StateFlag$$Running$$label;
+		if( f_state & P3XX_StateFlag$$Overload )
+			result += P3XX_StateFlag$$Overload$$label;
+		if( f_state & P3XX_StateFlag$$OverloadLatched )
+			result += P3XX_StateFlag$$OverloadLatched$$label;
+			
+		return result;
+	}
+	/// Return state as string
+  function asString()
+  {
+    return EsStr::fromArray(stateAsStrings(), "; ", "", "");
+  }
+	
+	/// Properties
+	///
+	/// Return state as UINT32
+	property state;
+	read: { return f_state$value; }
+	/// Return parsed state strings
+	property stateString;
+	read: { return stateAsStrings(); }
+	/// Return true if state is running
+	property isRunning;
+	read: { return f_state & P3XX_StateFlag$$Running; }
 }
 
-// device state object
-//
-object p3xx_state
+// Octava working modes
+enum P3XX_OpMode
 {
-	var m_fwId,
-			m_errors,
-			m_power,
-			m_opMode;
-	
-	// ctor
-	new(fwId)
-	{
-		deviceFwIdValidate(fwId, [EsOctavaDeviceType$$P380E..EsOctavaDeviceType$$P3812], "p3xx state");
-		m_fwId = fwId;
-		m_opMode = p3xxOpMode$$None;
-	}
-	
-	// status queries
-	//
-	function healthStatusRead(rpcMaster)
-	{
-		m_errors = deviceHealthStatusGet(rpcMaster);
-	}
-	
-	function powerStatusRead(rpcMaster)
-	{
-		m_power = devicePowerStatusGet(rpcMaster);
-	}
-	
-	// opmode control
-	//
-	function opmodeRead(rpcMaster)
-	{
-		m_opMode = rpcMaster.UINT16_Call(p3xx_rpid$$GetMode);
-	}
-
-	function restart(rpcMaster)
-	{
-		rpcMaster.VOID_Call(p3xx_rpid$$Restart);
-	}
-	
-	// standard device state api
-	//
-	function renew(rpcMaster)
-	{
-		healthStatusRead(rpcMaster);
-		powerStatusRead(rpcMaster);
-		opmodeRead(rpcMaster);
-	}	
-	
-	// properties
-	//
-	property fwId;
-	read: { return m_fwId; }
-	
-	property power;
-	read: { return m_power; }
-	
-	property opMode;
-	read: { return m_opMode; }
-	
-	property opModeString;
-	read: { return p3xxOpMode.valueLabelGet(m_opMode); }
-	
-	property hasCriticalError;
-	read: { return false;	}
-
-	property hasNonCriticalError;
-	read: { return false;	}
-				
-	property hasError;
-	read: { return m_errors#isEmpty() ?
-						false :
-						m_errors#asULong() != 0; 
-				}
-				
-	property errorStrings;
-	read: var result = [], err; 
-				{
-					if(m_errors#isEmpty())
-						result += "N/A";
-					else
-					{
-						err = m_errors#asULong();	
-						if(err & p3xxError$$Batt)
-							result += p3xxError$$Batt$$label;
-					}	
-					return result;
-				}	
+	None						= 0, "NONE";
+	Idle 						= 1, "IDLE operation";
+	Running					= 2, "RUNNING";
 }

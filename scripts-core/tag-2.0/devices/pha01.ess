@@ -396,6 +396,11 @@ object PHA01_Health
   {
     return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
   }
+	
+	/// Properties
+	///
+	property errors;
+	read: { return f_errors$value; }
   /// return true if health critical error was latched
   property hasCriticalError;
   read: { return f_errors & 
@@ -413,6 +418,9 @@ object PHA01_Health
                                   PHA01_Error$$Calibration|
                                   PHA01_Error$$Linearization);        
         }
+	// Return true if error flags contain warnings			
+	property hasWarning;
+	read: { return f_errors & PHA01_Error$$Batt; }
   /// return true if any health error was latched
   property hasError;
   read: { return f_errors != 0;  }
@@ -644,9 +652,12 @@ object PHA01 extends EsDeviceBase
     return batchItem;
   }
 	
-/// Properties
-///
-/// Currently opmode
+	/// Properties
+	///
+	/// Currently active opmode
 	property opmode;
 	read: { return m_opMode; }
+	/// Opmode string
+	property opmodeStr;
+	read: { return PHA01_OpMode.valueLabelGet(m_opMode); }
 }

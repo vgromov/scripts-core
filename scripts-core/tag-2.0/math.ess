@@ -1,0 +1,2 @@
+/// Misc math constants
+const c_math_FLT_MAX = 3.402823466e+38;

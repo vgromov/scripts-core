@@ -703,7 +703,7 @@ object EsBinDataFilePage
 			else if( "RAD01   " == f_contentTag$tag )		
 			{
 				EsBinDataRadSpecHeader f_specHdr;
-					@label = "RAD Spectrum header"
+					@label = "RAD Spectrum header";
 			}
 		}
   }

@@ -4,27 +4,27 @@
 ##require("devices/pha01.ess");
 ##require("devices/et01.ess");
 ##require("devices/boi01.ess");
-//##require("devices/p3_81_1_2.ess");
-//##require("devices/p3_80E.ess");
+##require("devices/p3_81_1_2.ess");
+##require("devices/p3_80E.ess");
 //##require("devices/lad01v.ess");
 
 /// Create device instance provided fwId, created and initialized elsewhere
 function devicesDeviceCreate(fwId)
   @help = "Create device instance, provided device fwId, created and initialized|loaded elsewhere";
+var type = fwId$devType;	
 {
-	if( fwId$devType in [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1] )
+	if( type in [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1] )
 		return new BOI01(fwId);
-	else if( fwId$devType in [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1] )
+	else if( type in [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1] )
 		return new PHA01(fwId);  
-	else if( EsDeviceType$$ET == fwId$devType )
+	else if( EsDeviceType$$ET == type )
     return new ET01(fwId);
+  else if( type in [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812] )
+    return new P3_81_1_2(fwId);
+  else if( EsOctavaDeviceType$$P380E == type )
+    return new P3_80E(fwId);
 //    else if( EsDeviceType$$LD1V == fwId.devType)
 //      return new lad01v(fwId);
-//    if( EsOctavaDeviceType$$P3811 == fwId.devType ||
-//        EsOctavaDeviceType$$P3812 == fwId.devType )
-//      return new p3_81_1_2(fwId);
-//    else if( EsOctavaDeviceType$$P380E == fwId.devType )
-//      return new p3_80E(fwId);
   
   /// Otherwise, return default 'Anonymous' device object
   return new EsDeviceBase(fwId);
