@@ -50,7 +50,10 @@ object P3_81_1_2_Data
 			m_h25Min, 
 			m_h25Max,
 			m_h50Min, 
-			m_h50Max;
+			m_h50Max,
+			// Aux vars for Geomagnetic measurements
+			m_hAux,
+			m_tsAux;
 						
 	P3XX_State f_state;		// data state flags
 		@label = "Measurement state";	
@@ -112,6 +115,22 @@ object P3_81_1_2_Data
 		m_h25Min = 0; m_h25Max = 0;
 		f_m50.f_mxyz = 0;
 		m_h50Min = 0; m_h50Max = 0;
+		m_hAux = null;
+		m_tsAux = null;
+	}
+	
+	function attGet(val)
+	var att;
+	{
+		if( !m_hAux#isEmpy() && !val#isEmpty() &&
+				m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
+		{
+			att = m_hAux / val;
+			if( att < 1. )
+				att = 1.;
+			
+			return att;
+		}
 	}
 	
 	/// Properties
@@ -197,7 +216,11 @@ object P3_81_1_2_Data
 	property b50MaxStrMulti;
 	read: { return strMultiGet( $b50Max, false ); }
 	property b50MaxStr;
-	read: { return P3_81_1_2_fromStrMulti( $b50MaxStrMulti ); }		
+	read: { return P3_81_1_2_fromStrMulti( $b50MaxStrMulti ); }	
+
+	/// Aux field
+	property bOutdoors;
+	read: { if( !m_hAux#isEmpty() ) return P3_81_1_2_am2mkt(m_hAux); }
 
 	/// A/m (field strength)
 	///
@@ -265,7 +288,23 @@ object P3_81_1_2_Data
 	property h50MaxStrMulti;
 	read: { return strMultiGet( $h50Max, true ); }
 	property h50MaxStr;
-	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }		
+	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }	
+
+	/// Aux field
+	property hOutdoors;
+	read: { return m_hAux; }
+	
+	/// Aux timestamp
+	property tsOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return m_tsAux; }
+	
+	/// Attenuation
+	property att;
+	read: { return attGet($h0); }
+	
+	/// Max attenuation
+	property attMax;
+	read: { return attGet(m_h0Min); }
 }
 
 // Octava P3_81_1_2 device
@@ -277,10 +316,14 @@ object P3_81_1_2 extends EsDeviceBase
 ///
 /// Local opmode
   var m_opMode,
-/// current minmax accumulators
+/// Current minmax accumulators
 	m_min0, m_max0,
 	m_min25, m_max25,
-	m_min50, m_max50;
+	m_min50, m_max50,
+// Aux vars for Geomagnetic measurements
+	m_doOutdoorsSave,
+	m_hAux,
+	m_tsAux;	
 	
 /// Specific services
 	function minimaxReset()
@@ -288,6 +331,12 @@ object P3_81_1_2 extends EsDeviceBase
 		m_min0 = c_math_FLT_MAX; m_max0 = 0;
 		m_min25 = c_math_FLT_MAX; m_max25 = 0;
 		m_min50 = c_math_FLT_MAX; m_max50 = 0;
+	}
+	
+	function auxReset()
+	{
+		m_hAux = null;
+		m_tsAux = null;
 	}
 	
 /// Mandatory base overrides
@@ -362,10 +411,22 @@ object P3_81_1_2 extends EsDeviceBase
 					m_max50 = result$b50;
 				result.m_h50Min = m_min50;
 				result.m_h50Max = m_max50;
+				
+				if( m_doOutdoorsSave )
+				{
+					m_hAux = result$h0;
+					m_tsAux = result.m_ts;
+					
+					m_doOutdoorsSave = false;
+				}
+				
+				result.m_hAux = m_hAux;
+				result.m_tsAux = m_tsAux;
 			}	
 			else
 			{
 				minimaxReset();
+				auxReset();
 				result.reset();
 			}
     }
@@ -380,14 +441,28 @@ object P3_81_1_2 extends EsDeviceBase
   {
     m_opMode = P3XX_OpMode$$None;
 		minimaxReset();
+		auxReset();		
   }
   
   new(fwId)
   {
     m_opMode = P3XX_OpMode$$None;
 		minimaxReset();
+		auxReset();		
   }
 
+	/// Custom requests
+	///
+	function outdoorsSave()
+	{
+		m_doOutdoorsSave = true;
+	}
+
+	function outdoorsReset()
+	{
+		auxReset();
+	}
+	
 	/// Properties
 	///
 	/// Currently active opmode

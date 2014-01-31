@@ -1,2 +1,3 @@
 /// Misc math constants
 const c_math_FLT_MAX = 3.402823466e+38;
+const c_math_FLT_EPSILON = 1.192092896e-07;
