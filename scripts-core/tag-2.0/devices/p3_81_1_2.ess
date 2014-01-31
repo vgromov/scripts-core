@@ -122,7 +122,7 @@ object P3_81_1_2_Data
 	function attGet(val)
 	var att;
 	{
-		if( !m_hAux#isEmpy() && !val#isEmpty() &&
+		if( !m_hAux#isEmpty() && !val#isEmpty() &&
 				m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
 		{
 			att = m_hAux / val;
