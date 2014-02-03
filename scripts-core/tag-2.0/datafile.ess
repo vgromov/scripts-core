@@ -494,8 +494,27 @@ object EsBinDataFileP381xGeomagneticEntry
 	
 	/// Properties
 	///	
+	if( 0 != f_mktlExt && 0 != f_extTs )
+	{
+		property bOutdoors;
+		read: { return f_mktlExt$value; }
+		
+		property tsOutdoors;
+		read: { return f_extTs$value; }
+		
+		property attCur;
+		read: { return f_attCur$value; }
+		
+		property attMax;
+		read: { return f_attMax$value; }
+	}	
+	
 	property ts;
 	read: { return f_ts$value; }
+	
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
 	
 	property duration;
 	read: { return f_duration$value; }
@@ -505,18 +524,6 @@ object EsBinDataFileP381xGeomagneticEntry
 	
 	property bMin;
 	read: { return f_mktlMin$value; }
-
-	property bOutdoors;
-	read: { return f_mktlExt$value; }
-	
-	property tsOutdoors;
-	read: { return f_extTs$value; }
-	
-	property attCur;
-	read: { return f_attCur$value; }
-	
-	property attMax;
-	read: { return f_attMax$value; }
 }
 
 object EsBinDataFileP381xConstMagneticEntry

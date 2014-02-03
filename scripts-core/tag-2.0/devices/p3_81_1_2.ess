@@ -66,6 +66,42 @@ object P3_81_1_2_Data
 	P3_81_1_2_Node	f_m50;
 	P3_81_1_2_Node	f_m25;
 	
+	if( !m_hAux#isEmpty() )
+	{
+		function attGet(val)
+		var att;
+		{
+			if( !m_hAux#isEmpty() && !val#isEmpty() &&
+					m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
+			{
+				att = m_hAux / val;
+				if( att < 1. )
+					att = 1.;
+				
+				return att;
+			}
+		}
+
+		/// Aux field
+		property bOutdoors;
+		read: { return P3_81_1_2_am2mkt(m_hAux); }
+		
+		property hOutdoors;
+		read: { return m_hAux; }
+	
+		/// Aux timestamp
+		property tsOutdoors;
+		read: { return m_tsAux; }
+		
+		/// Attenuation
+		property att;
+		read: { return attGet(f_m0.f_mxyz); }
+		
+		/// Max attenuation
+		property attMax;
+		read: { return attGet(m_h0Min); }
+	}
+
 	/// Services
 	///
 	function valueFmt(val)
@@ -117,20 +153,6 @@ object P3_81_1_2_Data
 		m_h50Min = 0; m_h50Max = 0;
 		m_hAux = null;
 		m_tsAux = null;
-	}
-	
-	function attGet(val)
-	var att;
-	{
-		if( !m_hAux#isEmpty() && !val#isEmpty() &&
-				m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
-		{
-			att = m_hAux / val;
-			if( att < 1. )
-				att = 1.;
-			
-			return att;
-		}
 	}
 	
 	/// Properties
@@ -218,10 +240,6 @@ object P3_81_1_2_Data
 	property b50MaxStr;
 	read: { return P3_81_1_2_fromStrMulti( $b50MaxStrMulti ); }	
 
-	/// Aux field
-	property bOutdoors;
-	read: { if( !m_hAux#isEmpty() ) return P3_81_1_2_am2mkt(m_hAux); }
-
 	/// A/m (field strength)
 	///
 	/// Const|Geostatic 
@@ -289,22 +307,6 @@ object P3_81_1_2_Data
 	read: { return strMultiGet( $h50Max, true ); }
 	property h50MaxStr;
 	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }	
-
-	/// Aux field
-	property hOutdoors;
-	read: { return m_hAux; }
-	
-	/// Aux timestamp
-	property tsOutdoors;
-	read: { if( !m_tsAux#isEmpty() ) return m_tsAux; }
-	
-	/// Attenuation
-	property att;
-	read: { return attGet($h0); }
-	
-	/// Max attenuation
-	property attMax;
-	read: { return attGet(m_h0Min); }
 }
 
 // Octava P3_81_1_2 device
