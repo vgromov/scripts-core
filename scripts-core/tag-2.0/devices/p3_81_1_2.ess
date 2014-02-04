@@ -145,6 +145,8 @@ object P3_81_1_2_Data
 	
 	function reset()
 	{
+		m_ts = EsDateTime::now();
+		f_msrLen = 0;	
 		f_m0.f_mxyz = 0;
 		m_h0Min = 0; m_h0Max = 0;
 		f_m25.f_mxyz = 0;
@@ -324,8 +326,8 @@ object P3_81_1_2 extends EsDeviceBase
 	m_min50, m_max50,
 // Aux vars for Geomagnetic measurements
 	m_doOutdoorsSave,
-	m_hAux,
-	m_tsAux;	
+	m_hAux,	m_tsAux,
+	m_ts, m_tsStart;	
 	
 /// Specific services
 	function minimaxReset()
@@ -341,7 +343,15 @@ object P3_81_1_2 extends EsDeviceBase
 		m_tsAux = null;
 	}
 	
-/// Mandatory base overrides
+	function measurementsReset()
+	{
+		m_tsStart = EsDateTime::now();
+		m_ts = m_tsStart;
+		minimaxReset();
+		auxReset();
+	}	
+	
+	/// Mandatory base overrides
   function rpcNameGetById(rpcId)
   {
     if( rpcId in P3XX_Rpid )
@@ -373,7 +383,7 @@ object P3_81_1_2 extends EsDeviceBase
   }
 
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
-  var result = null;
+  var result = null, duration;
   {
     if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
       result = new P3XX_Health(rpcResult);    // use P381xx health implementation instead of unparsed standard one
@@ -388,7 +398,9 @@ object P3_81_1_2 extends EsDeviceBase
       result = new P3_81_1_2_Data();
       result$buffer = rpcResult#asBinBuffer();
 			result.m_devType = $devType;
-			result.m_ts = EsDateTime::now();
+			// update curent timestamp
+			m_ts = EsDateTime::now();
+			result.m_ts = m_ts;
 			
 			// reset|accumulate minimax accumilator, if not running
 			if( result$state$isRunning )
@@ -414,6 +426,9 @@ object P3_81_1_2 extends EsDeviceBase
 				result.m_h50Min = m_min50;
 				result.m_h50Max = m_max50;
 				
+				duration = m_ts-m_tsStart;
+				result.f_msrLen = duration$allSeconds;
+				
 				if( m_doOutdoorsSave )
 				{
 					m_hAux = result$h0;
@@ -427,8 +442,7 @@ object P3_81_1_2 extends EsDeviceBase
 			}	
 			else
 			{
-				minimaxReset();
-				auxReset();
+				measurementsReset();
 				result.reset();
 			}
     }
@@ -442,15 +456,13 @@ object P3_81_1_2 extends EsDeviceBase
   new()
   {
     m_opMode = P3XX_OpMode$$None;
-		minimaxReset();
-		auxReset();		
+		measurementsReset();		
   }
   
   new(fwId)
   {
     m_opMode = P3XX_OpMode$$None;
-		minimaxReset();
-		auxReset();		
+		measurementsReset();
   }
 
 	/// Custom requests

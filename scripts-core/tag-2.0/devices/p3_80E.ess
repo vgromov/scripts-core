@@ -66,6 +66,8 @@ object P3_80E_Data
 	/// Services
 	function reset()
 	{
+		m_ts = EsDateTime::now();
+		f_msrLen = 0;
 		f_e = 0;
 		f_eMin = 0;
 		f_eMax = 0;	
@@ -121,13 +123,21 @@ object P3_80E extends EsDeviceBase
 /// Local opmode
   var m_opMode,
 /// current minmax accumulators
-	m_min, m_max;
+	m_min, m_max,
+	m_tsStart, m_ts;
 	
 /// Specific services
 	function minimaxReset()
 	{
 		m_max = 0;
 		m_min = c_math_FLT_MAX;
+	}
+	
+	function measurementsReset()
+	{
+		m_tsStart = EsDateTime::now();
+		m_ts = m_tsStart;
+		minimaxReset();
 	}
 	
 /// Mandatory base overrides
@@ -162,7 +172,7 @@ object P3_80E extends EsDeviceBase
   }
 
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
-  var result = null;
+  var result = null, duration;
   {
     if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
       result = new P3XX_Health(rpcResult);    // use P380E health implementation instead of unparsed standard one
@@ -176,7 +186,9 @@ object P3_80E extends EsDeviceBase
     {
       result = new P3_80E_Data();
       result$buffer = rpcResult#asBinBuffer();
-			result.m_ts = EsDateTime::now();
+			// update curent timestamp
+			m_ts = EsDateTime::now();
+			result.m_ts = m_ts;
 			
 			// reset|accumulate minimax accumilator, if not running
 			if( result$state$isRunning )
@@ -188,16 +200,19 @@ object P3_80E extends EsDeviceBase
 
 				result.f_eMin = m_min;
 				result.f_eMax = m_max;
+				
+				duration = m_ts-m_tsStart;
+				result.f_msrLen = duration$allSeconds;
 			}	
 			else
 			{
-				minimaxReset();
+				measurementsReset();
 				result.reset();
 			}
     }
     else 
       result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
-    
+   
     return result;
   }
   
@@ -205,13 +220,13 @@ object P3_80E extends EsDeviceBase
   new()
   {
     m_opMode = P3XX_OpMode$$None;
-		minimaxReset();
+		measurementsReset();
   }
   
   new(fwId)
   {
     m_opMode = P3XX_OpMode$$None;
-		minimaxReset();
+		measurementsReset();
   }
 
 	/// Properties
