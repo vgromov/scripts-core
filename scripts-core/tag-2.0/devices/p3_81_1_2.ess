@@ -66,44 +66,22 @@ object P3_81_1_2_Data
 	P3_81_1_2_Node	f_m50;
 	P3_81_1_2_Node	f_m25;
 	
-	if( !m_hAux#isEmpty() )
-	{
-		function attGet(val)
-		var att;
-		{
-			if( !m_hAux#isEmpty() && !val#isEmpty() &&
-					m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
-			{
-				att = m_hAux / val;
-				if( att < 1. )
-					att = 1.;
-				
-				return att;
-			}
-		}
-
-		/// Aux field
-		property bOutdoors;
-		read: { return P3_81_1_2_am2mkt(m_hAux); }
-		
-		property hOutdoors;
-		read: { return m_hAux; }
-	
-		/// Aux timestamp
-		property tsOutdoors;
-		read: { return m_tsAux; }
-		
-		/// Attenuation
-		property att;
-		read: { return attGet(f_m0.f_mxyz); }
-		
-		/// Max attenuation
-		property attMax;
-		read: { return attGet(m_h0Min); }
-	}
-
 	/// Services
 	///
+	function attGet(val)
+	var att;
+	{
+		if( !m_hAux#isEmpty() && !val#isEmpty() &&
+				m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
+		{
+			att = m_hAux / val;
+			if( att < 1. )
+				att = 1.;
+			
+			return att;
+		}
+	}
+	
 	function valueFmt(val)
 	var fmt;
 	{
@@ -309,6 +287,43 @@ object P3_81_1_2_Data
 	read: { return strMultiGet( $h50Max, true ); }
 	property h50MaxStr;
 	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }	
+	
+	/// Aux field
+	///
+	property hasOutdoors;
+	read: { return !m_tsAux#isEmpty(); }
+	
+	/// Teslas
+	property bOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_am2mkt(m_hAux); }
+	property bOutdoorsStrMulti;
+	read: { if( !m_tsAux#isEmpty() ) return strMultiGet( $bOutdoors, false ); }
+	property bOutdoorsStr;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_fromStrMulti( $bOutdoorsStrMulti ); }	
+	
+	/// A/m
+	property hOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return m_hAux; }
+	property hOutdoorsStrMulti;
+	read: { if( !m_tsAux#isEmpty() ) return strMultiGet( $hOutdoors, true ); }
+	property hOutdoorsStr;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_fromStrMulti( $hOutdoorsStrMulti ); }	
+
+	/// Aux timestamp
+	property tsOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return m_tsAux; }
+	
+	/// Attenuation
+	property att;
+	read: { if( !m_tsAux#isEmpty() ) return attGet($h0); }
+	property attStr;
+	read: { if( !m_tsAux#isEmpty() ) return EsStr::format("%0.2f", $att); }
+	
+	/// Max attenuation
+	property attMax;
+	read: { if( !m_tsAux#isEmpty() ) return attGet(m_h0Min); }
+	property attMaxStr;
+	read: { if( !m_tsAux#isEmpty() ) return EsStr::format("%0.2f", $attMax); }
 }
 
 // Octava P3_81_1_2 device
