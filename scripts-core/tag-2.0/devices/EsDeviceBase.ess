@@ -19,13 +19,13 @@
 
 /// Device event Ids
 enum EsDeviceEvtId {
-  idChanged       = 1000, "Device FW ID changed";
-  rpcRequest      = 1002, "Queued RPC request";
-  rpcRequestBatch  = 1003, "Queued batch RPC request";
-  rpcResponse      = 1004, "Device responded to RPC request";
-  rpcResponseBatch = 1005, "Device responded to RPC batch request";
-  customRequest    = 1007, "Custom device request";
-  customResponse  = 1008, "Response to the custom request";
+  idChanged       = 1000, I"Device FW ID changed";
+  rpcRequest      = 1002, I"Queued RPC request";
+  rpcRequestBatch  = 1003, I"Queued batch RPC request";
+  rpcResponse      = 1004, I"Device responded to RPC request";
+  rpcResponseBatch = 1005, I"Device responded to RPC batch request";
+  customRequest    = 1007, I"Custom device request";
+  customResponse  = 1008, I"Response to the custom request";
 }
 
 /// Helper device object global services
@@ -69,8 +69,9 @@ object EsDeviceBase
     
 /// IO master currently used for communications
     m_ioMaster,
-/// Temporary - cached fwId string
+/// Temporary - cached fwId strings
     m_tmpFwIdStr,
+    m_tmpFwIdStrEssential,
 
 /// IO state block
     m_ioSuccessTs,  /// > Last successfull io attempt timestamp, 0 if never contacted
@@ -118,7 +119,7 @@ object EsDeviceBase
     if( rpcId in EsRpcStdId )
       return EsRpcStdId.valueLabelGet(rpcId);
     
-    return EsStr::format("Unknown RPC id: '%d'", rpcId);
+    return EsStr::format(I"Unknown RPC id: '%d'", rpcId);
   }
   
 /// Return RPC signature string, or throws 'Unsupported RPC with <id>'.
@@ -128,7 +129,7 @@ object EsDeviceBase
     if( rpcId in EsRpcStdId )
       return rpcSigGet(EsRpcStdId.valueLabelGet(rpcId));
     
-    throw EsStr::format("Unsupported RPC id: '%d'", rpcId);
+    throw EsStr::format(I"Unsupported RPC id: '%d'", rpcId);
   }
   
 /// Reset io state block
@@ -153,10 +154,10 @@ object EsDeviceBase
   function fwIdAssert(fwId)
   {
     if( fwId#isEmpty() )
-      throw "Could not assign empty value to firmware Id";
+      throw I"Could not assign empty value to firmware Id";
     
     if( !fwId#isObject() || !fwId.isKindOf("EsFirmwareId") )
-      throw "Could not assign argument of wrong type to firmware Id";
+      throw I"Could not assign argument of wrong type to firmware Id";
   }
   
 /// Assign fwId to device  
@@ -166,10 +167,15 @@ object EsDeviceBase
     if( fwId != m_fwId ) // significant differences in fwId
     {
       if( m_fwInitialized )
-        throw "Could not re-assign firmware id to existing device";
+        throw I"Could not re-assign firmware id to existing device";
         
       m_fwId = fwId;
       m_tmpFwIdStr = m_fwId.asString();
+      m_tmpFwIdStrEssential = m_fwId.asString(
+                    EsFirmwareIdFmtFlag$$DescrLong|
+                    EsFirmwareIdFmtFlag$$Serial|
+                    EsFirmwareIdFmtFlag$$UID);
+
       m_fwInitialized = true;
       evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
     }
@@ -191,7 +197,7 @@ object EsDeviceBase
   function addrAssert(addr)
   {
     if( !(addr in [0 .. 255]) )
-      throw "Device address value is out of range";
+      throw I"Device address value is out of range";
   }
   
 /// Assign io address
@@ -228,6 +234,7 @@ object EsDeviceBase
   function internalInit()
   {
     m_tmpFwIdStr = "";
+    m_tmpFwIdStrEssential = "";
     ioStateReset();
   }
   
@@ -320,7 +327,7 @@ object EsDeviceBase
   function rpcCapsAssert(rpcId)
   {
     if( !m_caps#isEmpty() && !(rpcId in m_caps) )
-      throw EsStr::format("RPC with id: %d (%s) is not supported on '%s'", rpcId, rpcNameGetById(rpcId), m_tmpFwIdStr);
+      throw EsStr::format(I"RPC with id: %d (%s) is not supported on '%s'", rpcId, rpcNameGetById(rpcId), m_tmpFwIdStr);
   }
   
 /// Internal io master call helper. Must not be called directly.  
@@ -388,13 +395,13 @@ object EsDeviceBase
   function batchItemAssert(batchItem)
   {
     if( batchItem#isEmpty() )
-      throw "Device io batch item must not be empty";
+      throw I"Device io batch item must not be empty";
 
     if( !batchItem#isIndexed() )
-      throw "Device io batch item must be of indexed type";
+      throw I"Device io batch item must be of indexed type";
     
     if( 2 != batchItem.countGet() )
-      throw "Wrong device io batch item member count.";
+      throw I"Wrong device io batch item member count.";
   }
   
 /// Batch io call service. It's expecting collection of input arrays: [rpcId, args]
@@ -490,7 +497,7 @@ object EsDeviceBase
   function evtDestAssert(devIdStr)
   {
     if( "all" != devIdStr && m_tmpFwIdStr != devIdStr )
-      throw "Event mistakenly dispatched to the wrong device";
+      throw I"Event mistakenly dispatched to the wrong device";
   }
 
   function evtHandle(evtId, evtPayload)
@@ -647,7 +654,7 @@ object EsDeviceBase
     {
       // notify file read start action
 			task.attachTo(__scriptHost$progressMonitor);
-			task$text = EsStr::format("Downloading: '%s'", fileAbsPath);
+			task$text = EsStr::format(I"Downloading: '%s'", fileAbsPath);
       fsResult = result[1];
       if( !fsResult$isOk )
       {
@@ -680,13 +687,13 @@ object EsDeviceBase
         if( result[0] )
         {
           // notify file read action end OK
-					task.end( EsStr::format("Downloaded: '%s'", fileAbsPath) );
+					task.end( EsStr::format(I"Downloaded: '%s'", fileAbsPath) );
           result[1] = f;
         }
         else
         {
           // notify file read action end with error
-					task.end( EsStr::format("Error downloading: '%s'", fileAbsPath) );
+					task.end( EsStr::format(I"Error downloading: '%s'", fileAbsPath) );
           result[1] = null;
         }
       }
@@ -720,9 +727,13 @@ object EsDeviceBase
   property ioMaster;
   write: { m_ioMaster = __value; }
 
-/// Read-only access to the device fwid string
+/// Read-only access to the full device's fwid string
   property fwIdStr;
   read: { return m_tmpFwIdStr; }
+  
+/// Read-only access to essential device's fwid string part
+  property fwIdStrEssential;
+  read: { return m_tmpFwIdStrEssential; }
 
 /// Read-only access to the device fwid
   property fwId;

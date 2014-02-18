@@ -100,12 +100,14 @@ object BOI01 extends EsDeviceBase
 /// Optional 'excludeNames' parameter is collection of item names to be excluded from enumeration. Ignored, if null.
 /// Optional 'includeAttrs' parameter is bit mask, 'item.f_attrs' to be checked against. Ignored, if null.
 ///
-  function dirItemsEnum(absDir, excludeNames, includeAttrs)
+  function dirItemsEnum(task, absDir, excludeNames, includeAttrs)
   var result = dirListStart(absDir), item, items = [];
   {
     if( result[0] )
     {
-      // todo: start action progress
+      // start action progress
+      task$text = EsStr::format(I"Enumerating: '%s'", absDir);
+      
       while(true)
       {
         result = dirListGetNextItem();
@@ -125,13 +127,15 @@ object BOI01 extends EsDeviceBase
               continue;
             // append to the collection
             items += item;
-            // todo: handle progress notification
+            // handle progress notification
+            task$text = EsStr::format(I"Found: '%s'", item$name);
           }
         }
         else
           break;
       }
-      // todo: end action progress
+      // end action progress
+      task.end( EsStr::format(I"Enumerated: '%s'", absDir) );
     }
     
     return result;
@@ -154,8 +158,11 @@ object BOI01 extends EsDeviceBase
     dataBlocks, dataBlock = ["", null], 
     deviceDataBlocks, deviceDataBlock = ["", null],
     deviceSessions, deviceSession = ["", "", 0],
-    internalResult, result = dirItemsEnum("/", [".", ".."], EsFsItemAttribute$$Directory);
+    task = new EsProgressMonitorTask(m_tmpFwIdStr),
+    internalResult, result;
   {
+    task.attachTo(__scriptHost$progressMonitor);
+    result = dirItemsEnum(task, "/", [".", ".."], EsFsItemAttribute$$Directory);
     if( result[0] )
     {
       plgItems = result[1];
@@ -166,7 +173,7 @@ object BOI01 extends EsDeviceBase
         plgStr = plgItem$name;
         plgRec = deviceHubPluginFunctionalityRecordGet(m_fwId$devType, plgStr);
         if( plgRec#isEmpty() )
-          plgDescr = EsStr::format("Unknown/unsupported plugin: '%s'", plgStr);
+          plgDescr = EsStr::format(I"Unknown/unsupported plugin: '%s'", plgStr);
         else
           plgDescr = plgRec[EsHubDatabaseField$$PluginDescrLong];
         pluginBlock[0] = plgDescr;
@@ -175,7 +182,7 @@ object BOI01 extends EsDeviceBase
         if( !plgRec#isEmpty() )
         {
           plgDataDir = "/"+plgStr+"/DATA";
-          internalResult = dirItemsEnum(plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
+          internalResult = dirItemsEnum(task, plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
           if( internalResult[0] )
           {
             plgDataTypeItems = internalResult[1];
@@ -185,7 +192,7 @@ object BOI01 extends EsDeviceBase
               plgDataTypeStr = plgDataTypeItem$name;
               plgTypeRec = deviceHubPluginDataTypeRecordGet(m_fwId$devType, plgStr, plgDataTypeStr);
               if( plgTypeRec#isEmpty() )
-                plgDataTypeDescr = EsStr::format("Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
+                plgDataTypeDescr = EsStr::format(I"Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
               else
                 plgDataTypeDescr = plgTypeRec[1];
               
@@ -195,7 +202,7 @@ object BOI01 extends EsDeviceBase
               if( !plgTypeRec#isEmpty() )
               {
                 plgDataTypeDir = plgDataDir+"/"+plgDataTypeStr;
-                internalResult = dirItemsEnum(plgDataTypeDir, [".", ".."], EsFsItemAttribute$$Directory);
+                internalResult = dirItemsEnum(task, plgDataTypeDir, [".", ".."], EsFsItemAttribute$$Directory);
                 if( internalResult[0] )
                 {
                   plgDevBlockItems = internalResult[1];
@@ -206,7 +213,7 @@ object BOI01 extends EsDeviceBase
                     deviceSessions = [];
                     // enumerate device sessions
                     plgDeviceSessionsDir = plgDataTypeDir+"/"+deviceSerial;
-                    internalResult = dirItemsEnum(plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
+                    internalResult = dirItemsEnum(task, plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
                     if( internalResult[0] )
                     {
                       plgSessionItems = internalResult[1];
