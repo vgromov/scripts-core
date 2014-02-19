@@ -696,21 +696,21 @@ object EsBinDataFilePage
 																] )
     {
       EsFirmwareId f_hubId;
-        @label = "Hub ID";
+        @label = I"Hub ID";
       EsFirmwareId f_applId;
-        @label = "Appliance ID";
+        @label = I"Appliance ID";
   
 			if( f_contentTag$tag in [	"KEO     ", 
 																"PHA01KEO"
 															] )
 			{
 				EsFirmwareId f_auxApplId;
-					@label = "Aux. appliance ID";
+					@label = I"Aux. appliance ID";
 			}
 			else if( "RAD01   " == f_contentTag$tag )		
 			{
 				EsBinDataRadSpecHeader f_specHdr;
-					@label = "RAD Spectrum header";
+					@label = I"RAD Spectrum header";
 			}
 		}
   }
@@ -812,7 +812,8 @@ object EsBinDataFilePage
 	}
 
 	/// Content tag string
-	property contentTagStr; @persistent;
+	property contentTagStr; 
+  @persistent;
 	read: 
 	{
 		if( hasField("f_contentTag") )
@@ -846,16 +847,22 @@ function binDataFileBufferParse(buff)
 			cs16calc$buffer = pageBuff;
       if( 0 == cs16calc$value )
 			{
+        EsScriptDebug::log("Creating page: %d", pageIdx);
 				pg = new EsBinDataFilePage();
 				pg$contentTagStr = curContentTagStr;
+
+        EsScriptDebug::log("Parsing page: %d, contents: (%s)", pageIdx, pageBuff);
 				pg$buffer = pageBuff;
 				curContentTagStr = pg$contentTagStr;
+
+        EsScriptDebug::log("Page parsed: %d '%s'", pageIdx, curContentTagStr);
+
 				result += pg;
 				pageBuffStart = pageBuffEnd;
 				pageBuffEnd += EsBinDataFile$$PageSize;
 			}
 			else
-				throw "Data file page CRC is invalid";
+				throw I"Data file page CRC is invalid";
     }
   }
   
