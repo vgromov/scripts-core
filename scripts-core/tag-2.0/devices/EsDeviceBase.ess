@@ -173,8 +173,7 @@ object EsDeviceBase
       m_tmpFwIdStr = m_fwId.asString();
       m_tmpFwIdStrEssential = m_fwId.asString(
                     EsFirmwareIdFmtFlag$$DescrLong|
-                    EsFirmwareIdFmtFlag$$Serial|
-                    EsFirmwareIdFmtFlag$$UID);
+                    EsFirmwareIdFmtFlag$$Serial);
 
       m_fwInitialized = true;
       evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
