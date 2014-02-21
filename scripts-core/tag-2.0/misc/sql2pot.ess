@@ -8,15 +8,17 @@ var f, sql, re = new EsRegEx(), match,
  sql = f.readAllAsString();
  f.close();
  
- re$pattern = "'((?:[,\\.a-zA-Z<>/0-9\\-()_%]+\\s*)+)'";
+ re$pattern = "'([\\w\\s_\\-/\\+,\\.<>()%0-9]*?)'";
  re$text = sql; 
  
  while( re$matches )
  {
   match = re.matchRangeGet(1);
-  EsScriptDebug::log("match range: "+match$min+" "+match$max);
-  re$offset = match$max;
-  str = sql#sliceGet(match$min, match$max);
+  if( match#isEmpty() )
+   break;
+   
+  re$offset = match[1];
+  str = sql#sliceGet(match[0], match[1]);
   if( !pot.keyExists(str) )
    pot.newValueSet(str, null);
  }
@@ -30,7 +32,7 @@ var f, sql, re = new EsRegEx(), match,
    f.stringWrite("\"Content-Transfer-Encoding: 8bit\\n\"\n\n");
    foreach(potItem in pot)
    {
-    f.stringWrite( EsStr::format("msgid \"%s\"\nmsgstr \"\"\n\n",
+     f.stringWrite( EsStr::format("msgid \"%s\"\nmsgstr \"\"\n\n",
      potItem[0]) );
    }
    f.close();
