@@ -192,7 +192,7 @@ object PHA01_Data
   read: { return f_cdm$value; }
 	/// Luminosity string components
 	property cdmStrMulti;
-	read: { return PHA01_strMultiGet( $lux, c_pha01_unitL); }
+	read: { return PHA01_strMultiGet( $cdm, c_pha01_unitL); }
 	/// Luminosity value string
   property cdmStr;
   read: { return PHA01_fromStrMulti( $cdmStrMulti ); }
