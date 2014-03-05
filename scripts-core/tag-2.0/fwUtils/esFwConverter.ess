@@ -5,7 +5,7 @@
 function convert(inFile, outFile)
 var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
 {
-  EsScriptDebug::log("cwd: %s", cwd);
+  //EsScriptDebug::log("cwd: %s", cwd);
   fp = EsPath::createFromFilePath(inFile);
   inFile = fp.pathGet(EsPathFlag$$Default, cwd);
   fp = EsPath::createFromFilePath(outFile);

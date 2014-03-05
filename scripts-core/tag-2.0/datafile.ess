@@ -847,7 +847,7 @@ function binDataFileBufferParse(buff)
 			cs16calc$buffer = pageBuff;
       if( 0 == cs16calc$value )
 			{
-        EsScriptDebug::log("Creating page: %d", pageIdx);
+        //EsScriptDebug::log("Creating page: %d", pageIdx);
 				pg = new EsBinDataFilePage();
 				pg$contentTagStr = curContentTagStr;
 
@@ -859,7 +859,7 @@ function binDataFileBufferParse(buff)
 				pg$buffer = pageBuff;
 				curContentTagStr = pg$contentTagStr;
 
-        EsScriptDebug::log("Page parsed: %d '%s'", pageIdx, curContentTagStr);
+        //EsScriptDebug::log("Page parsed: %d '%s'", pageIdx, curContentTagStr);
 
 				result += pg;
 				pageBuffStart = pageBuffEnd;

@@ -51,7 +51,7 @@ object EsFwBinary
     if( buffLenEstimate % 4 )
       buffLenEstimate = ((buffLenEstimate + 3)/4) * 4;
     m_fw = EsVar::as(EsVariantType$$VAR_BIN_BUFFER, buffLenEstimate);
-		EsScriptDebug::log( "m_fw esimate is set to: %d", buffLenEstimate );
+		//EsScriptDebug::log( "m_fw esimate is set to: %d", buffLenEstimate );
 		
     while( tokenizer$moreTokens )
     {
@@ -92,7 +92,7 @@ object EsFwBinary
         if(buffLen > m_fw#countGet())
         {
           m_fw#countSet( buffLen );
-          EsScriptDebug::log( "m_fw extended to: %d", buffLen );          
+          //EsScriptDebug::log( "m_fw extended to: %d", buffLen );          
         }
         for(idx = 0; idx < recLen; ++idx)
         {
@@ -166,14 +166,14 @@ object EsFwBinary
       if(buffLen % 4 != 0)
       {
         m_fw#countSet( ((buffLen + 3)/4) * 4 );
-        EsScriptDebug::log( "m_fw alignment fixed, size set to: %d", buffLen );  
+        //EsScriptDebug::log( "m_fw alignment fixed, size set to: %d", buffLen );  
       }        
     }
     
     if(buffLenEstimate > buffLen) 
     {
       m_fw#countSet( buffLen );
-      EsScriptDebug::log( "final m_fw size truncated from %d to %d", buffLenEstimate, buffLen );
+      //EsScriptDebug::log( "final m_fw size truncated from %d to %d", buffLenEstimate, buffLen );
     }
     
     pmTask.end("Convertion complete");
