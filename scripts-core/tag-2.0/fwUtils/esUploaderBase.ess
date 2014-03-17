@@ -106,7 +106,7 @@ object EsUploaderBase
 			try
 			{
 				// EsScriptDebug::log("Performing Warm boot");
-				rpcMaster.VOID_Call_UINT32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+				rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
 				progressTask.pulse("Performing Warm Boot...");
 				EsThreadWorker::sleep(1500);
 				result = true;
@@ -170,7 +170,7 @@ object EsUploaderBase
 						m_moniker.hasProperty("fwPrevCrc") )
 				{
 					swInfo = new EsSoftwareInfo();
-					swInfo$buffer = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$SW_INFO_GET);
+					swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
 					m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
 				}
 			}

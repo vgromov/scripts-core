@@ -3,8 +3,8 @@
 object EsFirmwareVersion
   @help = "Firmware version";
 {
-  UINT8 f_major;
-  UINT8 f_minor;
+  esU8 f_major;
+  esU8 f_minor;
   
   function asString()
   {
@@ -40,8 +40,8 @@ object EsFirmwareVersion
 object EsDeviceSerial
   @help = "Hardware serial number";
 {
-  UINT16 f_year;
-  UINT16 f_order;
+  esU16 f_year;
+  esU16 f_order;
 
   function asString()
   {
@@ -77,7 +77,7 @@ object EsDeviceSerial
 object EsDeviceUID
   @help = "Device Unique IDentification string";
 {
-  UINT8 f_id[32];
+  esU8 f_id[32];
   
   // f_uid comparison
   function compare(other)
@@ -193,7 +193,7 @@ enum EsFirmwareIdCmpFlag
 object EsFirmwareId
   @help = "Hardware identification result object";
 {
-  UINT16 f_devType;
+  esU16 f_devType;
     @help = "Device type (model) id";
   
   EsDeviceSerial f_serial;
@@ -202,7 +202,7 @@ object EsFirmwareId
   if( deviceIsHubFull(f_devType) )
   {
     EsDeviceUID f_uid;
-    UINT32 f_funcMask;
+    esU32 f_funcMask;
       @help = "Device functionality mask";
 
     function comparePartial(other, flags)
@@ -404,7 +404,7 @@ var fwId, rpcResult;
 {
 	try
 	{
-		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$FWID_GET);
+		rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$FWID_GET);
 		if( !rpcResult#isEmpty() )
 		{
 			fwId = new EsFirmwareId();
@@ -423,7 +423,7 @@ var hwUid, rpcResult;
 {
 	try
 	{
-		rpcResult = rpcMaster.BYTEARRAY_Call(EsRpcStdId$$HW_UID_GET);
+		rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$HW_UID_GET);
 		if( !rpcResult#isEmpty() )
 		{
 			hwUid = new EsDeviceUID();

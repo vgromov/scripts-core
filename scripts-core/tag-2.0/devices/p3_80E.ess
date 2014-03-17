@@ -51,17 +51,17 @@ object P3_80E_Data
 
 	P3XX_State f_state;		// data state flags
 		@label = "Measurement state";
-	UINT32 f_msrLen; 			// measurement length in sec
+	esU32 f_msrLen; 			// measurement length in sec
 		@label = "Measurement length in s";
-	FLOAT f_calibration;	// calibration value in db
-	FLOAT f_refLevel; 		// reference level in db
-	FLOAT f_sensitivity; 	// sensor sensitivity factor
-	FLOAT f_edb;
-	FLOAT f_edbMin;
-	FLOAT f_edbMax;
-	FLOAT f_e;
-	FLOAT f_eMin;
-	FLOAT f_eMax;
+	esF f_calibration;	// calibration value in db
+	esF f_refLevel; 		// reference level in db
+	esF f_sensitivity; 	// sensor sensitivity factor
+	esF f_edb;
+	esF f_edbMin;
+	esF f_edbMax;
+	esF f_e;
+	esF f_eMin;
+	esF f_eMax;
 	
 	/// Services
 	function reset()

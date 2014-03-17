@@ -28,14 +28,14 @@ function P3_81_1_2_fromStrMulti( multi )
 // P3_81_1_2
 object P3_81_1_2_Node
 {
-	FLOAT f_mx;
-	FLOAT f_my;
-	FLOAT f_mz;
-	FLOAT f_mxyz;
-	FLOAT f_mxy;
-	FLOAT f_mdb;
-	FLOAT f_mdbMin;
-	FLOAT f_mdbMax;
+	esF f_mx;
+	esF f_my;
+	esF f_mz;
+	esF f_mxyz;
+	esF f_mxy;
+	esF f_mdb;
+	esF f_mdbMin;
+	esF f_mdbMax;
 }
 
 object P3_81_1_2_Data
@@ -57,11 +57,11 @@ object P3_81_1_2_Data
 						
 	P3XX_State f_state;		// data state flags
 		@label = "Measurement state";	
-	UINT32 f_msrLen; 			// measurement length in sec
+	esU32 f_msrLen; 			// measurement length in sec
 		@label = "Measurement length in s";	
-	FLOAT f_calibration;	// calibration value in db
-	FLOAT f_refLevel; 		// reference level in db
-	FLOAT f_sensitivity; 	// sensor sensitivity factor
+	esF f_calibration;	// calibration value in db
+	esF f_refLevel; 		// reference level in db
+	esF f_sensitivity; 	// sensor sensitivity factor
 	P3_81_1_2_Node	f_m0;
 	P3_81_1_2_Node	f_m50;
 	P3_81_1_2_Node	f_m25;

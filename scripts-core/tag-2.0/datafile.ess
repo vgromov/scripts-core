@@ -25,7 +25,7 @@ const c_emptyTag              = "\0\0\0\0\0\0\0\0";
 // tag class
 object EsBinDataFileTag
 {
-  UINT8 f_tagStr[EsBinDataFile$$TagSize];
+  esU8 f_tagStr[EsBinDataFile$$TagSize];
   
   // tag services
   //
@@ -94,13 +94,13 @@ object EsBinDataFileTag
 object EsBinDataFileIlluminanceEntry
   @help = "Illuminance data entry";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  FLOAT      f_lux;
+  esF      f_lux;
     @label = "Illuminance, lux";
-  UINT16    f_kp;
+  esU16    f_kp;
     @label = "Pulsation, %";
-  INT8      f_temp;
+  esI8      f_temp;
     @label = "T, °C";
 		
 /// Properties
@@ -118,19 +118,19 @@ object EsBinDataFileIlluminanceEntry
 object  EsBinDataFileIlluminanceEntry2
   @help = "Illuminance data entry";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  FLOAT     f_luxOrg;
+  esF     f_luxOrg;
 		@label = "Original illuminance, lux";
-	FLOAT     f_luxBgnd;
+	esF     f_luxBgnd;
 		@label = "Background illuminance, lux";
-	FLOAT     f_lux;
+	esF     f_lux;
 		@label = "Original-background illuminance, lux";
-  FLOAT      f_kpOrg;
+  esF      f_kpOrg;
 		@label = "Original pulsation, %";
-  FLOAT      f_kp;
+  esF      f_kp;
 		@label = "Resulting pulsation, %";
-  UINT16    f_bgndDuration;
+  esU16    f_bgndDuration;
 		@label = "Duration of background measurement, s";
 
 /// Properties
@@ -161,13 +161,13 @@ object  EsBinDataFileIlluminanceEntry2
 object EsBinDataFileLuminanceEntry
   @help = "Luminance data entry";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  FLOAT      f_cdm;
+  esF      f_cdm;
     @label = "Luminance, cd/m<sup>2</sup>";
-  UINT16    f_kp;
+  esU16    f_kp;
     @label = "Pulsation, %";  
-  INT8      f_temp;
+  esI8      f_temp;
     @label = "T, °C";
 		
 /// Properties
@@ -185,11 +185,11 @@ object EsBinDataFileLuminanceEntry
 object EsBinDataFileLuminanceEntry2
   @help = "Luminance data entry";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  FLOAT      f_cdm;
+  esF      f_cdm;
     @label = "Luminance, cd/m<sup>2</sup>";
-  UINT16    f_kp;
+  esU16    f_kp;
     @label = "Pulsation, %";  
 
 /// Properties
@@ -208,13 +208,13 @@ object EsBinDataFileLuminanceEntry2
 object EsBinDataFileDfEntry 
   @help = "KEO data entry";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  FLOAT      f_luxIndoors;
+  esF      f_luxIndoors;
     @label = "Indoors illuminance, lux";    
-  FLOAT      f_luxOutdoors;
+  esF      f_luxOutdoors;
     @label = "Outdoors illuminance, lux";
-  FLOAT      f_df;
+  esF      f_df;
     @label = "KEO, %";
 
 /// Properties
@@ -238,19 +238,19 @@ object EsBinDataFileDfEntry
 object EsBinDataFileClimaticBaseEntry
   @help = "Basic climatic data";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  UINT32    f_state;
+  esU32    f_state;
     @label = "Data state";
-  FLOAT      f_ta;
+  esF      f_ta;
     @label = "Air T, °C";
-  FLOAT      f_rh;
+  esF      f_rh;
     @label = "Relative humidity, %";
-  FLOAT      f_td;
+  esF      f_td;
     @label = "Dew point, °C";
-  FLOAT      f_tw;
+  esF      f_tw;
     @label = "Natural wet-bulb T, °C";
-  FLOAT      f_p;
+  esF      f_p;
     @label = "Barometric pressure, Pa";
 		
 /// Properties
@@ -293,27 +293,27 @@ object EsBinDataFileClimaticBaseEntry
 object EsBinDataFileClimaticVelocityEntry
   @help = "Climatic data with air velocity";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  UINT32     f_state;
+  esU32     f_state;
     @label = "Data state";
-  FLOAT      f_ta;
+  esF      f_ta;
     @label = "Air T, °C";
-  FLOAT      f_rh;
+  esF      f_rh;
     @label = "Relative humidity, %";
-  FLOAT      f_td;
+  esF      f_td;
     @label = "Dew point, °C";
-  FLOAT      f_tw;
+  esF      f_tw;
     @label = "Natural wet-bulb T, °C";
-  FLOAT      f_tr;
+  esF      f_tr;
 		@label = "Radiation temperature, when airflow is less than 1 m/s, °C";
-  FLOAT      f_t0;
+  esF      f_t0;
 		@label = "Resulting temperature, °C";
-	FLOAT      f_w;
+	esF      f_w;
 		@label = "Heat ratiation density";
-	FLOAT      f_u;		
+	esF      f_u;		
 		@label = "Air velocity, m/s";
-	FLOAT      f_p;
+	esF      f_p;
     @label = "Barometric pressure, Pa";
 		
 /// Properties
@@ -380,29 +380,29 @@ object EsBinDataFileClimaticVelocityEntry
 object EsBinDataFileClimaticIndexesEntry
   @help = "Climatic indexes";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
     @label = "Timestamp";
-  UINT32     f_state;
+  esU32     f_state;
     @label = "Data state";
-  FLOAT      f_ta;
+  esF      f_ta;
     @label = "Air T, °C";
-  FLOAT      f_rh;
+  esF      f_rh;
     @label = "Relative humidity, %";
-  FLOAT      f_td;
+  esF      f_td;
     @label = "Dew point, °C";
-  FLOAT      f_tw;
+  esF      f_tw;
     @label = "Natural wet-bulb T, °C";
-  FLOAT      f_tg;
+  esF      f_tg;
     @label = "Globe thermometer T, °C";
-  FLOAT      f_wbgt;
+  esF      f_wbgt;
     @label = "Wet bulb globe T, °C";
-  FLOAT      f_wbgts;
+  esF      f_wbgts;
     @label = "Wet bulb globe solar T, °C";
-  FLOAT      f_tr;
+  esF      f_tr;
     @label = "Mean radiant T, °C";
-  FLOAT      f_w;
+  esF      f_w;
     @label = "Heat transfer rate, W/m²";
-  FLOAT      f_p;
+  esF      f_p;
     @label = "Barometric pressure, Pa";
 		
 /// Properties
@@ -475,21 +475,21 @@ object EsBinDataFileClimaticIndexesEntry
 object EsBinDataFileP381xGeomagneticEntry
 	@help = "Geomagnetic field";
 {
-  DATETIME   	f_ts;
+  esDT   	f_ts;
 		@label = "Timestamp";
-  UINT32 			f_duration;
+  esU32 			f_duration;
 		@label = "Measurement duration, s";
-  FLOAT 			f_mktlExt;
+  esF 			f_mktlExt;
 		@label = "External field, mktl";
-  DATETIME 		f_extTs;
+  esDT 		f_extTs;
 		@label = "Timestamp of external field measurement";
-  FLOAT 			f_mktlCur;
+  esF 			f_mktlCur;
 		@label = "Current field, mktl";
-  FLOAT 			f_mktlMin;
+  esF 			f_mktlMin;
 		@label = "Minimum internal field, detected during measurement, mktl";
-  FLOAT 			f_attCur; 
+  esF 			f_attCur; 
 		@label = "Current field attenuation";
-	FLOAT 			f_attMax;
+	esF 			f_attMax;
 		@label = "Maximum attenuation, detected during measurement";
 	
 	/// Properties
@@ -529,13 +529,13 @@ object EsBinDataFileP381xGeomagneticEntry
 object EsBinDataFileP381xConstMagneticEntry
 	@help = "Constant magnetic field";
 {
-  DATETIME   f_ts;
+  esDT   f_ts;
 		@label = "Timestamp";
-  UINT32 		f_duration;
+  esU32 		f_duration;
 		@label = "Measurement duration, s";
-  FLOAT 		f_mktlCur;
+  esF 		f_mktlCur;
 		@label = "Current field, mktl";
-  FLOAT 		f_mktlMax;
+  esF 		f_mktlMax;
 		@label = "Maximum field, detected during measurement, mktl";
 		
 	/// Properties
@@ -556,13 +556,13 @@ object EsBinDataFileP381xConstMagneticEntry
 object EsBinDataFileP381x50hzMagneticEntry
 	@help = "50hz magnetic field";
 {
-  DATETIME  	f_ts;
+  esDT  	f_ts;
 		@label = "Timestamp";
-  UINT32 			f_duration;
+  esU32 			f_duration;
 		@label = "Measurement duration, s";
-  FLOAT 			f_mktlCur;
+  esF 			f_mktlCur;
 		@label = "Current field, mktl";
-  FLOAT 			f_mktlMax;
+  esF 			f_mktlMax;
 		@label = "Maximum field, detected during measurement, mktl";
 		
 	/// Properties
@@ -584,15 +584,15 @@ object EsBinDataFileP381x50hzMagneticEntry
 object EsBinDataFileP380eElectrostaticEntry
 	@help = "Electrostatic field";
 {
-  DATETIME 		f_ts;
+  esDT 		f_ts;
 		@label = "Timestamp";
-  UINT32 			f_duration;
+  esU32 			f_duration;
 		@label = "Measurement duration, s";
-  FLOAT 			f_e;
+  esF 			f_e;
 		@label = "Current field, V/m";
-  FLOAT 			f_eMin;
+  esF 			f_eMin;
 		@label = "Minimum field, detected during measurement, V/m";
-  FLOAT 			f_eMax;
+  esF 			f_eMax;
 		@label = "Maximum field, detected during measurement, V/m";
 		
 	/// Properties
@@ -617,29 +617,29 @@ object EsBinDataFileP380eElectrostaticEntry
 object EsBinDataRadSpecHeader
 	@help = "RAD-01 spectrum header";
 {
-	DATETIME f_ts;
+	esDT f_ts;
 		@label = "Timestamp";
-	UINT32 f_errs;
+	esU32 f_errs;
 		@label = "Latched errors at the beginning of measurements";
-	UINT16 f_tPump;
+	esU16 f_tPump;
 		@label = "Pumping duration, s";
-	UINT16 f_tMsr;
+	esU16 f_tMsr;
 		@label = "Measurement duration, minutes";
-	FLOAT f_na;
+	esF f_na;
 		@label = "Activity in marked windows";
-	UINT32 f_nt;
+	esU32 f_nt;
 		@label = "Thoron events";
-	FLOAT f_temperature;
+	esF f_temperature;
 		@label = "Chamber temperature, °C";
-	FLOAT f_humidity;
+	esF f_humidity;
 		@label = "Relative humidity, %";
-	FLOAT f_pressure;
+	esF f_pressure;
 		@label = "Pressure, mm Hg";
-	UINT8 f_state;      
+	esU8 f_state;      
 		@label = "Radiometer peripheral state during measurement";
-	UINT8 f_pumpSpeed;
+	esU8 f_pumpSpeed;
 		@label = "Pump speed at which measurement was made";
-	UINT8 f_markers[3];
+	esU8 f_markers[3];
 		@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
 		
 	/// Properties
@@ -656,8 +656,8 @@ object EsBinDataFilePage
 	
 	// fields
   EsBinDataFileTag f_tag;
-  UINT32 f_entrySize;
-  UINT32 f_entryCnt;
+  esU32 f_entrySize;
+  esU32 f_entryCnt;
 	
   if( f_tag$isHdrMain ||
       f_tag$isHdrMainAdditional ||
@@ -743,7 +743,7 @@ object EsBinDataFilePage
 		else if( "P380EST " == m_contentTagStr )
 			EsBinDataFileP380eElectrostaticEntry f_nodes[f_entryCnt];
 		else if( "RAD01   " == m_contentTagStr )
-			UINT16 f_nodes[f_entryCnt];
+			esU16 f_nodes[f_entryCnt];
 	}
 
 /// Methods

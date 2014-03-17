@@ -4,9 +4,9 @@
 // ld01v-specific rpcs 
 enum lad01rpid
 {
-	OpStateSet 		= 2048;	// VOID_RpcSig_UINT8_UINT8_UINT16
-	BgndLatchSet 	= 2049;	// VOID_RpcSig_BOOL
-	LiveDataGet		= 2050; // BYTEARRAY_RpcSig
+	OpStateSet 		= 2048;	// VOID_RpcSig_esU8_esU8_esU16
+	BgndLatchSet 	= 2049;	// VOID_RpcSig_esBL
+	LiveDataGet		= 2050; // esBA_RpcSig
 }
 
 enum lad01dataStateMask
@@ -71,14 +71,14 @@ enum lad01error
 // ladin data structure
 object lad01data 
 {
-	DATETIME 	f_dt;
-	UINT32		f_health;
-	UINT32 		f_state;
-	FLOAT 		f_bgnd;
-	UINT32 		f_msrLen;
-	FLOAT 		f_immediate;
-	FLOAT			f_max;
-	FLOAT 		f_integral;
+	esDT 	f_dt;
+	esU32		f_health;
+	esU32 		f_state;
+	esF 		f_bgnd;
+	esU32 		f_msrLen;
+	esF 		f_immediate;
+	esF			f_max;
+	esF 		f_integral;
 	
 	// todo: add properties for extracting opMode, opRange, LaserWlNm and BgndTrimming from f_state
 }
@@ -175,18 +175,18 @@ object lad01base
 	//
 	function opStateSet(rpcMaster, mode, range, laserWlNm)
 	{
-		rpcMaster.VOID_Call_UINT8_UINT8_UINT16(lad01rpid$$OpStateSet, mode, range, laserWlNm);
+		rpcMaster.VOID_Call_esU8_esU8_esU16(lad01rpid$$OpStateSet, mode, range, laserWlNm);
 	}
 	
 	function bgndLatchSet(rpcMaster, doLatch)
 	{
-		rpcMaster.VOID_Call_BOOL(lad01rpid$$BgndLatchSet, doLatch);
+		rpcMaster.VOID_Call_esBL(lad01rpid$$BgndLatchSet, doLatch);
 	}
 	
 	function liveDataGet(rpcMaster)
 		var liveData, buff;
 	{
-		buff = rpcMaster.BYTEARRAY_Call(lad01rpid$$LiveDataGet);
+		buff = rpcMaster.esBA_Call(lad01rpid$$LiveDataGet);
 		if( !buff#isEmpty() )
 		{
 			liveData = new lad01data();

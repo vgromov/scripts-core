@@ -17,17 +17,17 @@ enum EsDeviceHardware
 // hardware information block entry
 object EsDeviceHwInfoEntry
 {
-	UINT16 size;
-	UINT16 id;
+	esU16 size;
+	esU16 id;
 		@restriction = EsDeviceHardware;
-	UINT16 locationEntry;
-	UINT16 order;
+	esU16 locationEntry;
+	esU16 order;
 	// optional device name
-	UINT8 name[16];
+	esU8 name[16];
 	
 	// device-specific part
 	if( id in [EsDeviceHardware$$UART..EsDeviceHardware$$I2C] )
-		UINT32 errorCode;
+		esU32 errorCode;
 	else if( id in [EsDeviceHardware$$RAM..EsDeviceHardware$$NVRAM] )
 	{
 		EsMemSpaceInfo total;
@@ -38,9 +38,9 @@ object EsDeviceHwInfoEntry
 // hardware information block
 object EsDeviceHwInfo
 {
-	UINT32 health; 	// latched errors, as in standard health info
-	UINT16 ver;			// hardware version
-	UINT16 entryCnt; // hardware info entry count
+	esU32 health; 	// latched errors, as in standard health info
+	esU16 ver;			// hardware version
+	esU16 entryCnt; // hardware info entry count
 	EsDeviceHwInfoEntry entries[entryCnt];
 }
 // --------------------------- end hardware information

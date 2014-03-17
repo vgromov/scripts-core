@@ -2,9 +2,9 @@
 // software information
 object EsSoftwareCrcInfo
 {
-  UINT32 f_crcPrev; // previous CRC32 (as calculated by CRC32 IEEE 802.3)
-  UINT32 f_crcCur;   // current CRC32 (as calculated by CRC32 IEEE 802.3)
-  DATETIME f_ts;    // CRC change timestamp
+  esU32 f_crcPrev; // previous CRC32 (as calculated by CRC32 IEEE 802.3)
+  esU32 f_crcCur;   // current CRC32 (as calculated by CRC32 IEEE 802.3)
+  esDT f_ts;    // CRC change timestamp
   
   property timestamp;
   read: { return f_ts; }
@@ -21,8 +21,8 @@ object EsSoftwareCrcInfo
 
 object EsFirmwareSwInfo
 {
-  UINT8 f_name[64];
-  UINT8 f_file[32];
+  esU8 f_name[64];
+  esU8 f_file[32];
   EsSoftwareCrcInfo f_crc;
   
 	function nameFromString(str)
@@ -122,10 +122,10 @@ enum EsPowerStatusFlag
 object EsPowerStatus
   @help = "Device power status object";
 {
-  UINT16 min;
-  UINT16 cur;
-  UINT16 max;
-  UINT8  flags;
+  esU16 min;
+  esU16 cur;
+  esU16 max;
+  esU8  flags;
   
   function percentGet()
     @help = "Return power level in percents";
@@ -203,11 +203,11 @@ enum EsMemoryUnit
 
 object EsMemSpaceInfo 
 {
-  UINT16 count;
-  UINT16 frac;
-  UINT8 unit;
+  esU16 count;
+  esU16 frac;
+  esU8 unit;
     @restriction = EsMemoryUnit;
-  UINT8 dummy;
+  esU8 dummy;
 }
 
 /// RPC accessed filesystem - related structs and enums
@@ -253,10 +253,10 @@ enum EsFsResult
 //
 object EsFsItem
 {
-  UINT32 f_size;    /// <file size
-  DATETIME f_ts;    /// <file time stamp
-  UINT8  f_attrs;    /// <file attributes
-  UINT8 f_name[13];  /// <file name (short)
+  esU32 f_size;    /// <file size
+  esDT f_ts;    /// <file time stamp
+  esU8  f_attrs;    /// <file attributes
+  esU8 f_name[13];  /// <file name (short)
   
 /// Properties
 ///
@@ -275,7 +275,7 @@ object EsFsItem
 /// File system enumeration|search result struct
 object EsFsItemResult
 {
-  UINT16 f_result;
+  esU16 f_result;
   if( EsFsResult$$OK == f_result )
     EsFsItem f_item;
 
@@ -302,7 +302,7 @@ object EsFsSpaceInfo
 /// File system free space info query result
 object EsFsSpaceInfoResult
 {
-  UINT16 f_result;
+  esU16 f_result;
   if( EsFsResult$$OK == f_result )
     EsFsSpaceInfo f_info;
 		
@@ -322,9 +322,9 @@ object EsFsSpaceInfoResult
 /// File read request result
 object EsFsFileReadRequest
 {
-  UINT16 f_result;
+  esU16 f_result;
   if( EsFsResult$$OK == f_result )
-    UINT32 f_chunks;
+    esU32 f_chunks;
 		
 	property isOk;
 	read: { return EsFsResult$$OK == f_result; }

@@ -7,8 +7,8 @@ enum P3XX_Rpid
 	Start						= 2048, "VOID_Call|Start measurements";
 	Stop						= 2049, "VOID_Call|Stop measurements";
 	Reset						= 2050, "VOID_Call|Reset measurements";
-	GetMode 				= 2051, "UINT16_Call|Read current working mode";
-	GetLiveData 		= 2052, "BYTEARRAY_Call|Get live data packet";
+	GetMode 				= 2051, "esU16_Call|Read current working mode";
+	GetLiveData 		= 2052, "esBA_Call|Get live data packet";
 }
 
 // Health error flags & masks
@@ -20,7 +20,7 @@ enum P3XX_Error
 // P3XX parsed health implementation
 object P3XX_Health
 {
-	UINT32 f_errors;
+	esU32 f_errors;
 	
   /// Constructor
   new(health)
@@ -70,7 +70,7 @@ enum P3XX_StateFlag
 // Measurement state object
 object P3XX_State
 {
-	UINT32 f_state;
+	esU32 f_state;
 	
 	/// Return state as string array
 	function stateAsStrings()
@@ -93,7 +93,7 @@ object P3XX_State
 	
 	/// Properties
 	///
-	/// Return state as UINT32
+	/// Return state as esU32
 	property state;
 	read: { return f_state$value; }
 	/// Return parsed state strings

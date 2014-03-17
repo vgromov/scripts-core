@@ -9,28 +9,28 @@
 ///
 enum EsRpcStdId
 {
-  CAPS_GET           = 0,   "BYTEARRAY_Call|Return all procedure ids, supported by the hardware";
-  FWID_GET          = 1,   "BYTEARRAY_Call|Query firmware identification block";
-  HW_INFO_GET        = 2,   "BYTEARRAY_Call|Query hardware information block";
-  STORAGE_INFO_GET  = 3,   "BYTEARRAY_Call|Query storage information block";
-  HEALTH_INFO_GET    = 4,   "UINT32_Call|Query health information (latched errors) block";
+  CAPS_GET           = 0,   "esBA_Call|Return all procedure ids, supported by the hardware";
+  FWID_GET           = 1,   "esBA_Call|Query firmware identification block";
+  HW_INFO_GET        = 2,   "esBA_Call|Query hardware information block";
+  STORAGE_INFO_GET   = 3,   "esBA_Call|Query storage information block";
+  HEALTH_INFO_GET    = 4,   "esU32_Call|Query health information (latched errors) block";
   HEALTH_EXEC        = 5,   "VOID_Call|Schedule self-test execution";
-  DATETIME_SET      = 6,   "BOOL_Call_DATETIME|Set device date and time";
-  DATETIME_GET      = 7,   "DATETIME_Call|Get device date and time";
+  DATETIME_SET       = 6,   "esBL_Call_esDT|Set device date and time";
+  DATETIME_GET       = 7,   "esDT_Call|Get device date and time";
   FACTORY_RESET      = 8,   "VOID_Call|Reset device to factory defaults";
-  SHUTDOWN          = 9,   "VOID_Call|Schedule device power down";
-  ENTER_BOOT        = 10,  "VOID_Call_UINT32|Schedule device boot loader";
-  POWER_STATUS_GET  = 11, "BYTEARRAY_Call|Return device power status";
-  DIR_LIST_START    = 12, "UINT16_Call_BYTEARRAY|(Re)Start listing of device file system directory";
-  DIR_LIST_NEXT_GET = 13,  "BYTEARRAY_Call|Get next item of directory listing";
-  DIR_DELETE        = 14,  "UINT16_Call_BYTEARRAY_BOOL|Delete directory";
-  FILE_DELETE        = 15, "UINT16_Call_BYTEARRAY|Delete file";
-  FS_FREESPACE_GET    = 16, "BYTEARRAY_Call|Get free file system space info";
-  FILE_READ_START    = 17, "BYTEARRAY_Call_BYTEARRAY|Start file reading sequence";
-  FILE_READ_NEXT    = 18,  "BYTEARRAY_Call|Request next file data chunk";
-  HW_UID_GET        = 19, "BYTEARRAY_Call|Retrieve hardware unique ID (128bit, in text form, i.e. char[32])";
-  FINDME            = 20, "VOID_Call|Perform some kind of visual|audio device identification";
-  SW_INFO_GET        = 21, "BYTEARRAY_Call|Query software identification block";
+  SHUTDOWN           = 9,   "VOID_Call|Schedule device power down";
+  ENTER_BOOT         = 10,  "VOID_Call_esU32|Schedule device boot loader";
+  POWER_STATUS_GET   = 11,  "esBA_Call|Return device power status";
+  DIR_LIST_START     = 12,  "esU16_Call_esBA|(Re)Start listing of device file system directory";
+  DIR_LIST_NEXT_GET  = 13,  "esBA_Call|Get next item of directory listing";
+  DIR_DELETE         = 14,  "esU16_Call_esBA_esBL|Delete directory";
+  FILE_DELETE        = 15,  "esU16_Call_esBA|Delete file";
+  FS_FREESPACE_GET   = 16,  "esBA_Call|Get free file system space info";
+  FILE_READ_START    = 17,  "esBA_Call_esBA|Start file reading sequence";
+  FILE_READ_NEXT     = 18,  "esBA_Call|Request next file data chunk";
+  HW_UID_GET         = 19,  "esBA_Call|Retrieve hardware unique ID (128bit, in text form, i.e. char[32])";
+  FINDME             = 20,  "VOID_Call|Perform some kind of visual|audio device identification";
+  SW_INFO_GET        = 21,  "esBA_Call|Query software identification block";
 }
 
 ##require("coreDevicesDb.ess");

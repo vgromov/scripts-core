@@ -8,31 +8,31 @@ const c_pha01_unitP = "%";
 // pha01-specific rpcs 
 enum PHA01_Rpid
 {
-  AutosaveIntervalSet = 2048, "VOID_Call_UINT8|";
-  AutosaveIntervalGet = 2049, "UINT8_Call|";
-  CalibrationNodeSet  = 2050, "VOID_Call_UINT8_BYTEARRAY|";
-  CalibrationGet      = 2051, "BYTEARRAY_Call|";
-  CalibrationSet      = 2052,  "VOID_Call_BYTEARRAY|";
+  AutosaveIntervalSet = 2048, "VOID_Call_esU8|";
+  AutosaveIntervalGet = 2049, "esU8_Call|";
+  CalibrationNodeSet  = 2050, "VOID_Call_esU8_esBA|";
+  CalibrationGet      = 2051, "esBA_Call|";
+  CalibrationSet      = 2052,  "VOID_Call_esBA|";
   CalibrationReset    = 2053, "VOID_Call|";
   // preserve prc IDs to maintain compatibility with existing clients
-  OperationModeSet    = 2056, "VOID_Call_UINT8|";
-  OperationModeGet    = 2057, "UINT8_Call|";
-  LiveDataGet          = 2058, "BYTEARRAY_Call|";
-  DataCountGet        = 2059, "UINT16_Call|Return count of data saved in autonomous mode";
-  DataAtIdxGet        = 2060, "BYTEARRAY_Call_UINT16|";
-  DataClear            = 2061, "BOOL_Call|";
-  RangeGet            = 2062, "UINT8_Call|";
-  RangeSet            = 2063, "VOID_Call_UINT8|";
-  AutoRangeGet        = 2064, "BOOL_Call|";
-  AutoRangeSet        = 2065, "VOID_Call_BOOL|";
-  AllowChargingSet    = 2067, "VOID_Call_BOOL|";
-  LinFactorsSet        = 2068, "VOID_Call_BYTEARRAY|";
-  LinFactorsGet        = 2069, "BYTEARRAY_Call|";
-  CalSelectiveReset    = 2070, "VOID_Call_UINT8|";
-  HysteresisGet        = 2071, "UINT32_Call|";
-  HysteresisSet        = 2072, "VOID_Call_UINT32|";
-  LiveWithBgndStart    = 2073, "VOID_Call_UINT16|";
-  BgndPeriodLeftGet    = 2074, "UINT16_Call|";
+  OperationModeSet    = 2056, "VOID_Call_esU8|";
+  OperationModeGet    = 2057, "esU8_Call|";
+  LiveDataGet          = 2058, "esBA_Call|";
+  DataCountGet        = 2059, "esU16_Call|Return count of data saved in autonomous mode";
+  DataAtIdxGet        = 2060, "esBA_Call_esU16|";
+  DataClear            = 2061, "esBL_Call|";
+  RangeGet            = 2062, "esU8_Call|";
+  RangeSet            = 2063, "VOID_Call_esU8|";
+  AutoRangeGet        = 2064, "esBL_Call|";
+  AutoRangeSet        = 2065, "VOID_Call_esBL|";
+  AllowChargingSet    = 2067, "VOID_Call_esBL|";
+  LinFactorsSet        = 2068, "VOID_Call_esBA|";
+  LinFactorsGet        = 2069, "esBA_Call|";
+  CalSelectiveReset    = 2070, "VOID_Call_esU8|";
+  HysteresisGet        = 2071, "esU32_Call|";
+  HysteresisSet        = 2072, "VOID_Call_esU32|";
+  LiveWithBgndStart    = 2073, "VOID_Call_esU16|";
+  BgndPeriodLeftGet    = 2074, "esU16_Call|";
 }
 
 // settings defaults
@@ -162,11 +162,11 @@ function PHA01_pulsationFromStrMulti(multi)
 object PHA01_Data 
 {
   /// Fields
-  DATETIME   f_ts;
-  FLOAT     f_lux;
-  FLOAT     f_cdm;
-  UINT16    f_kp;
-  INT8       f_temp;
+  esDT   f_ts;
+  esF     f_lux;
+  esF     f_cdm;
+  esU16    f_kp;
+  esI8       f_temp;
   
   /// Properties
 	///
@@ -211,14 +211,14 @@ object PHA01_Data
 // added since 1.6 - background subtraction data packet
 object PHA01_DataWoBgnd
 {
-  DATETIME   f_ts;
-  FLOAT     f_luxOrg;        /// > original illuminosity
-  FLOAT     f_luxBgnd;      /// > measured background illuminosity
-  FLOAT     f_lux;          /// > illuminosity-bgnd level
-  UINT16    f_kpOrg;        /// > original pulsation
-  UINT16    f_kp;            /// > resulting pulsation
-  UINT16    f_bgndDuration; /// > duration of background measurements in seconds
-  UINT16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
+  esDT   f_ts;
+  esF     f_luxOrg;        /// > original illuminosity
+  esF     f_luxBgnd;      /// > measured background illuminosity
+  esF     f_lux;          /// > illuminosity-bgnd level
+  esU16    f_kpOrg;        /// > original pulsation
+  esU16    f_kp;            /// > resulting pulsation
+  esU16    f_bgndDuration; /// > duration of background measurements in seconds
+  esU16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
  
   /// Properties
 	///
@@ -293,8 +293,8 @@ object PHA01_DataWoBgnd
 /// Calibration node
 object PHA01_CalNode
 {
-  FLOAT f_1;
-  FLOAT f_2;
+  esF f_1;
+  esF f_2;
 	
 	property notEmpty;
 	read: { return f_1 != 0. || f_2 != 0.; }
@@ -340,7 +340,7 @@ object PHA01_Calibration
 object PHA01_LinNodeLow
 {  
   PHA01_CalNode f_node;
-  UINT16 f_adcRangeMax;
+  esU16 f_adcRangeMax;
 }
 
 object PHA01_Linearization 
@@ -352,13 +352,13 @@ object PHA01_Linearization
 // ranges hysteresis thresholds
 object PHA01_Hysteresis
 {
-  UINT16 f_loHi;
-  UINT16 f_hiLo;
+  esU16 f_loHi;
+  esU16 f_hiLo;
 }
 
 object PHA01_Health
 {
-  UINT32 f_errors;
+  esU32 f_errors;
   /// Constructor
   new(health)
   {
@@ -441,7 +441,7 @@ object PHA01_Settings
   if( f_fwId$ver > "1.1" )
     PHA01_Hysteresis f_hys;
 
-  UINT8 f_autosaveInterval;
+  esU8 f_autosaveInterval;
     @default = PHA01_Defs$$AutoIntervalDef;
     @restriction = [PHA01_Defs$$AutoIntervalMin..PHA01_Defs$$AutoIntervalMax];
   // linearization data

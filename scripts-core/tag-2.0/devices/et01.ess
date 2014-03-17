@@ -10,10 +10,10 @@ const c_et01_unitH = "%";
 // et01-specific rpcs 
 enum ET01_Rpid
 {
-	OperationModeSet 	= 2056, "VOID_Call_UINT8|";
-	OperationModeGet 	= 2057, "UINT8_Call|";
-	LiveDataGet				= 2058,	"BYTEARRAY_Call|";
-	AllowChargingSet	= 2067, "VOID_Call_BOOL|";
+	OperationModeSet 	= 2056, "VOID_Call_esU8|";
+	OperationModeGet 	= 2057, "esU8_Call|";
+	LiveDataGet				= 2058,	"esBA_Call|";
+	AllowChargingSet	= 2067, "VOID_Call_esBL|";
 }
 
 enum ET01_OpMode
@@ -47,11 +47,11 @@ enum ET01_Flag
 ///
 object ET01_Flags
 {
-	UINT32	f_mask;							// flags bit mask
-	UINT8		f_heaterTimer;			// if heaterTimer == 0xFF - heater is off
+	esU32	f_mask;							// flags bit mask
+	esU8		f_heaterTimer;			// if heaterTimer == 0xFF - heater is off
 															// if heaterTimer > 0 && heaterTimer < 0xFF count of seconds before velocity data is valid
-	UINT32	f_taAvrTimer;				// if air temperature averaging mode is on - this value in seconds will indicate the value averaging time
-	UINT32	f_uAvrTime;					// air flow averaging period in seconds 
+	esU32	f_taAvrTimer;				// if air temperature averaging mode is on - this value in seconds will indicate the value averaging time
+	esU32	f_uAvrTime;					// air flow averaging period in seconds 
 	
 /// Properties
 ///
@@ -61,19 +61,19 @@ object ET01_Flags
 
 object ET01_DataBlock
 {
-	FLOAT		f_tA;								// temperature, in C
-	FLOAT		f_rH;								// relative humidity in %
-	FLOAT		f_tD;								// dewpoint, in C
-	FLOAT		f_tW;								// wet thermometer temperature, in C
-	FLOAT		f_u;								// air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
-	FLOAT		f_tG;								// temperature inside black sphere, valid if sphere is connected
-	FLOAT		f_wBgt;							// index WBGT, valid if sphere is connected
-	FLOAT		f_wBgts;						// index WBGTs, valid if sphere is connected
-	FLOAT		f_tR;								// radiation temperature when airflow is less than 1 m/s
-	FLOAT		f_w;								// heat ratiation density
-	FLOAT		f_p;								// pressure
-	FLOAT		f_t0;								// resulting temperature
-	FLOAT		f_reserved[2];
+	esF		f_tA;								// temperature, in C
+	esF		f_rH;								// relative humidity in %
+	esF		f_tD;								// dewpoint, in C
+	esF		f_tW;								// wet thermometer temperature, in C
+	esF		f_u;								// air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
+	esF		f_tG;								// temperature inside black sphere, valid if sphere is connected
+	esF		f_wBgt;							// index WBGT, valid if sphere is connected
+	esF		f_wBgts;						// index WBGTs, valid if sphere is connected
+	esF		f_tR;								// radiation temperature when airflow is less than 1 m/s
+	esF		f_w;								// heat ratiation density
+	esF		f_p;								// pressure
+	esF		f_t0;								// resulting temperature
+	esF		f_reserved[2];
 }
 
 /// Value formatting helpers
@@ -107,10 +107,10 @@ object ET01_Data
 
 /// Fields
 ///
-	DATETIME				f_ts;						// timestamp (not used, ET does not have RTC)
+	esDT				f_ts;						// timestamp (not used, ET does not have RTC)
 	ET01_Flags 			f_flags;				// flags block
 	ET01_DataBlock	f_data;					// data block
-	UINT32					f_gradient;			// data change tendency indicator
+	esU32					f_gradient;			// data change tendency indicator
 	
 /// Non-default ctor with opmode assignment
 	new(opmode)

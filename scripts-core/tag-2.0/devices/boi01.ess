@@ -5,17 +5,17 @@
 /// BOI01-specific rpcs 
 enum BOI01_Rpid
 {
-  ColorSchemeGet  = 2048, "BYTEARRAY_Call|Read GUI color scheme";
-  ColorSchemeSet  = 2049, "VOID_Call_BYTEARRAY|Set GUI color scheme";
+  ColorSchemeGet  = 2048, "esBA_Call|Read GUI color scheme";
+  ColorSchemeSet  = 2049, "VOID_Call_esBA|Set GUI color scheme";
 }
 
 /// ESGUI color type
 object EsGuiColor
 {
-  UINT8 f_b;
-  UINT8 f_g;
-  UINT8 f_r;
-  UINT8 f_a;
+  esU8 f_b;
+  esU8 f_g;
+  esU8 f_r;
+  esU8 f_a;
 }
 
 /// Session compacted date time expansion into normal date time string
