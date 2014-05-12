@@ -149,7 +149,7 @@ var result = [];
 /// Create simple string from multistring
 function PHA01_fromStrMulti(multi)
 {
-	return multi[1] + " " + multi[3];
+	return multi[0] + " " + multi[3];
 }
 
 /// The same as above, but for pulsation multistring
@@ -163,10 +163,10 @@ object PHA01_Data
 {
   /// Fields
   esDT   f_ts;
-  esF     f_lux;
-  esF     f_cdm;
-  esU16    f_kp;
-  esI8       f_temp;
+  esF    f_lux;
+  esF    f_cdm;
+  esU16  f_kp;
+  esI8   f_temp;
   
   /// Properties
 	///
