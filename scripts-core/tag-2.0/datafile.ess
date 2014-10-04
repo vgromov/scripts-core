@@ -835,7 +835,7 @@ object EsBinDataFilePage
 function binDataFileBufferParse(buff)
  var cs16calc = new EsChecksum16(), pageIdx, pagesCnt, 
 	pageBuff, pageBuffStart = 0, pageBuffEnd = EsBinDataFile$$PageSize, 
-	curContentTagStr, pg, result = [], df;
+	curContentTagStr, pg, result = []; //, df;
 {
   if( !buff#isEmpty() )
   {
@@ -851,10 +851,10 @@ function binDataFileBufferParse(buff)
 				pg = new EsBinDataFilePage();
 				pg$contentTagStr = curContentTagStr;
 
-        df = new EsFile("D:/Users/vsevolod/Documents/Projects/bigboi-1.0/scripts/page" + pageIdx + ".dat", EsFileFlag$$Write);
-        df.open();
-        df.writeAllAsBinBuffer(pageBuff);
-        df.close();
+        // df = new EsFile("D:/Users/vsevolod/Documents/Projects/bigboi-1.0/scripts/page" + pageIdx + ".dat", EsFileFlag$$Write);
+        // df.open();
+        // df.writeAllAsBinBuffer(pageBuff);
+        // df.close();
 
 				pg$buffer = pageBuff;
 				curContentTagStr = pg$contentTagStr;
