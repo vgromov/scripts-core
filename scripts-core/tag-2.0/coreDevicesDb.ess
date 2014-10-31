@@ -17,12 +17,14 @@ enum EsDeviceType
 	BOI2L		= 2, 			"BOI2L   ";
 	BOI2T		= 3, 			"BOI2T   ";
 	ET			= 4, 			"ET      ";
-	GEO1		= 5, 			"GEO1    ";
+	EGEM1		= 5, 			"EGEM1   ";
 	RAD1		= 6, 			"RAD1    ";
-	SA1			= 7, 			"SA1     ";
+	IRA1    = 7, 			"IRA1    ";
 	LD1V		= 8, 			"LD1V    ";
 	OAA			= 9, 			"OAA     ";
+	PHAC1   = 10,     "PHAC1   ";
 }
+
 
 // ids of 3-rd party OCTAVA appliances
 const c_octavaDeviceTypeBase = 32001;
@@ -58,9 +60,10 @@ const c_deviceDatabase = [
 	[EsDeviceKind$$Appliance, 	"ЭТ", 			"Измеритель метеорологических параметров ЭкоТерма"],
 	[EsDeviceKind$$Appliance, 	"ГЕО-01", 	"Головка изм. геомагнитного поля ГЕО-01"],
 	[EsDeviceKind$$Appliance, 	"РАД-01", 	"Измеритель активности радона РАД-01"],
-	[EsDeviceKind$$Appliance, 	"СГ-01", 		"Спектрометрическая головка СГ-01"],
+	[EsDeviceKind$$Appliance, 	"ИКИ-01",   "Измеритель ИК излучения ИКИ-01"],
 	[EsDeviceKind$$Appliance,		"ЛД-01-В", 	"Головка лазерная дозиметрическая ЛД-01-В"],
-	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"]
+	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"],
+	[EsDeviceKind$$Appliance,		"ФГ-01-К", "Фотоголовка ФГ-01-К"]
 ];
 
 const c_octavaDeviceDatabase = [
