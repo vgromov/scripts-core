@@ -1,0 +1,838 @@
+// scripting device support for pha-01 photo-appliance
+##require("EsDeviceBase.ess");
+
+const c_pha01_unitE = "lx";
+const c_pha01_unitL = "cd/m<sup>2</sup>";
+const c_pha01_unitP = "%";
+
+// pha01-specific rpcs 
+enum PHAС01_Rpid
+{
+  // Legacy-mode handlers. PHA-01 ids preserved
+  //
+	LegacyAutosaveIntervalSet = 2048, "VOID_Call_esU8|";
+	LegacyAutosaveIntervalGet = 2049, "esU8_Call|";
+	LegacyOperationModeSet    = 2056, "VOID_Call_esU8|";		  		 )
+	LegacyOperationModeGet    = 2057, "esU8_Call|";
+	LegacyLiveDataGet         = 2058, "esBA_Call|";
+	LegacyDataAtIdxGet        = 2060, "esBA_Call_esU16|";
+	LegacyDataClear           = 2061, "esBL_Call|";
+	LegacyLiveWithBgndStart   = 2073, "VOID_Call_esU16|";
+	LegacyBgndPeriodLeftGet   = 2074, "esU16_Call|";
+
+  // Native handlers
+  // 
+  // Following handlers are used both, in legacy and native modes
+  DataCountGet              = 2059, "esU16_Call|Return count of data saved in autonomous mode";
+	AllowChargingSet          = 2067, "VOID_Call_esBL|";
+
+  // Pure native handlers
+  //
+  WorkmodeSet               = 2080, "VOID_Call_esU32|";
+  WorkmodeGet               = 2081, "esU32_Call|";
+  LiveDataGet               = 2082, "esBA_Call|";
+  RawDataGet                = 2083, "esBA_Call|";
+  ClearCalibrationGet       = 2084, "esBA_Call|";
+  ClearCalibrationSet       = 2085, "VOID_Call_esBA|";
+  ColorCalibrationGet       = 2086, "esBA_Call|";
+  ColorCalibrationSet       = 2087, "VOID_Call_esBA|";
+  BgndTmoGet                = 2088, "esU16_Call|";
+  BgndTmoSet                = 2089, "VOID_Call_esU16|";
+  AutosaveTmoGet            = 2090, "esU16_Call|";
+  AutosaveTmoSet            = 2091, "VOID_Call_esU16|";
+  DataReset                 = 2092, "VOID_Call|";
+  DataAtIdxGet              = 2093, "esBA_Call_esU16|";  
+}
+
+// settings defaults
+enum PHAC01_Defs
+{
+  // Autosave intervals in sec
+  AutoIntervalMin = 5;
+  AutoIntervalMax = 600;
+  AutoIntervalDef = 5;
+  // Background photo measurement length, in sec
+  BgndIntervalMin = 5;
+  BgndIntervalMax = 60;
+  BgndIntervalDef = 15;
+}
+
+// calibration data types
+enum PHAC01_CalType
+{
+  Lux = 0, "Illuminance calibration";
+  Cdm = 1, "Luminance calibration";
+  Kp  = 2, "Pulsation calibration";
+  All = 3, "All calibration data";
+}
+
+// photo appliance operation modes
+enum PHA01_OpMode 
+{
+  None           = 0, "NONE";
+  Idle           = 1, "IDLE operation";
+  Live           = 2, "LIVE operation";
+  Autonomous     = 3, "KEO operation";
+  LiveWoBgnd     = 4, "LIVE operation with background subtraction";
+  Oscilloscope   = 5, "OSCILLOSCOPE operation";
+}
+
+// health error flags & masks
+enum PHA01_Error
+{
+  Batt           = 0x00000001, "Battery Low"; // low battery flag
+  I2c            = 0x00000002, "I2C bus error"; // i2c bus error
+  Spi            = 0x00000004, "SPI bus error"; // spi bus error
+  RTC            = 0x00000008, "RTC error";  // RTC error
+  RTCDateTime    = 0x00000010, "RTC date time corrupt"; // DateTime value error
+  Storage        = 0x00000020, "Storage initialization error";  // data storage initialization
+  StorageData    = 0x00000040, "Data storage corrupt"; // data storage error
+  StorageSystem  = 0x00000080, "System storage corrupt"; // system data storage error
+  Calibration    = 0x00000100, "Calibration is missing or incomplete"; // appliance calibration error (lost|never calibrated)
+  Linearization  = 0x00000200, "Linearization is missing"; // appliance linearization error (lost|never linearized)
+}
+
+/// PHA Color device error flags and bit masks
+enum {
+  errPHAC1_PwrCritical  = 0x00000001,           ///< Battery power level is below critical margin
+  errPHAC1_RTC          = 0x00000002,           ///< RTC initialization error
+  errPHAC1_RTC_Invalid  = 0x00000004,           ///< RTC date time value is invalid
+  errPHAC1_Storage      = 0x00000008,           ///< Storage stream could not be opened
+  errPHAC1_ClearNoCal   = 0x00000010,           ///< Clear sensor calibration is missing or invalid
+  errPHAC1_ColorNoCal   = 0x00000020,           ///< Color sensor calibration is missing or invalid
+  errPHAC1_MAX4400x     = 0x00000040,           ///< Color sensor MAX4400x does not respond
+  errPHAC1_I2C          = 0x00000080,           ///< Error condition latched on I2C bus     
+
+  /// Specific error masks
+  ///
+  errMaskPHAC1_Critical = errPHAC1_RTC|
+                          errPHAC1_Storage|
+                          errPHAC1_MAX4400x|
+                          errPHAC1_I2C
+};
+
+/// PHA Color data state flags
+enum {
+  /// Operation modes
+  omPHAC1_None,
+  omPHAC1_Idle,
+  omPHAC1_Illuminance,
+  omPHAC1_Luminance,
+  omPHAC1_Oscilloscope,
+  // Specific operation mode value, must go last
+  omPHAC1_Count,
+  // Operation mode extraction mask
+  omPHAC1_Mask          = 0x0000000F,
+  
+  /// Operation mode modifier flags
+  ommPHAC1_None         = 0,          //< Null modifier, just for readability        
+  ommPHAC1_BgndTrim     = (0x1 << 4), //< Bgnd trimming is on
+  ommPHAC1_Autonomous   = (0x2 << 4), //< Write measured data into internal storage memory
+  // Operation mode modifier extraction mask
+  ommPHAC1_Mask         = ommPHAC1_BgndTrim |
+                          ommPHAC1_Autonomous,
+
+  /// Data state flags
+  dstatPHAC1_valLow     = (0x1 << 8), //< Low value state - no kp data is valid, because slow sensor is used
+  // Data state extraction mask
+  dstatPHAC1_Mask       = dstatPHAC1_valLow,
+
+  /// Data fields invalid flags. If flag is set - correspondent data field is invalid*
+  invPHAC1_val          = (0x0001 << 16),
+  invPHAC1_valOrg       = (0x0002 << 16),
+  invPHAC1_kp           = (0x0004 << 16),
+  invPHAC1_kpOrg        = (0x0008 << 16),
+  invPHAC1_kpi          = (0x0010 << 16),
+  invPHAC1_kpiOrg       = (0x0020 << 16),
+  invPHAC1_bgnd         = (0x0040 << 16),
+  invPHAC1_bgndTmo      = (0x0080 << 16),
+  invPHAC1_xy           = (0x0100 << 16),
+  invPHAC1_ct           = (0x0200 << 16),
+  /// Data validity extraction mask
+  invPHAC1_Mask         = invPHAC1_val |
+                          invPHAC1_valOrg |
+                          invPHAC1_kp |
+                          invPHAC1_kpOrg |
+                          invPHAC1_kpi |
+                          invPHAC1_kpiOrg |
+                          invPHAC1_bgnd |
+                          invPHAC1_bgndTmo |
+                          invPHAC1_xy |
+                          invPHAC1_ct,
+  /// Full set of invalid data bits, alias to mask, obviously 
+  invPHAC1_All          = invPHAC1_Mask
+};
+
+/// Legacy opmodes
+///
+enum {
+  lomPHAC1_None,
+	lomPHAC1_Idle,
+	lomPHAC1_Live,
+	lomPHAC1_Autonomous,
+	lomPHAC1_LiveBackground,
+	lomPHAC1_Oscilloscope,
+  // Special value, must go last
+  lomPHAC1_Count
+};
+
+/// Macros for data modes|state|validity flags manipulation
+///
+#define PHAC1_OPMODE_SET(omDest, om) \
+  { (esU32)(omDest) &= ~((esU32)omPHAC1_Mask); \
+    (esU32)(omDest) |= (((esU32)(om)) & ((esU32)omPHAC1_Mask)); }
+
+#define PHAC1_OPMODE_GET(omSrc) \
+  ((((esU32)(omSrc)) & ((esU32)omPHAC1_Mask)) & ~((esU32)ommPHAC1_Mask))
+
+#define PHAC1_OPMODE_MODIFIER_GET(omSrc) \
+  (((esU32)(omSrc)) & ((esU32)ommPHAC1_Mask))
+
+#define PHAC1_DATASTATE_GET(src) \
+  ((esU32)(src) & ((esU32)dstatPHAC1_Mask))
+
+/// PHA Color data point structure
+/// Data interpretation notes:
+/// 1) Error flags field duplicated that of device health value
+/// 2) Data flags describe device working mode|data fields validity
+/// *for instance, mode flag may be set to modeBgnd, then, while validBgnd is not set,
+/// bgndTmo is bgnd measurement ETA, in seconds, otherwise, it's duration of bgnd measuement,
+/// and bgnd is valid measured bgnd value
+///
+typedef struct 
+{
+  esDT  m_ts;           ///< Data timestamp
+  esU32 m_errors;       ///< Device error flags
+  esU32 m_flags;        ///< Data state|validity flags
+  esF   m_val;          ///< Measured value (either illuminance or luminance, depending on mode flag)
+  esF   m_valOrg;       ///< Original value (for Bgnd. trimming mode)
+  esF   m_kp;           ///< Pulsation coefficient, in %
+  esF   m_kpOrg;        ///< Original pulsation coefficient (for Bgnd. trimming mode)
+  esF   m_kpi;          ///< Pulsation calculated by integral algo
+  esF   m_kpiOrg;       ///< Original pulsation calculated by integral algo
+  esF   m_bgnd;         ///< Measured background value (for Bgnd. trimming mode)
+  esF   m_x;            ///< CIE x component
+  esF   m_y;            ///< CIE y component
+  esF   m_ct;           ///< Color temperature in K
+  esU16 m_bgndTmo;      ///< Bgnd measurement duration, in seconds
+  esU16 m_bgndEta;      ///< Bgnd measurement countdown, in seconds
+
+} PhaColorData;
+
+/// Raw data structure, used in calibration process
+///
+typedef struct
+{
+  esU32 m_errors;       ///< Device error flags
+  esF   m_val;          ///< Measured raw value (either illuminance or luminance, depending on mode flag)
+  esF   m_kp;           ///< Pulsation coefficient, in %
+  esF   m_kpi;          ///< Pulsation coefficient, in %
+  esU32 m_cntClear;     ///< How many input points were used in clear sensor data calculation
+  esF   m_c;            ///< Clear channel of color sensor
+  esF   m_r;            ///< Red channel of color sensor
+  esF   m_g;            ///< Green channel of color sensor
+  esF   m_b;            ///< Blue channel of color sensor
+  esU16 m_att;          ///< Currently used attenuation value 1|4|16|256
+  esU16 m_cntColor;     ///< How many input points were used to calculate color node  
+
+} PhaColorRawData;
+
+/// Backwards - compatible data structures
+///
+
+/// Plain data packet
+///
+typedef struct {
+	esDT 	  ts;
+	esF 		lux;
+	esF 		cdm;
+	esU16		kp;
+	esI8 		temp;
+
+} LegacyPhaData;
+
+/// Data packet with background subtraction
+///
+typedef struct {
+	esDT 	  ts;
+	esF 		luxOrg;				// original illuminosity
+	esF 		luxBgnd;			// measured background illuminosity
+	esF 		lux;					// illuminosity-bgnd level
+	esU16		kpOrg;				// original pulsation
+	esU16		kp;						// resulting pulsation
+	esU16		bgndDuration; // duration of background measurements in seconds
+	esU16		bgndETA;			// bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
+
+} LegacyPhaDataWithBgndSubtraction;
+
+function PHA01_ValueFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.2f";
+	else if( val < 100 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+function PHA01_PulsationFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+/// Multi part value string creation
+function PHA01_strMultiGet(val, unit)
+var mul = 1., result = []; 
+{
+	result += PHA01_ValueFmt( val );
+	if( val > 1000. )
+	{
+		mul = 1000.;
+		val /= mul;
+	}	
+	result += PHA01_ValueFmt( val );
+	result += EsStr::format("x%d", mul);
+	result += unit;
+	
+	return result;
+}
+
+/// Multi part pulsation string 
+function PHA01_pulsationStrMultiGet(val)
+var result = [];
+{
+	result += PHA01_PulsationFmt( val );
+	result += c_pha01_unitP;
+	return result;
+}
+
+/// Create simple string from multistring
+function PHA01_fromStrMulti(multi)
+{
+	return multi[0] + " " + multi[3];
+}
+
+/// The same as above, but for pulsation multistring
+function PHA01_pulsationFromStrMulti(multi)
+{
+	return multi[0] + " " + multi[1];
+}
+
+/// Simple PHA01 data object
+object PHA01_Data 
+{
+  /// Fields
+  esDT   f_ts;
+  esF    f_lux;
+  esF    f_cdm;
+  esU16  f_kp;
+  esI8   f_temp;
+  
+  /// Properties
+	///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+	
+  /// illuminosity
+  property lux;
+  read: { return f_lux$value; }
+	/// illuminosity string components property
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
+	/// illuminosity value string
+	property luxStr;
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
+	
+  /// Luminosity
+  property cdm;
+  read: { return f_cdm$value; }
+	/// Luminosity string components
+	property cdmStrMulti;
+	read: { return PHA01_strMultiGet( $cdm, c_pha01_unitL); }
+	/// Luminosity value string
+  property cdmStr;
+  read: { return PHA01_fromStrMulti( $cdmStrMulti ); }
+	
+  /// pulsation coefficient, in %
+  property kp;
+  read: { return f_kp / 10.; }
+	/// pulsation string components
+	property kpStrMulti;
+	read: {	return PHA01_pulsationStrMultiGet( $kp ); }
+	/// pulsation string
+	property kpStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
+}
+
+// added since 1.6 - background subtraction data packet
+object PHA01_DataWoBgnd
+{
+  esDT   f_ts;
+  esF     f_luxOrg;        /// > original illuminosity
+  esF     f_luxBgnd;      /// > measured background illuminosity
+  esF     f_lux;          /// > illuminosity-bgnd level
+  esU16    f_kpOrg;        /// > original pulsation
+  esU16    f_kp;            /// > resulting pulsation
+  esU16    f_bgndDuration; /// > duration of background measurements in seconds
+  esU16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
+ 
+  /// Properties
+	///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+ 
+  /// original illuminosity
+  property luxOrg;
+  read: { return f_luxOrg$value; }
+	/// original illuminosity string components
+	property luxOrgStrMulti;
+	read: { return PHA01_strMultiGet( $luxOrg, c_pha01_unitE); }
+	/// original illuminosity string
+	property luxOrgStr;
+	read: { return PHA01_fromStrMulti( $luxOrgStrMulti ); }	
+
+  /// background illuminosity
+  property luxBgnd;
+  read: { return f_luxBgnd$value; }
+  /// background illuminosity	string components
+	property luxBgndStrMulti;
+	read: { return PHA01_strMultiGet( $luxBgnd, c_pha01_unitE); }
+  /// background illuminosity	string
+	property luxBgndStr;
+	read: { return PHA01_fromStrMulti( $luxBgndStrMulti ); }	
+
+  /// illuminosity W|O background
+  property lux;
+  read: { return f_lux$value; }
+  /// illuminosity W|O background, string components
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
+  /// illuminosity W|O background, string
+	property luxStr;
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
+
+  /// original pulsation coefficient, %
+  property kpOrg;
+  read: { return f_kpOrg / 10.; }
+	property kpOrgStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kpOrg ); }
+	property kpOrgStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpOrgStrMulti ); }
+
+  /// resulting pulsation coefficient, %
+  property kp;
+  read: { return f_kp / 10.; }
+	/// pulsation multi string
+	property kpStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kp ); }
+	/// pulsation string
+	property kpStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
+	
+	/// Background exposure duration in seconds
+	property bgndExp;
+	read: { return f_bgndDuration$value; }
+	
+	/// Data validity check
+	property valid;
+	read: { return 0 == f_bgndETA; }
+	
+	/// Bgnd ETA read access
+	property eta;
+	read: { return f_bgndETA$value; }
+}
+
+/// Calibration node
+object PHA01_CalNode
+{
+  esF f_1;
+  esF f_2;
+	
+	property notEmpty;
+	read: { return f_1 != 0. || f_2 != 0.; }
+}
+
+/// All calibration info
+object PHA01_Calibration
+{
+  PHA01_CalNode f_lux[4];
+  PHA01_CalNode f_cdm[4];
+  PHA01_CalNode f_kp[2];
+	
+	function checkEmpty(calType)
+	var node, nodes;
+	{
+		if( calType in PHA01_CalType)
+		{
+			if( PHA01_CalType$$Lux == calType )
+				nodes = f_lux;
+			else if( PHA01_CalType$$Cdm == calType )
+				nodes = f_cdm;
+			else if( PHA01_CalType$$Kp == calType )
+				nodes = f_kp;
+			else
+				return checkEmpty(PHA01_CalType$$Lux) &&
+					checkEmpty(PHA01_CalType$$Cdm) &&
+					checkEmpty(PHA01_CalType$$Kp);
+				
+			foreach( node in nodes )
+			{
+				if( node$notEmpty )
+					return false;
+			}
+		}
+		else
+			throw "Calibration type value is out of range";
+			
+		return true;
+	}
+}
+
+// linearization coeffs, for firmware newer than or equal to 1.4
+object PHA01_LinNodeLow
+{  
+  PHA01_CalNode f_node;
+  esU16 f_adcRangeMax;
+}
+
+object PHA01_Linearization 
+{
+  PHA01_LinNodeLow f_low[6];
+  PHA01_CalNode f_high;
+}
+
+// ranges hysteresis thresholds
+object PHA01_Hysteresis
+{
+  esU16 f_loHi;
+  esU16 f_hiLo;
+}
+
+object PHA01_Health
+{
+  esU32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & PHA01_Error$$Batt)
+      result += PHA01_Error$$Batt$$label;
+    if(f_errors & PHA01_Error$$I2c)
+      result += PHA01_Error$$I2c$$label;
+    if(f_errors & PHA01_Error$$Spi)
+      result += PHA01_Error$$Spi$$label;
+    if(f_errors & PHA01_Error$$RTC)
+      result += PHA01_Error$$RTC$$label;
+    if(f_errors & PHA01_Error$$RTCDateTime)
+      result += PHA01_Error$$RTCDateTime$$label;
+    if(f_errors & PHA01_Error$$Storage)
+      result += PHA01_Error$$Storage$$label;
+    if(f_errors & PHA01_Error$$StorageData)
+      result += PHA01_Error$$StorageData$$label;
+    if(f_errors & PHA01_Error$$StorageSystem)
+      result += PHA01_Error$$StorageSystem$$label;
+    if(f_errors & PHA01_Error$$Calibration)
+      result += PHA01_Error$$Calibration$$label;
+    if(f_errors & PHA01_Error$$Linearization)
+      result += PHA01_Error$$Linearization$$label;
+  
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+	
+	/// Properties
+	///
+	property errors;
+	read: { return f_errors$value; }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$I2c|
+                                  PHA01_Error$$Spi|
+                                  PHA01_Error$$RTC|
+                                  PHA01_Error$$Storage); 
+        }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$RTCDateTime|
+                                  PHA01_Error$$StorageData|
+                                  PHA01_Error$$StorageSystem|
+                                  PHA01_Error$$Calibration|
+                                  PHA01_Error$$Linearization);        
+        }
+	// Return true if error flags contain warnings			
+	property hasWarning;
+	read: { return f_errors & PHA01_Error$$Batt; }
+  /// return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  /// return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// pha01 device settings
+object PHA01_Settings
+{
+  // settings block
+  EsFirmwareId f_fwId;
+  
+  if( f_fwId$ver > "1.5" )
+    EsSoftwareInfo f_swInfo;
+  
+  if( f_fwId$ver > "1.1" )
+    PHA01_Hysteresis f_hys;
+
+  esU8 f_autosaveInterval;
+    @default = PHA01_Defs$$AutoIntervalDef;
+    @restriction = [PHA01_Defs$$AutoIntervalMin..PHA01_Defs$$AutoIntervalMax];
+  // linearization data
+  PHA01_Linearization f_lin;
+  // calibration data
+  PHA01_Calibration f_cal;    
+  
+  /// Constructor
+  new(fwId)
+  {
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01 settings");
+    f_fwId.copyFrom(fwId);
+  }
+}
+
+/// PHA01 device object
+object PHA01 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return PHA01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return rpcSigGet(PHA01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ECOL1);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 7;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new PHA01_Health(rpcResult);    // use PHA01 health implementation instead of unparsed standard one
+    else if( PHA01_Rpid$$HysteresisGet == rpcId && m_fwId$ver > "1.1" )
+    {
+      result = new PHA01_Hysteresis();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$CalibrationGet == rpcId )
+    {
+      result = new PHA01_Calibration();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$LinFactorsGet == rpcId )
+    {
+      result = new PHA01_Linearization();
+      result$buffer = rpcResult#asBinBuffer();      
+    }
+    else if( PHA01_Rpid$$LiveDataGet == rpcId )
+    {
+      if( m_fwId$ver >= "1.6" && PHA01_OpMode$$LiveWoBgnd == m_opMode )
+        result = new PHA01_DataWoBgnd();
+      else
+        result = new PHA01_Data();
+        
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( (PHA01_Rpid$$BgndPeriodLeftGet == rpcId && m_fwId$ver >= "1.5") ||
+      PHA01_Rpid$$DataCountGet == rpcId ||
+      PHA01_Rpid$$OperationModeGet == rpcId ||
+      PHA01_Rpid$$RangeGet == rpcId  ||
+      PHA01_Rpid$$AutoRangeGet == rpcId ||
+      PHA01_Rpid$$AutosaveIntervalGet == rpcId )
+    {
+      result = rpcResult;
+      
+      // in addition, save currently active device opmode
+      // it's vital for live data requests handling
+      if( PHA01_Rpid$$OperationModeGet == rpcId )
+        m_opMode = result;
+    }
+    else if( PHA01_Rpid$$DataAtIdxGet == rpcId )
+    {
+      result = new PHA01_Data();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  new(fwId)
+  {
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  /// PHA01 custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload()
+  var settings = new PHA01_Settings(m_fwId), rpcResult;
+  {
+    // optionally download software info
+    if( m_fwId$ver > "1.5" )
+    {
+      rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+      if( rpcResult[0] )
+        settings.f_swInfo.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+     if( m_fwId$ver > "1.1" )
+    {
+      rpcResult = rpcCall(PHA01_Rpid$$HysteresisGet, null);
+      if( rpcResult[0] )
+        settings.f_hys.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    rpcResult = rpcCall(PHA01_Rpid$$AutosaveIntervalGet, null);
+    if( rpcResult[0] )
+      settings.f_autosaveInterval = rpcResult[1];
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$LinFactorsGet, null);
+    if( rpcResult[0] )
+      settings.f_lin.copyFrom( rpcResult[1] );
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$CalibrationGet, null);
+    if( rpcResult[0] )
+      settings.f_cal.copyFrom( rpcResult[1] );
+    else
+      return rpcResult;
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+	
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [], batchItem = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    if( m_fwId$ver > "1.1" )
+    {
+      batchItem += PHA01_Rpid$$HysteresisSet;
+      batchItem += settings.f_hys;
+      batch#append(batchItem);
+      batchItem = [];
+    }
+    batchItem += PHA01_Rpid$$AutosaveIntervalSet;
+    batchItem += settings.f_autosaveInterval;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$LinFactorsSet;
+    batchItem += settings.f_lin;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$CalibrationSet;
+    batchItem += settings.f_cal;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batch = rpcBatchCall(batch);
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batchItem += true;
+      batchItem += null; // nothing is returned
+    }
+    else
+    {
+      batchItem += false;
+      batchItem += "Device settings upload fail";
+    }
+
+    return batchItem;
+  }
+	
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	/// Opmode string
+	property opmodeStr;
+	read: { return PHA01_OpMode.valueLabelGet(m_opMode); }
+}
