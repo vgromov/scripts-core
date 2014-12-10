@@ -207,7 +207,7 @@ function deviceCodeNameGet( type )
 	else if( deviceTypeIsOctava( type ) )	
 		return EsOctavaDeviceType.valueLabelGet( type );
 	else if( deviceTypeIsTenzor( type ) )
-		return EsTenzorDeviceType.valueLabelGet( type );;
+		return EsTenzorDeviceType.valueLabelGet( type );
 }
 
 function deviceDescriptionShortGet( type )

@@ -1,0 +1,110 @@
+/// Spline structure data && methods
+///
+/// Spline node
+object EsMathSplineNode
+{
+  float f_x;
+  float f_a;  ///< pow 0
+  float f_b;  ///< pow 1
+  float f_c;  ///< pow 2
+  float f_d;  ///< pow 3  
+}
+
+/// Spline itself
+object EsMathSpline
+{
+  esU16 f_cnt;
+  EsMathSplineNode f_nodes[f_cnt];
+  esU8 f_crc;
+	  
+	/// CRC8 calculator  
+  function crcCalc()
+  var crc = new EsCRC8(f_cnt#asBinBuffer(), 0xAB);
+  {
+    if( f_cnt$value > 0 )
+      crc.update(f_nodes#asBinBuffer());
+    
+    return crc$value;
+  }
+  
+  /// Calculate CRC8 and update f_crc field
+  function crcUpdate()
+  {
+    f_crc = crcCalc();    
+  }
+  
+  /// Return true if spline contains at least 2 nodes
+  function isEmpty()
+  {
+    return f_cnt < 2;    
+  }
+  
+  /// Return node at index
+  function nodeGet(idx)
+  var node, result;
+  {
+    node = f_nodes[idx];
+    result = new EsMathSpline();
+    result.copyFrom( node );
+    
+    return result;
+  }
+  
+  /// Set new spline node data at specified index
+  function nodeSet(idx, node)
+  {
+    if( node#isEmpty() || !node.isKindOk("EsMathSplineNode") )
+      throw I"Node object is empty or of incompatible type";
+    
+    f_nodes[idx].copyFrom(node);
+  }
+  
+  /// Find corresponding spline node by argument value
+  /// If spline is empty, or node is not found, empty value is returned
+  /// Otherwise, result is found node object
+  function nodeFind(x)
+  var node, left, mid , right;
+  {
+	  if( !isEmpty() )
+	  {
+			if( x <= f_nodes[0].f_x) //< use the first node, if x is out of range left-wise
+				node = f_nodes[0];
+			else if(x >= f_nodes[f_cnt - 1].f_x) //< use the last node, if x is out of range right-wise
+				node = f_nodes[f_cnt - 1];
+			else
+			{
+		    // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
+		    left = 0;
+		    right = f_cnt-1;
+		    while( left != right-1 )
+		    {
+		      mid = (left+right)/2;
+		      if( f_nodes[mid].f_x >= x )
+		        right = mid;
+		      else
+		        left = mid;
+		    }
+		
+				node = f_nodes[left];
+			}
+		}
+		
+	  return node;    
+  }
+  
+  /// Calculate spline value for specified argument
+  /// If spline is empty - null is returned
+  function valGet(x)
+  var node = nodeFind(x), delta;
+  {
+    if( !node#isEmpty() )
+    {
+      delta = (x - node.f_x);
+      return node.f_a + (node.f_b + (node.f_c / 2. + node.f_d * delta / 6.) * delta) * delta;  
+    }
+  }
+  
+  /// Properties
+  ///
+  
+}
