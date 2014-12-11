@@ -1,6 +1,6 @@
 // scripting device support for pha-01 photo-appliance
 ##require("EsDeviceBase.ess");
-##require("EsMathSpline.ess");
+##require("../math/EsSpline.ess");
 ##require("phac01_CorMatrix.ess");
 
 const c_phac01_unitE = "lx";
@@ -9,7 +9,7 @@ const c_phac01_unitP = "%";
 const c_phac01_unitCT = "K";
 
 // pha01-specific rpcs 
-enum PHAС01_Rpid
+enum PHAC01_Rpid
 {
   // Legacy-mode handlers. PHA-01 ids preserved
   //
@@ -98,30 +98,30 @@ enum PHAC01_OpMode
 enum PHAC01_OpModeModifier
 {
   None         = 0, "Normal";                       //< Null modifier, normal operation, just for readability        
-  BgndTrim     = (0x1 << 4), "Background trimming"; //< Bgnd trimming mode is on
-  Autonomous   = (0x2 << 4), "Autonomous";          //< Autonomous operation - write measured data into internal storage memory
+  BgndTrim     = 0x10, "Background trimming";       //< Bgnd trimming mode is on (0x1 << 4)
+  Autonomous   = 0x20, "Autonomous";                //< Autonomous operation - write measured data into internal storage memory (0x2 << 4)
 }
 
 /// PHA Color data state flags
 enum PHAC01_DataState
 {
   None         = 0, "Normal";                       //< Normal data state, just for readability
-  LowSignal    = (0x1 << 8), "Low signal";          //< Low value state - no kp data is valid, because slow color sensor output is used
+  LowSignal    = 0x100, "Low signal";               //< Low value state - no kp data is valid, because slow color sensor output is used (0x1 << 8)
 }
 
 /// PHA Color data (in)validity flags
 enum PHAC01_DataInvalid
 {
-  val          = (0x0001 << 16);
-  valOrg       = (0x0002 << 16);
-  kp           = (0x0004 << 16);
-  kpOrg        = (0x0008 << 16);
-  kpi          = (0x0010 << 16);
-  kpiOrg       = (0x0020 << 16);
-  bgnd         = (0x0040 << 16);
-  bgndTmo      = (0x0080 << 16);
-  xy           = (0x0100 << 16);
-  ct           = (0x0200 << 16);
+  val          = 0x00010000;  //(0x0001 << 16);
+  valOrg       = 0x00020000;  //(0x0002 << 16);
+  kp           = 0x00040000;  //(0x0004 << 16);
+  kpOrg        = 0x00080000;  //(0x0008 << 16);
+  kpi          = 0x00100000;  //(0x0010 << 16);
+  kpiOrg       = 0x00200000;  //(0x0020 << 16);
+  bgnd         = 0x00400000;  //(0x0040 << 16);
+  bgndTmo      = 0x00800000;  //(0x0080 << 16);
+  xy           = 0x01000000;  //(0x0100 << 16);
+  ct           = 0x02000000;  //(0x0200 << 16);
 }
 
 /// Data formatting helpers
@@ -682,7 +682,12 @@ object PHAC01_Data
   read: { return PHAC01_CieValueFmt($cie_x, f_flags$xyIsValid); }
   /// Value string components property
   property cie_xStrMulti;
-  read: var result = [$cie_xStr]; { return result; }
+  read: 
+  var result = []; 
+  { 
+    result += $cie_xStr;
+    return result; 
+   }
   
   /// CIE y component
   property cie_y;
@@ -692,14 +697,19 @@ object PHAC01_Data
   read: { return PHAC01_CieValueFmt($cie_y, f_flags$xyIsValid); }
   /// Value string components property
   property cie_yStrMulti;
-  read: var result = [$cie_yStr]; { return result; }
+  read: 
+  var result = []; 
+  { 
+    result += $cie_yStr;
+    return result; 
+  }
   
   /// Correlated color temperature in K
   property cct;
   read: { return f_ct$value; }
   /// Value string components property
   property cctStrMulti;
-  read: { return PHAC01_strMultiNoMulPartGet($cct, c_phac01_unitK, f_flags$ctIsValid); } 
+  read: { return PHAC01_strMultiNoMulPartGet($cct, c_phac01_unitCT, f_flags$ctIsValid); } 
   /// Value string
   property cctStr;
   read: { return PHAC01_fromStrMultiNoMulPart($cctStrMulti); }
@@ -852,9 +862,9 @@ object PHAC01_RawData
 /// Clear calibration data
 object PHAC01_CalibrationClear
 {
-  EsMathSpline f_csIllum;    ///< Clear illumination calibration
-  EsMathSpline f_csLum;      ///< Clear luminance calibration
-  EsMathSpline f_csKp;       ///< Clear pulsation calibration  
+  EsSpline f_csIllum;    ///< Clear illumination calibration
+  EsSpline f_csLum;      ///< Clear luminance calibration
+  EsSpline f_csKp;       ///< Clear pulsation calibration  
   
   /// Default constructor
   new()
@@ -903,8 +913,8 @@ object PHAC01_CalibrationColor
   
   PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
   PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
-  EsMathSpline f_ccIllum;     ///< Clear channel illumination calibration
-  EsMathSpline f_ccLum;       ///< Clear channel luminosity calibration
+  EsSpline f_ccIllum;     ///< Clear channel illumination calibration
+  EsSpline f_ccLum;       ///< Clear channel luminosity calibration
   esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
   esU8 f_acfCrc;              ///< ACF vector crc8 field
   
@@ -918,7 +928,7 @@ object PHAC01_CalibrationColor
   
   /// Calculate CRC8 of ACF block
   function acfCrcCalc()
-  var crc = new EseCRC8(f_acf#asBinBuffer(), 0xAB);
+  var crc = new EsCRC8(f_acf#asBinBuffer(), 0xAB);
   {
     return crc;
   }
@@ -938,7 +948,7 @@ object PHAC01_CalibrationColor
   var crc;
   {
     acfCrcUpdate();
-    crc = new EseCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
+    crc = new EsCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
     return 0 == crc$value;
   }
   
@@ -1014,10 +1024,10 @@ object PHAC01_Settings
     @restriction = [PHAC01_Defs$$BgndExposureMin..PHAC01_Defs$$BgndExposureMax];
   
   // Clear calibration data
-  PHAC01_ClearCalibration f_calClear;    
+  PHAC01_CalibrationClear f_calClear;    
   
   // Color calibration data
-  PHAC01_ColorCalibration f_calColor;    
+  PHAC01_CalibrationColor f_calColor;    
   
   /// Constructor
   new(fwId)
@@ -1029,39 +1039,39 @@ object PHAC01_Settings
 
 /// Normal opmode to Legacy opmode converter
 function PHAC01_toLegacyOpmode(opmode)
-var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC1_LegacyOpMode$$None;
+var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC01_LegacyOpMode$$None;
 {
-  if(PHAC1_OpMode$$Idle == om)
-    result = PHAC1_LegacyOpMode$$Idle;
-  else if( PHAC1_OpMode$$Illuminance == om  ||
-           PHAC1_OpMode$$Luminance == om )
+  if(PHAC01_OpMode$$Idle == om)
+    result = PHAC01_LegacyOpMode$$Idle;
+  else if( PHAC01_OpMode$$Illuminance == om  ||
+           PHAC01_OpMode$$Luminance == om )
   {
-    if( omm & PHAC1_OpModeModifier$$Autonomous )
-      result = PHAC1_LegacyOpMode$$Autonomous;
-    else if( omm & PHAC1_OpModeModifier$$BgndTrim )
-      result = PHAC1_LegacyOpMode$$LiveWoBgnd;
+    if( omm & PHAC01_OpModeModifier$$Autonomous )
+      result = PHAC01_LegacyOpMode$$Autonomous;
+    else if( omm & PHAC01_OpModeModifier$$BgndTrim )
+      result = PHAC01_LegacyOpMode$$LiveWoBgnd;
     else
-      result = PHAC1_LegacyOpMode$$Live;
+      result = PHAC01_LegacyOpMode$$Live;
   }
-  else if( PHAC1_OpMode$$Oscilloscope == om )
-    result = PHAC1_OpMode$$Oscilloscope;
+  else if( PHAC01_OpMode$$Oscilloscope == om )
+    result = PHAC01_OpMode$$Oscilloscope;
     
   return result;
 }
 
 // Legacy opmode to normal opmode converter
-function PHAC01_fromLegacyOpmode(legacy)
+function PHAC01_fromLegacyOpmode(legacyOpmode)
 var result = PHAC01_OpMode$$None;
 {
-  if( PHAC1_LegacyOpMode$$Idle == opmode )
+  if( PHAC01_LegacyOpMode$$Idle == legacyOpmode )
     result = PHAC01_OpMode$$Idle;
-  else if( PHAC1_LegacyOpMode$$Live == opmode )  
+  else if( PHAC01_LegacyOpMode$$Live == legacyOpmode )  
     result = PHAC01_OpMode$$Illuminance;
-  else if( PHAC1_LegacyOpMode$$Autonomous == opmode )
+  else if( PHAC01_LegacyOpMode$$Autonomous == legacyOpmode )
     result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$Autonomous;
-  else if( PHAC1_LegacyOpMode$$LiveWoBgnd == opmode )
+  else if( PHAC01_LegacyOpMode$$LiveWoBgnd == legacyOpmode )
     result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$BgndTrim;
-  else if( PHAC1_LegacyOpMode$$Oscilloscope == opmode )
+  else if( PHAC01_LegacyOpMode$$Oscilloscope == legacyOpmode )
     result = PHAC01_OpMode$$Oscilloscope;
     
   return result;
@@ -1126,7 +1136,7 @@ object PHAC01 extends EsDeviceBase
       // in addition, save currently active device opmode
       // it's vital for live data requests handling
       if( PHAC01_Rpid$$LegacyOperationModeGet == rpcId )
-        m_opMode = PHAC01_fromLegacyOpMode(result);
+        m_opMode = PHAC01_fromLegacyOpmode(result);
       else if( PHAC01_Rpid$$WorkmodeGet == rpcId )
         m_opMode = result;
     }      

@@ -1,7 +1,9 @@
+##require("../math.ess");
+
 /// Spline structure data && methods
 ///
 /// Spline node
-object EsMathSplineNode
+object EsSpline
 {
   esF f_x;
   esF f_a;  ///< pow 0
@@ -48,24 +50,24 @@ object EsMathSpline
       m_maxLen;
   
   esU16 f_cnt;
-  EsMathSplineNode f_nodes[f_cnt];
+  EsSpline f_nodes[f_cnt];
   esU8 f_crc;
-	  
-	/// Default constructor  
-	new()
-	{
+    
+  /// Default constructor  
+  new()
+  {
     m_crcInvalid = false;
     m_maxLen = 65535;  
-	}  
-	  
-	/// Constructor taking max length value as parameter
-	new(maxLen)
-	{
+  }  
+    
+  /// Constructor taking max length value as parameter
+  new(maxLen)
+  {
     m_crcInvalid = false;
     m_maxLen = maxLen$value;
-	}	  
-	  
-	/// CRC8 calculator  
+  }    
+    
+  /// CRC8 calculator  
   function crcCalc()
   var crc = new EsCRC8(f_cnt#asBinBuffer(), 0xAB);
   {
@@ -97,15 +99,15 @@ object EsMathSpline
   {
     if( !isEmpty() )
     {
-			foreach(node in f_nodes)
-			{
+      foreach(node in f_nodes)
+      {
         if( !prevX#isEmpty() && node.f_x < prevX )
           return false;
         else
           prevX = node.f_x;
-			}
-			
-			return true;
+      }
+      
+      return true;
     }
     
     return false;
@@ -125,7 +127,7 @@ object EsMathSpline
   /// Set new spline node data at specified index
   function nodeSet(idx, node)
   {
-    if( node#isEmpty() || !node.isKindOk("EsMathSplineNode") )
+    if( node#isEmpty() || !node.isKindOk("EsSpline") )
       throw I"Node object is empty or of incompatible type";
     
     f_nodes[idx].copyFrom(node);
@@ -138,31 +140,31 @@ object EsMathSpline
   function nodeFind(x)
   var node, left, mid , right;
   {
-	  if( !isEmpty() )
-	  {
-			if( x <= f_nodes[0].f_x) //< use the first node, if x is out of range left-wise
-				node = f_nodes[0];
-			else if(x >= f_nodes[f_cnt - 1].f_x) //< use the last node, if x is out of range right-wise
-				node = f_nodes[f_cnt - 1];
-			else
-			{
-		    // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
-		    left = 0;
-		    right = f_cnt-1;
-		    while( left != right-1 )
-		    {
-		      mid = (left+right)/2;
-		      if( f_nodes[mid].f_x >= x )
-		        right = mid;
-		      else
-		        left = mid;
-		    }
-		
-				node = f_nodes[left];
-			}
-		}
-		
-	  return node;    
+    if( !isEmpty() )
+    {
+      if( x <= f_nodes[0].f_x) //< use the first node, if x is out of range left-wise
+        node = f_nodes[0];
+      else if(x >= f_nodes[f_cnt - 1].f_x) //< use the last node, if x is out of range right-wise
+        node = f_nodes[f_cnt - 1];
+      else
+      {
+        // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
+        left = 0;
+        right = f_cnt-1;
+        while( left != right-1 )
+        {
+          mid = (left+right)/2;
+          if( f_nodes[mid].f_x >= x )
+            right = mid;
+          else
+            left = mid;
+        }
+    
+        node = f_nodes[left];
+      }
+    }
+    
+    return node;    
   }
   
   /// Calculate spline value for specified argument
@@ -185,7 +187,7 @@ object EsMathSpline
   read: { return m_maxLen; }
   write: 
   {
-    if( __value in [2..65535] )
+    if( __value in [2 .. 65535] )
       throw EsStr::format(I"Spline maximum length %d is out of [2..65536] range", __value);
       
     m_maxLen = __value;  
