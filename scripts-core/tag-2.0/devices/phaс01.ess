@@ -1,6 +1,7 @@
 // scripting device support for pha-01 photo-appliance
 ##require("EsDeviceBase.ess");
-##require("EsMathSpline.ess")
+##require("EsMathSpline.ess");
+##require("phac01_CorMatrix.ess");
 
 const c_phac01_unitE = "lx";
 const c_phac01_unitL = "cd/m<sup>2</sup>";
@@ -104,6 +105,7 @@ enum PHAC01_OpModeModifier
 /// PHA Color data state flags
 enum PHAC01_DataState
 {
+  None         = 0, "Normal";                       //< Normal data state, just for readability
   LowSignal    = (0x1 << 8), "Low signal";          //< Low value state - no kp data is valid, because slow color sensor output is used
 }
 
@@ -422,50 +424,16 @@ object PHAC01_Health
 }
 
 /// PHA Color data flags|state helper object
-/// PHA Color operation modes
-enum PHAC01_OpMode
-{
-  None        = 0, "NONE";
-  Idle        = 1, "IDLE operation";
-  Illuminance = 2, "ILLUMINANCE operation";
-  Luminance   = 3, "LUMINANCE operation";
-  Oscilloscope= 4, "OSCILLOSCOPE operation";
-}
-
-/// PHA Color operation modifiers
-enum PHAC01_OpModeModifier
-{
-  None         = 0, "Normal";                       //< Null modifier, normal operation, just for readability        
-  BgndTrim     = (0x1 << 4), "Background trimming"; //< Bgnd trimming mode is on
-  Autonomous   = (0x2 << 4), "Autonomous";          //< Autonomous operation - write measured data into internal storage memory
-}
-
-/// PHA Color data state flags
-enum PHAC01_DataState
-{
-  None         = 0, "Normal";                       //< Normal data state, just for readability
-  LowSignal    = (0x1 << 8), "Low signal";          //< Low value state - no kp data is valid, because slow color sensor output is used
-}
-
-/// PHA Color data (in)validity flags
-enum PHAC01_DataInvalid
-{
-  val          = (0x0001 << 16);
-  valOrg       = (0x0002 << 16);
-  kp           = (0x0004 << 16);
-  kpOrg        = (0x0008 << 16);
-  kpi          = (0x0010 << 16);
-  kpiOrg       = (0x0020 << 16);
-  bgnd         = (0x0040 << 16);
-  bgndTmo      = (0x0080 << 16);
-  xy           = (0x0100 << 16);
-  ct           = (0x0200 << 16);
-}
-
-/// PHAC01 Data state parser helper object
+///
 object PHAC01_DataFlags
 {
   esU32 f_flags;
+  
+  /// Constructor with assignment
+  new( flags )
+  {
+    f_flags = flags;    
+  }
   
   /// Return opmode modifier description as a list of strings
   function ommAsStrings()
@@ -884,21 +852,150 @@ object PHAC01_RawData
 /// Clear calibration data
 object PHAC01_CalibrationClear
 {
-	 /// Clear sensor calibration data
+  EsMathSpline f_csIllum;    ///< Clear illumination calibration
+  EsMathSpline f_csLum;      ///< Clear luminance calibration
+  EsMathSpline f_csKp;       ///< Clear pulsation calibration  
+  
+  /// Default constructor
+  new()
+  {
+    f_csIllum$maxLen = 8;
+    f_csLum$maxLen = 8;
+    f_csKp$maxLen = 8;
+  }  
+  
+  /// Update all crc blocks if needed
+  function crcUpdate()
+  {
+    f_csIllum.crcUpdate();
+    f_csLum.crcUpdate();
+    f_csKp.crcUpdate();
+  }
+  
+  /// Properties
   ///
-  EseMathSpline m_csIllum;    ///< Clear illumination calibration
-  EseMathSpline m_csLum;      ///< Clear luminosity calibration
-  EseMathSpline m_csKp;       ///< Clear pulsation calibration  
+  
+  /// Return true if all blocks have valid crc
+	property crcIsOk;
+	read: { return f_csIllum$crcIsOk && f_csLum$crcIsOk && f_csKp$crcIsOk; }
+	
+  /// Overall validity check
+  property valid;
+  read: { return f_csIllum$valid && f_csLum$valid && f_csKp$valid; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_csIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_csLum; }
+  
+  /// Pulsation calibration
+  property calKp;
+  read: { return f_csKp; }
 }
 
 /// Color calibration data
 object PHAC01_CalibrationColor
 {
-  EseCorrelationMatrix m_ccm; ///< XYZ color space correlation matrix
-  EseCorrelationMatrix m_tcm; ///< Color temperature correlation matrix
-  EseMathSpline m_ccIllum;    ///< Clear channel illumination calibration
-  EseMathSpline m_ccLum;      ///< Clear channel luminosity calibration
-  float m_acf[3];             ///< Color sensor attenuation correction factors for attenuation coefficients > 1
+  var m_acfCrcInvalid;
+  
+  PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
+  PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
+  EsMathSpline f_ccIllum;     ///< Clear channel illumination calibration
+  EsMathSpline f_ccLum;       ///< Clear channel luminosity calibration
+  esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
+  esU8 f_acfCrc;              ///< ACF vector crc8 field
+  
+  /// Default constructor
+  new()
+  {
+    m_acfCrcInvalid = true;
+    f_ccIllum$maxLen = 8;
+    f_ccLum$maxLen = 8;
+  }
+  
+  /// Calculate CRC8 of ACF block
+  function acfCrcCalc()
+  var crc = new EseCRC8(f_acf#asBinBuffer(), 0xAB);
+  {
+    return crc;
+  }
+  
+  /// Update ACF block crc if neccessary
+  function acfCrcUpdate()
+  {
+    if( m_acfCrcInvalid )
+    {
+      f_acfCrc = acfCrcCalc()$value;
+      m_acfCrcInvalid = false;
+    }
+  }
+  
+  /// Check if CRC of ACF block is OK
+  function acfCrcIsOk()
+  var crc;
+  {
+    acfCrcUpdate();
+    crc = new EseCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
+    return 0 == crc$value;
+  }
+  
+  /// Update CRC of all blocks, if needed
+  function crcUpdate()
+  {
+    f_ccm.crcUpdate();
+    f_tcm.crcUpdate();
+    f_ccIllum.crcUpdate();
+    f_ccLum.crcUpdate();
+		acfCrcUpdate();    
+  }
+  
+  /// ACF block item get
+  function acfGet(idx)
+  {
+    return f_acf[idx]$value;
+  }
+  
+  /// ACF block item set
+  function acfSet(idx, val)
+  {
+    f_acf[idx] = val$value;
+    m_acfCrcInvalid = true;
+  }
+ 
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+	property crcIsOk;
+	read: 
+	{ 
+		return acfCrcIsOk() && 
+			f_ccm$crcIsOk && f_tcm$crcIsOk &&
+       f_ccIllum$crcIsOk && f_ccLum$crcIsOk;
+  }
+	
+	/// Overall validity check
+	property valid;
+	read: { return f_ccIllum$valid && f_ccLum$valid; }
+	
+	/// Access Color space Correlation matrix  
+  property ccm;
+  read: { return f_ccm; }
+	
+	/// Access Color temperature Correlation matrix  
+  property tcm;
+  read: { return f_tcm; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_ccIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_ccLum; }
 }
 
 /// PHAC01 device settings
@@ -930,7 +1027,7 @@ object PHAC01_Settings
   }
 }
 
-/// Legacy opmode converter functions
+/// Normal opmode to Legacy opmode converter
 function PHAC01_toLegacyOpmode(opmode)
 var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC1_LegacyOpMode$$None;
 {
@@ -952,6 +1049,7 @@ var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC1_LegacyOpMode$$No
   return result;
 }
 
+// Legacy opmode to normal opmode converter
 function PHAC01_fromLegacyOpmode(legacy)
 var result = PHAC01_OpMode$$None;
 {
@@ -1094,36 +1192,34 @@ object PHAC01 extends EsDeviceBase
   function settingsDownload()
   var settings = new PHAC01_Settings(m_fwId), rpcResult;
   {
-    // optionally download software info
-    if( m_fwId$ver > "1.5" )
-    {
-      rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
-      if( rpcResult[0] )
-        settings.f_swInfo.copyFrom( rpcResult[1] );
-      else
-        return rpcResult;
-    }
-     if( m_fwId$ver > "1.1" )
-    {
-      rpcResult = rpcCall(PHAC01_Rpid$$HysteresisGet, null);
-      if( rpcResult[0] )
-        settings.f_hys.copyFrom( rpcResult[1] );
-      else
-        return rpcResult;
-    }
-    rpcResult = rpcCall(PHAC01_Rpid$$AutosaveIntervalGet, null);
+    // Download software info
+    rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+    if( rpcResult[0] )
+      settings.f_swInfo.copyFrom( rpcResult[1] );
+    else
+      return rpcResult;
+    
+    rpcResult = rpcCall(PHAC01_Rpid$$AutosaveTmoGet, null);
     if( rpcResult[0] )
       settings.f_autosaveInterval = rpcResult[1];
     else
       return rpcResult;
-    rpcResult = rpcCall(PHAC01_Rpid$$LinFactorsGet, null);
+      
+    rpcResult = rpcCall(PHAC01_Rpid$$BgndTmoGet, null);
     if( rpcResult[0] )
-      settings.f_lin.copyFrom( rpcResult[1] );
+      settings.f_bgndExp = rpcResult[1];
+    else
+      return rpcResult;      
+      
+    rpcResult = rpcCall(PHAC01_Rpid$$CalibrationClearGet, null);
+    if( rpcResult[0] )
+      settings.f_calClear.copyFrom( rpcResult[1] );
     else
       return rpcResult;
-    rpcResult = rpcCall(PHAC01_Rpid$$CalibrationGet, null);
+    
+    rpcResult = rpcCall(PHAC01_Rpid$$CalibrationColorGet, null);
     if( rpcResult[0] )
-      settings.f_cal.copyFrom( rpcResult[1] );
+      settings.f_calColor.copyFrom( rpcResult[1] );
     else
       return rpcResult;
     
@@ -1141,25 +1237,23 @@ object PHAC01 extends EsDeviceBase
     if( settings.f_fwId != m_fwId )
       throw "Could not upload incompatible device settings";
     
-    if( m_fwId$ver > "1.1" )
-    {
-      batchItem += PHAC01_Rpid$$HysteresisSet;
-      batchItem += settings.f_hys;
-      batch#append(batchItem);
-      batchItem = [];
-    }
-    batchItem += PHAC01_Rpid$$AutosaveIntervalSet;
+    batchItem += PHAC01_Rpid$$AutosaveTmoSet;
     batchItem += settings.f_autosaveInterval;
     batch#append(batchItem);
     batchItem = [];
     
-    batchItem += PHAC01_Rpid$$LinFactorsSet;
-    batchItem += settings.f_lin;
+    batchItem += PHAC01_Rpid$$BgndTmoSet;
+    batchItem += settings.f_bgndExp;
+    batch#append(batchItem);
+    batchItem = [];
+        
+    batchItem += PHAC01_Rpid$$CalibrationClearSet;
+    batchItem += settings.f_calClear;
     batch#append(batchItem);
     batchItem = [];
     
-    batchItem += PHAC01_Rpid$$CalibrationSet;
-    batchItem += settings.f_cal;
+    batchItem += PHAC01_Rpid$$CalibrationColorSet;
+    batchItem += settings.f_calColor;
     batch#append(batchItem);
     batchItem = [];
     
@@ -1185,7 +1279,12 @@ object PHAC01 extends EsDeviceBase
 	/// Currently active opmode
 	property opmode;
 	read: { return m_opMode; }
+	
 	/// Opmode string
 	property opmodeStr;
-	read: { return PHAC01_OpMode.valueLabelGet(m_opMode); }
+	read:
+	var helper = new PHAC01_DataFlags(m_opMode);
+	{ 
+		return m_opMode;
+	}
 }

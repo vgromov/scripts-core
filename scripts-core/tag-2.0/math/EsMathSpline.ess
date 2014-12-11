@@ -3,19 +3,67 @@
 /// Spline node
 object EsMathSplineNode
 {
-  float f_x;
-  float f_a;  ///< pow 0
-  float f_b;  ///< pow 1
-  float f_c;  ///< pow 2
-  float f_d;  ///< pow 3  
+  esF f_x;
+  esF f_a;  ///< pow 0
+  esF f_b;  ///< pow 1
+  esF f_c;  ///< pow 2
+  esF f_d;  ///< pow 3
+  
+  /// Initializing constructor
+  new(x, a, b, c, d)
+  {
+    f_x = x$value;
+    f_a = a$value;
+    f_b = b$value;
+    f_c = c$value;
+    f_d = d$value;
+  }
+  
+  /// Data access
+  property x;
+  read: { return f_x$value; }
+  write: { f_x = __value; }
+
+  property a;
+  read: { return f_a$value; }
+  write: { f_a = __value; }
+  
+  property b;
+  read: { return f_b$value; }
+  write: { f_b = __value; }
+  
+  property c;
+  read: { return f_c$value; }
+  write: { f_c = __value; }
+  
+  property d;
+  read: { return f_d$value; }
+  write: { f_d = __value; }
 }
 
 /// Spline itself
 object EsMathSpline
 {
+  var m_crcInvalid,
+      m_maxLen;
+  
   esU16 f_cnt;
   EsMathSplineNode f_nodes[f_cnt];
   esU8 f_crc;
+	  
+	/// Default constructor  
+	new()
+	{
+    m_crcInvalid = false;
+    m_maxLen = 65535;  
+	}  
+	  
+	/// Constructor taking max length value as parameter
+	new(maxLen)
+	{
+    m_crcInvalid = false;
+    m_maxLen = maxLen$value;
+	}	  
 	  
 	/// CRC8 calculator  
   function crcCalc()
@@ -24,19 +72,43 @@ object EsMathSpline
     if( f_cnt$value > 0 )
       crc.update(f_nodes#asBinBuffer());
     
-    return crc$value;
+    return crc;
   }
   
   /// Calculate CRC8 and update f_crc field
   function crcUpdate()
   {
-    f_crc = crcCalc();    
+    if( m_crcInvalid )
+    {
+      f_crc = crcCalc()$value;
+      m_crcInvalid = false;
+    }
   }
   
   /// Return true if spline contains at least 2 nodes
   function isEmpty()
   {
     return f_cnt < 2;    
+  }
+  
+  /// Return true if spline is valid (non empty and nodes are sorted)
+  function isValid()
+  var node, prevX;
+  {
+    if( !isEmpty() )
+    {
+			foreach(node in f_nodes)
+			{
+        if( !prevX#isEmpty() && node.f_x < prevX )
+          return false;
+        else
+          prevX = node.f_x;
+			}
+			
+			return true;
+    }
+    
+    return false;
   }
   
   /// Return node at index
@@ -57,6 +129,7 @@ object EsMathSpline
       throw I"Node object is empty or of incompatible type";
     
     f_nodes[idx].copyFrom(node);
+    m_crcInvalid = true;
   }
   
   /// Find corresponding spline node by argument value
@@ -107,4 +180,48 @@ object EsMathSpline
   /// Properties
   ///
   
+  /// Spline node collection max length restriction
+  property maxLen;
+  read: { return m_maxLen; }
+  write: 
+  {
+    if( __value in [2..65535] )
+      throw EsStr::format(I"Spline maximum length %d is out of [2..65536] range", __value);
+      
+    m_maxLen = __value;  
+    if( f_cnt > m_maxLen )
+      f_cnt = m_maxLen;
+  }
+  
+  /// Validity check
+  property valid;
+  read: { return isValid(); }
+  
+  /// Calculate and return crc8 of spline data
+  property crc;
+  read: 
+  { 
+    crcUpdate();
+    return f_crc$value; 
+  }
+  
+  /// Return true if spline crc is OK
+  property crcIsOk;
+  read: 
+  var crc = new EsCRC8(f_crc#asBinBuffer(), f_crc$value);
+  { 
+    return 0 == crc$value; 
+  }
+  
+  /// Access nodes count
+  property cnt;
+  read: { return f_cnt$value; }
+  write: 
+  { 
+    if( __value > m_maxLen )
+      throw EsStr::format(I"Spline length must not exceed %u", m_maxLen);
+  
+    f_cnt = __value;
+    m_crcInvalid = true;
+  }
 }

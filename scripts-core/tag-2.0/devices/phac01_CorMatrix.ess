@@ -1,0 +1,62 @@
+// PHAC01_CorMatrix object implementation
+//
+
+/// 4x4 extended color space matrix object
+///
+object PHAC01_CorMatrix
+{
+  var m_crcInvalid;
+  
+  esF f_items[16];
+  esU8 f_crc;
+  
+  /// Default constructor
+  new()
+  {
+    m_crcInvalid = true;
+  }
+  
+  /// Calculate crc of object fields, except for f_crc
+  function crcCalc()
+  var crc = new EsCRC8(f_items#asBinBuffer(), 0xAB);
+  {
+    return crc;
+  }
+  
+  /// Update internal crc field if neccessary
+  function crcUpdate()
+  {
+    if( m_crcInvalid )
+    {
+      f_crc = crcCalc()$value;
+      m_crcInvalid = false;
+    }
+  }
+  
+  /// Get matrix value at specified col|row coordinates
+  function valGet(col, row)
+  {
+    return f_items[col+row*4]$value;
+  }
+  
+	/// Set matrix value at specified col|row coordinates
+  function valSet(col, row, val)
+  {
+    f_items[col+row*4] = val$value;
+    m_crcInvalid = true;
+  }
+  
+  /// Properties
+  ///
+  /// Return object's crc8, updating internal field, if necessary
+  property crc;
+  read: { crcUpdate(); return f_crc$value; }
+  
+  /// Return true if object crc is OK
+  property isCrcOk;
+  read: 
+  var crc = new EsCRC8(f_crc#asBinBuffer(), f_crc$value);
+  { 
+    return 0 == crc$value; 
+  }
+}
