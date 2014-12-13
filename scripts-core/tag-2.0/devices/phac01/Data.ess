@@ -1,0 +1,314 @@
+/// PHA Color data point structure
+/// Data interpretation notes:
+/// 1) Error flags field duplicated that of device health value
+/// 2) Data flags describe device working mode|data fields validity
+/// *for instance, mode flag may be set to modeBgnd, then, while validBgnd is not set,
+/// bgndTmo is bgnd measurement ETA, in seconds, otherwise, it's duration of bgnd measuement,
+/// and bgnd is valid measured bgnd value
+///
+object PHAC01_Data
+{
+  /// Data fields
+  esDT  f_ts;               ///< Data timestamp
+  PHAC01_Health f_errors;   ///< Device error flags
+  PHAC01_DataFlags f_flags; ///< Data state|validity flags
+  esF   f_val;              ///< Measured value (either illuminance or luminance, depending on mode flag)
+  esF   f_valOrg;           ///< Original value (for Bgnd. trimming mode)
+  esF   f_kp;               ///< Pulsation coefficient, in %
+  esF   f_kpOrg;            ///< Original pulsation coefficient (for Bgnd. trimming mode)
+  esF   f_kpi;              ///< Pulsation calculated by integral algo
+  esF   f_kpiOrg;           ///< Original pulsation calculated by integral algo
+  esF   f_bgnd;             ///< Measured background value (for Bgnd. trimming mode)
+  esF   f_x;                ///< CIE x component
+  esF   f_y;                ///< CIE y component
+  esF   f_ct;               ///< Color temperature in K
+  esU16 f_bgndTmo;          ///< Bgnd measurement duration, in seconds
+  esU16 f_bgndEta;          ///< Bgnd measurement countdown, in seconds
+  
+  /// Properties
+	///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+	
+	/// Errors
+	property errors;
+	read: { return f_errors; }
+	
+	/// Data flags
+	property flags;
+	read: { return f_flags; }
+	
+  /// Value
+  property val;
+  read: { return f_val$value; }
+	/// Value string components property
+	property valStrMulti;
+	read: 
+	{
+    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
+			return PHAC01_strMultiGet( $val, c_phac01_unitE, f_flags$valIsValid);
+		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
+			return PHAC01_strMultiGet( $val, c_phac01_unitL, f_flags$valIsValid);
+	}
+	/// Value string
+	property valStr;
+	read: { return PHAC01_fromStrMulti( $valStrMulti ); }
+	
+  /// Original value
+  property valOrg;
+  read: { return f_valOrg$value; }
+	/// Value string components property
+	property valOrgStrMulti;
+	read: 
+	{
+    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
+			return PHAC01_strMultiGet( $valOrg, c_phac01_unitE, f_flags$valOrgIsValid);
+		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
+			return PHAC01_strMultiGet( $valOrg, c_phac01_unitL, f_flags$valOrgIsValid);
+	}
+	/// Value string
+	property valOrgStr;
+	read: { return PHAC01_fromStrMulti( $valOrgStrMulti ); }
+	
+  /// Pulsation (Modulation) coefficient, in %
+  property kp;
+  read: { return f_kp$value; }
+	/// pulsation string components
+	property kpStrMulti;
+	read: {	return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, f_flags$kpIsValid ); }
+	/// pulsation string
+	property kpStr;
+  read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }  
+  
+  /// Original Pulsation (Modulation) coefficient, in %
+  property kpOrg;
+  read: { return f_kpOrg$value; }
+	/// pulsation string components
+	property kpOrgStrMulti;
+	read: {	return PHAC01_strMultiNoMulPartGet( $kpOrg, c_phac01_unitP, f_flags$kpOrgIsValid ); }
+	/// pulsation string
+	property kpOrgStr;
+  read: { return PHAC01_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
+  
+  /// Pulsation (Integral) coefficient, in %
+  property kpi;
+  read: { return f_kpi$value; }
+	/// pulsation string components
+	property kpiStrMulti;
+	read: {	return PHAC01_strMultiNoMulPartGet( $kpi, c_phac01_unitP, f_flags$kpiIsValid ); }
+	/// pulsation string
+	property kpiStr;
+  read: { return PHAC01_fromStrMultiNoMulPart( $kpiStrMulti ); }  
+  
+  /// Original Pulsation (Integral) coefficient, in %
+  property kpiOrg;
+  read: { return f_kpiOrg$value; }
+	/// pulsation string components
+	property kpiOrgStrMulti;
+	read: {	return PHAC01_strMultiNoMulPartGet( $kpiOrg, c_phac01_unitP, f_flags$kpiOrgIsValid ); }
+	/// pulsation string
+	property kpiOrgStr;
+  read: { return PHAC01_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
+  
+  /// Measured Background value
+  property bgnd;
+  read: { return f_bgnd$value; }
+	/// Value string components property
+	property bgndStrMulti;
+	read: 
+	{
+    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
+			return PHAC01_strMultiGet( $bgnd, c_phac01_unitE, f_flags$bgndIsValid);
+		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
+			return PHAC01_strMultiGet( $bgnd, c_phac01_unitL, f_flags$bgndIsValid);
+	}
+	/// Value string
+	property bgndStr;
+	read: { return PHAC01_fromStrMulti( $bgndStrMulti ); } 
+  
+  /// CIE x component
+  property cie_x;
+  read: { return f_x$value; }
+  /// Value string
+  property cie_xStr;
+  read: { return PHAC01_CieValueFmt($cie_x, f_flags$xyIsValid); }
+  /// Value string components property
+  property cie_xStrMulti;
+  read: 
+  var result = []; 
+  { 
+    result += $cie_xStr;
+    return result; 
+   }
+  
+  /// CIE y component
+  property cie_y;
+  read: { return f_y$value; }
+  /// Value string
+  property cie_yStr;
+  read: { return PHAC01_CieValueFmt($cie_y, f_flags$xyIsValid); }
+  /// Value string components property
+  property cie_yStrMulti;
+  read: 
+  var result = []; 
+  { 
+    result += $cie_yStr;
+    return result; 
+  }
+  
+  /// Correlated color temperature in K
+  property cct;
+  read: { return f_ct$value; }
+  /// Value string components property
+  property cctStrMulti;
+  read: { return PHAC01_strMultiNoMulPartGet($cct, c_phac01_unitCT, f_flags$ctIsValid); } 
+  /// Value string
+  property cctStr;
+  read: { return PHAC01_fromStrMultiNoMulPart($cctStrMulti); }
+  
+  /// Background integration (exposure) interval
+  property bgndExp;
+  read: { return f_bgndTmo$value; }
+  
+  /// Background integration ETA
+	property bgndEta;  
+  read: { return f_bgndEta$value; }
+    
+  /// Overall validation checking
+  property valid;
+  read:
+  {
+    if( !f_flags$isBgndTrimming )
+    {
+      // In this mode we require just value to be valid, at least
+      return f_flags$valIsValid;      
+    }
+    else
+    {
+      return 0 == f_bgndEta &&
+        f_flags$valIsValid &&
+        f_flags$valOrgIsValid &&
+				f_flags$bgndIsValid &&
+				f_flags$bgndTmoIsValid;
+    }
+  }
+  
+  /// Parsed Flags properties delegation
+  ///
+  
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return f_flags$opmode; } 
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return f_flags$opmodeStr; } 
+  
+  /// Return sanitized opmode modifier
+  property opmodeModifier;
+  read: { return f_flags$opmodeModifier; }
+  /// Return sanitized opmode modifier string
+  property opmodeModifierStr;
+  read: { return f_flags$opmodeModifierStr; }
+  /// Return true if opmode contains BgndTrim modifier
+  property isBgndTrimming;
+  read: { return f_flags$isBgndTrimming; }
+	/// Return true if opmode contains Autonomous modifier
+  property isAutonomous;
+  read: { return f_flags$isAutonomous; }
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags$dataState; }
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return f_flags$dataStateStr; } 
+  
+  /// Return data validity flags
+  ///
+	property valIsValid;
+	read: { return f_flags$valIsValid; }
+	
+	property valOrgIsValid;
+	read: { return f_flags$valOrgIsValid; }
+	
+	property kpIsValid;
+	read: { return f_flags$kpIsValid; }
+	
+	property kpOrgIsValid;
+	read: { return f_flags$kpOrgIsValid; }
+	
+	property kpiIsValid;
+	read: { return f_flags$kpiIsValid; }
+  
+	property kpiOrgIsValid;
+	read: { return f_flags$kpiOrgIsValid; }
+  
+	property bgndIsValid;
+	read: { return f_flags$bgndIsValid; }
+  
+	property bgndTmoIsValid;
+	read: { return f_flags$bgndTmoIsValid; }
+  
+	property xyIsValid;
+	read: { return f_flags$xyIsValid; }
+  
+ 	property ctIsValid;
+	read: { return f_flags$ctIsValid; }  
+}
+
+/// Raw data structure, used in calibration process
+///
+object PHAC01_RawData
+{
+  PHAC01_Health f_errors; ///< Device error flags
+  esF   f_val;          ///< Measured raw value (either illuminance or luminance, depending on mode flag)
+  esF   f_kp;           ///< Pulsation coefficient, in %
+  esF   f_kpi;          ///< Pulsation coefficient, in %
+  esU32 f_cntClear;     ///< How many input points were used in clear sensor data calculation
+  esF   f_c;            ///< Clear channel of color sensor
+  esF   f_r;            ///< Red channel of color sensor
+  esF   f_g;            ///< Green channel of color sensor
+  esF   f_b;            ///< Blue channel of color sensor
+  esU16 f_att;          ///< Currently used attenuation value 1|4|16|256
+  esU16 f_cntColor;     ///< How many input points were used to calculate color node  
+  
+  /// Data access properties
+  ///
+  /// system error flags
+  property errors;
+  read: { return f_errors; }
+  /// measured clear sensor value
+  property val;
+  read: { return f_val$value; }
+  /// Pulsation (modulation) coefficient, in % 
+  property kp;
+  read: { return f_kp$value; }
+  /// Pulsation (integral) coefficient, in %           
+  property kpi;
+  read: { return f_kpi$value; }
+  /// How many input points were used in clear sensor data calculation
+  property cntClear;
+  read: { return f_cntClear$value; }
+  /// Clear channel of color sensor
+  property white;
+  read: { return f_c$value; }
+  /// Red channel of color sensor
+  property red;
+  read: { return f_r$value; }
+  /// Green channel of color sensor
+  property green;
+  read: { return f_g$value; }            
+  /// Blue channel of color sensor
+  property blue;
+  read: { return f_b$value; }            
+  /// Currently used attenuation value 1|4|16|256
+  property att;
+  read: { return f_att$value; }
+  /// How many input points were used to calculate color node          
+  property cntColor;
+  read: { return f_cntColor$value; }       
+}

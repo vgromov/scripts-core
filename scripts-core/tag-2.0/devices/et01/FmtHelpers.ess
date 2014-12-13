@@ -1,0 +1,25 @@
+/// ET01 value formatting helpers
+///
+
+/// Value formatting helpers
+function ET01_valFmt(val, decimals, isValid)
+{
+	if( isValid )
+		return EsStr::format("%0."+decimals+"f", val);
+	
+	return "--";
+}
+
+function ET01_strMultiGet(str, unit)
+var result = [];
+{
+	result += str;
+	result += unit;
+	
+	return result;
+}
+
+function ET01_fromStrMulti(multi)
+{
+	return multi[0] + " " + multi[1];
+}

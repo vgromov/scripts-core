@@ -1,0 +1,91 @@
+/// PHA01 constants and enums
+///
+
+const c_pha01_unitE = "lx";
+const c_pha01_unitL = "cd/m<sup>2</sup>";
+const c_pha01_unitP = "%";
+
+// pha01-specific rpcs 
+enum PHA01_Rpid
+{
+  AutosaveIntervalSet = 2048, "VOID_Call_esU8|";
+  AutosaveIntervalGet = 2049, "esU8_Call|";
+  CalibrationNodeSet  = 2050, "VOID_Call_esU8_esBA|";
+  CalibrationGet      = 2051, "esBA_Call|";
+  CalibrationSet      = 2052,  "VOID_Call_esBA|";
+  CalibrationReset    = 2053, "VOID_Call|";
+  // preserve prc IDs to maintain compatibility with existing clients
+  OperationModeSet    = 2056, "VOID_Call_esU8|";
+  OperationModeGet    = 2057, "esU8_Call|";
+  LiveDataGet          = 2058, "esBA_Call|";
+  DataCountGet        = 2059, "esU16_Call|Return count of data saved in autonomous mode";
+  DataAtIdxGet        = 2060, "esBA_Call_esU16|";
+  DataClear            = 2061, "esBL_Call|";
+  RangeGet            = 2062, "esU8_Call|";
+  RangeSet            = 2063, "VOID_Call_esU8|";
+  AutoRangeGet        = 2064, "esBL_Call|";
+  AutoRangeSet        = 2065, "VOID_Call_esBL|";
+  AllowChargingSet    = 2067, "VOID_Call_esBL|";
+  LinFactorsSet        = 2068, "VOID_Call_esBA|";
+  LinFactorsGet        = 2069, "esBA_Call|";
+  CalSelectiveReset    = 2070, "VOID_Call_esU8|";
+  HysteresisGet        = 2071, "esU32_Call|";
+  HysteresisSet        = 2072, "VOID_Call_esU32|";
+  LiveWithBgndStart    = 2073, "VOID_Call_esU16|";
+  BgndPeriodLeftGet    = 2074, "esU16_Call|";
+}
+
+// settings defaults
+enum PHA01_Defs
+{
+  // autosave intervals in sec
+  AutoIntervalMin = 1;
+  AutoIntervalMax = 600;
+  AutoIntervalDef = 2;
+  // background photo measurement length, in sec
+  BgndIntervalMin = 5;
+  BgndIntervalMax = 60;
+  BgndIntervalDef = 15;
+}
+
+// calibration data types
+enum PHA01_CalType
+{
+  Lux = 0, "Illuminance calibration";
+  Cdm = 1, "Luminance calibration";
+  Kp  = 2, "Pulsation calibration";
+  All = 3, "All calibration data";
+}
+
+// photo appliance operation modes
+enum PHA01_OpMode 
+{
+  None           = 0, "NONE";
+  Idle           = 1, "IDLE operation";
+  Live           = 2, "LIVE operation";
+  Autonomous     = 3, "KEO operation";
+  LiveWoBgnd     = 4, "LIVE operation with background subtraction";
+  Oscilloscope   = 5, "OSCILLOSCOPE operation";
+}
+
+// photo appliance amplification ranges
+enum PHA01_OpRange
+{
+  Low           = 0, "LOW signal, high amplification";
+  High          = 1, "HIGH signal, low amplification";
+}  
+
+// health error flags & masks
+enum PHA01_Error
+{
+  Batt           = 0x00000001, "Battery Low"; // low battery flag
+  I2c            = 0x00000002, "I2C bus error"; // i2c bus error
+  Spi            = 0x00000004, "SPI bus error"; // spi bus error
+  RTC            = 0x00000008, "RTC error";  // RTC error
+  RTCDateTime    = 0x00000010, "RTC date time corrupt"; // DateTime value error
+  Storage        = 0x00000020, "Storage initialization error";  // data storage initialization
+  StorageData    = 0x00000040, "Data storage corrupt"; // data storage error
+  StorageSystem  = 0x00000080, "System storage corrupt"; // system data storage error
+  Calibration    = 0x00000100, "Calibration is missing or incomplete"; // appliance calibration error (lost|never calibrated)
+  Linearization  = 0x00000200, "Linearization is missing"; // appliance linearization error (lost|never linearized)
+}

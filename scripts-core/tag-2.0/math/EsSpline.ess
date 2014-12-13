@@ -90,7 +90,7 @@ object EsMathSpline
   /// Return true if spline contains at least 2 nodes
   function isEmpty()
   {
-    return f_cnt < 2;    
+    return f_cnt > 0;    
   }
   
   /// Return true if spline is valid (non empty and nodes are sorted)
@@ -113,6 +113,27 @@ object EsMathSpline
     return false;
   }
   
+  /// Check len agains maximum length restriction
+  function maxLenCheck(len)
+  {
+    if( len > m_maxLen )
+      throw EsStr::format(I"Spline length must not exceed %u", m_maxLen);
+  }
+  
+  /// Check node object is valid, does not have the same x as an existing one
+  function nodeCheck(node)
+  var lnode;
+  {
+    if( node#isEmpty() || !node.isKindOk("EsSpline") )
+      throw I"Node object is empty or of incompatible type";
+      
+    foreach(lnode in f_nodes)
+    {
+      if( EsUtils::areEqualFloats(node.f_x, lnode.f_x) )
+        throw I"Node with specified x already exists within spline";
+    }
+  }
+  
   /// Return node at index
   function nodeGet(idx)
   var node, result;
@@ -127,18 +148,83 @@ object EsMathSpline
   /// Set new spline node data at specified index
   function nodeSet(idx, node)
   {
-    if( node#isEmpty() || !node.isKindOk("EsSpline") )
-      throw I"Node object is empty or of incompatible type";
+    nodeCheck(node);
     
     f_nodes[idx].copyFrom(node);
     m_crcInvalid = true;
   }
   
+  /// Append new node to the spline. New node is checked against existing ones,
+  /// to maintain sorting by x value, and prevent nodex with duplicate x values.
+  /// Maximum length restriction is maintained as well. 
+  /// If node is added successfully, new node index is returned.
+  /// Otherwise, an exception is thrown.
+  ///
+  function nodeAppend(node)
+  var idx, left, right, mid, tmp;
+  {
+    nodeCheck(node);
+    maxLenCheck(f_cnt+1);
+    
+    if( !isEmpty() )
+    {
+      if( node.f_x <= f_nodes[0].f_x) //< insert node before the first one
+        idx = 0;
+      else if(node.f_x >= f_nodes[f_cnt - 1].f_x) //< append node after the last one
+        idx = f_cnt;
+      else
+      {
+        // Find the index of last element which f_x is less, than x 
+        left = 0;
+        right = f_cnt-1;
+        while( left != right-1 )
+        {
+          mid = (left+right)/2;
+          if( f_nodes[mid].f_x >= node.f_x )
+            right = mid;
+          else
+            left = mid;
+        }
+
+        idx = left+1;
+      }
+      
+      /// Increment array count (an empty element is added to the end of array)
+      f_cnt += 1;
+      
+      /// Move all elements, starting at idx, one position right
+      f_nodes.shiftRight(idx);
+        
+      /// Set new node at idx
+      f_nodes[idx].copyFrom( node );
+    }
+    else
+    {
+      f_cnt += 1;
+      idx = 0;
+      f_nodes[idx].copyFrom( node );
+    }
+    
+    return idx;
+  }
+  
+  /// Delete node at specified index
+  function nodeDelete(idx)
+  {
+    if( 0 <= idx && idx < f_cnt )
+    {
+      if( idx < f_cnt-1 )
+        f_nodes.shiftLeft(idx+1);
+      f_cnt -= 1;
+    }
+  }
+  
   /// Find corresponding spline node by argument value
   /// If spline is empty, or node is not found, empty value is returned
-  /// Otherwise, result is found node object
+  /// Otherwise, result is the found node object.
+  ///
   function nodeFind(x)
-  var node, left, mid , right;
+  var node, left, mid, right;
   {
     if( !isEmpty() )
     {
@@ -220,8 +306,7 @@ object EsMathSpline
   read: { return f_cnt$value; }
   write: 
   { 
-    if( __value > m_maxLen )
-      throw EsStr::format(I"Spline length must not exceed %u", m_maxLen);
+    maxLenCheck(__value);
   
     f_cnt = __value;
     m_crcInvalid = true;

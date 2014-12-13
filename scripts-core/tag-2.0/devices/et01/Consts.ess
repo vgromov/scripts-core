@@ -1,0 +1,44 @@
+/// ET01 constants
+///
+
+const c_et01_unitT = "<sup>o</sup>C";
+const c_et01_unitU = "m/s";
+const c_et01_unitW = "W/m<sup>2</sup>";
+const c_et01_unitP = "Pa";
+const c_et01_unitH = "%";
+
+// et01-specific rpcs 
+enum ET01_Rpid
+{
+	OperationModeSet 	= 2056, "VOID_Call_esU8|";
+	OperationModeGet 	= 2057, "esU8_Call|";
+	LiveDataGet				= 2058,	"esBA_Call|";
+	AllowChargingSet	= 2067, "VOID_Call_esBL|";
+}
+
+enum ET01_OpMode
+{
+	None							= 0, "NONE";
+	Idle							=	1, "IDLE";
+	LiveLimited				=	2, "LIMITED: T, H, Tdew, Sphere";
+	LiveUnlimited			=	3, "UNLIMITED: T, H, Tdew, Sphere + V";
+	LiveUnlimitedRaw	=	4, "CALIBRATION: T, H, Tdew, Sphere + V in ADC codes";
+}
+
+// flags.mask bits
+enum ET01_Flag
+{
+	No_tA			= 0x0001;
+	No_rH			= 0x0002;
+	No_tD			= 0x0004;
+	No_tW			= 0x0008;
+	No_u			= 0x0010;
+	No_tG			= 0x0020;
+	No_wBgt		= 0x0040;
+	No_wBgts	= 0x0080;
+	No_tR			= 0x0100;
+	No_w			= 0x0200;
+	No_p			= 0x0400;
+	No_t0			= 0x0800;
+	Invalid		= 0x0FFF;
+}

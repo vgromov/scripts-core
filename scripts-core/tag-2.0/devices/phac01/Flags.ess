@@ -1,0 +1,191 @@
+/// PHAC01 health && flags parser objects
+///
+
+/// PHAC01 Health state object
+object PHAC01_Health
+{
+  esU32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & PHAC01_Error$$PwrCritical)
+      result += PHAC01_Error$$PwrCritical$$label;
+    if(f_errors & PHAC01_Error$$I2C)
+      result += PHAC01_Error$$I2C$$label;
+    if(f_errors & PHAC01_Error$$RTC)
+      result += PHAC01_Error$$RTC$$label;
+    if(f_errors & PHAC01_Error$$RTC_Invalid)
+      result += PHAC01_Error$$RTC_Invalid$$label;
+    if(f_errors & PHAC01_Error$$Storage)
+      result += PHAC01_Error$$Storage$$label;
+    if(f_errors & PHAC01_Error$$ClearNoCal)
+      result += PHAC01_Error$$ClearNoCal$$label;
+    if(f_errors & PHAC01_Error$$ColorNoCal)
+      result += PHAC01_Error$$ColorNoCal$$label;
+    if(f_errors & PHAC01_Error$$MAX4400x)
+      result += PHAC01_Error$$MAX4400x$$label;
+  
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+	
+	/// Properties
+	///
+	property errors;
+	read: { return f_errors$value; }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return f_errors & 
+                                ( PHAC01_Error$$I2C|
+                                  PHAC01_Error$$RTC|
+                                  PHAC01_Error$$Storage|
+                                  PHAC01_Error$$MAX4400x ); 
+        }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return f_errors & 
+                                ( PHAC01_Error$$RTC_Invalid|
+                                  PHAC01_Error$$ClearNoCal|
+                                  PHAC01_Error$$ColorNoCal);        
+        }
+	// Return true if error flags contain warnings			
+	property hasWarning;
+	read: { return f_errors & PHAC01_Error$$PwrCritical; }
+	
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// PHA Color data flags|state helper object
+///
+object PHAC01_DataFlags
+{
+  esU32 f_flags;
+  
+  /// Constructor with assignment
+  new( flags )
+  {
+    f_flags = flags;    
+  }
+  
+  /// Return opmode modifier description as a list of strings
+  function ommAsStrings()
+  var omm = (f_flags & 0xF0), result = []; 
+  { 
+    if(PHAC01_OpModeModifier$$None == omm)
+      result += PHAC01_OpModeModifier$$None$$label;
+    else
+    {
+      if( omm & PHAC01_OpModeModifier$$BgndTrim )
+        result += PHAC01_OpModeModifier$$BgndTrim$$label;
+        
+      if( omm & PHAC01_OpModeModifier$$Autonomous )
+        result += PHAC01_OpModeModifier$$Autonomous$$label;
+    }
+    
+    return result;
+  }
+  
+  /// Return opmode modifiers as string
+  function ommAsString()
+  {
+    return EsStr::fromArray(ommAsStrings(), "; ", "", "");
+  }
+  
+  /// Return data state as a string collection
+  function dsAsStrings()
+  var ds = (f_flags & 0xF00), result = [];
+  {
+    if( PHAC01_DataState$$None == ds )
+      result += PHAC01_DataState$$None$$label;
+    else
+    {
+      if( ds & PHAC01_DataState$$LowSignal )
+        result += PHAC01_DataState$$LowSignal$$label;
+    }
+    
+    return result;
+  }
+  
+  /// Return data state as string
+  function dsAsString()
+  {
+    return EsStr::fromArray(dsAsStrings(), "; ", "", "");
+  }
+  
+  /// Parsed flags properties
+  ///
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return (f_flags & 0x0F); } 
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return PHAC01_OpMode.valueLabelGet( $opmode ); } 
+  
+  /// Return sanitized opmode modifier
+  property opmodeModifier;
+  read: { return (f_flags & 0xF0); }
+  /// Return sanitized opmode modifier string
+  property opmodeModifierStr;
+  read: { return ommAsString(); }
+  /// Return true if opmode contains BgndTrim modifier
+  property isBgndTrimming;
+  read: { return f_flags & PHAC01_OpModeModifier$$BgndTrim; }
+	/// Return true if opmode contains Autonomous modifier
+  property isAutonomous;
+  read: { return f_flags & PHAC01_OpModeModifier$$Autonomous; }
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags & 0xF00; }
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return dsAsString(); } 
+  
+  /// Return data validity flags
+  ///
+	property valIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$val); }
+	
+	property valOrgIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$valOrg); }
+	
+	property kpIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kp); }
+	
+	property kpOrgIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpOrg); }
+	
+	property kpiIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpi); }
+  
+	property kpiOrgIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpiOrg); }
+  
+	property bgndIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$bgnd); }
+  
+	property bgndTmoIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$bgndTmo); }
+  
+	property xyIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$xy); }
+  
+ 	property ctIsValid;
+	read: { return 0 == (f_flags & PHAC01_DataInvalid$$ct); }
+}

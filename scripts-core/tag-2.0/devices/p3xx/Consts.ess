@@ -1,0 +1,34 @@
+/// Octava P3XX constants and enums
+///
+
+// P3-81-1|2,-80E - specific rpcs 
+enum P3XX_Rpid
+{
+	Start						= 2048, "VOID_Call|Start measurements";
+	Stop						= 2049, "VOID_Call|Stop measurements";
+	Reset						= 2050, "VOID_Call|Reset measurements";
+	GetMode 				= 2051, "esU16_Call|Read current working mode";
+	GetLiveData 		= 2052, "esBA_Call|Get live data packet";
+}
+
+// Health error flags & masks
+enum P3XX_Error
+{
+ 	Batt 						= 0x00000001, "Battery low";
+}
+
+// Measurement state flags
+enum P3XX_StateFlag
+{
+	Running					= 0x000001, "Running";
+	Overload				= 0x000002, "Input overload detected";
+	OverloadLatched = 0x000004, "Input overload latched";
+}
+
+// Octava working modes
+enum P3XX_OpMode
+{
+	None						= 0, "NONE";
+	Idle 						= 1, "IDLE operation";
+	Running					= 2, "RUNNING";
+}

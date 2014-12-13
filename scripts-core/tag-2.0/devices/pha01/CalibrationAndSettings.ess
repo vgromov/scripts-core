@@ -1,0 +1,169 @@
+/// PHA01 calibration, linearization, and settings objects
+///
+
+/// Calibration node
+object PHA01_CalNode
+{
+  esF f_1;
+  esF f_2;
+	
+	property notEmpty;
+	read: { return f_1 != 0. || f_2 != 0.; }
+}
+
+/// All calibration info
+object PHA01_Calibration
+{
+  PHA01_CalNode f_lux[4];
+  PHA01_CalNode f_cdm[4];
+  PHA01_CalNode f_kp[2];
+	
+	function checkEmpty(calType)
+	var node, nodes;
+	{
+		if( calType in PHA01_CalType)
+		{
+			if( PHA01_CalType$$Lux == calType )
+				nodes = f_lux;
+			else if( PHA01_CalType$$Cdm == calType )
+				nodes = f_cdm;
+			else if( PHA01_CalType$$Kp == calType )
+				nodes = f_kp;
+			else
+				return checkEmpty(PHA01_CalType$$Lux) &&
+					checkEmpty(PHA01_CalType$$Cdm) &&
+					checkEmpty(PHA01_CalType$$Kp);
+				
+			foreach( node in nodes )
+			{
+				if( node$notEmpty )
+					return false;
+			}
+		}
+		else
+			throw "Calibration type value is out of range";
+			
+		return true;
+	}
+}
+
+// linearization coeffs, for firmware newer than or equal to 1.4
+object PHA01_LinNodeLow
+{  
+  PHA01_CalNode f_node;
+  esU16 f_adcRangeMax;
+}
+
+object PHA01_Linearization 
+{
+  PHA01_LinNodeLow f_low[6];
+  PHA01_CalNode f_high;
+}
+
+// ranges hysteresis thresholds
+object PHA01_Hysteresis
+{
+  esU16 f_loHi;
+  esU16 f_hiLo;
+}
+
+object PHA01_Health
+{
+  esU32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & PHA01_Error$$Batt)
+      result += PHA01_Error$$Batt$$label;
+    if(f_errors & PHA01_Error$$I2c)
+      result += PHA01_Error$$I2c$$label;
+    if(f_errors & PHA01_Error$$Spi)
+      result += PHA01_Error$$Spi$$label;
+    if(f_errors & PHA01_Error$$RTC)
+      result += PHA01_Error$$RTC$$label;
+    if(f_errors & PHA01_Error$$RTCDateTime)
+      result += PHA01_Error$$RTCDateTime$$label;
+    if(f_errors & PHA01_Error$$Storage)
+      result += PHA01_Error$$Storage$$label;
+    if(f_errors & PHA01_Error$$StorageData)
+      result += PHA01_Error$$StorageData$$label;
+    if(f_errors & PHA01_Error$$StorageSystem)
+      result += PHA01_Error$$StorageSystem$$label;
+    if(f_errors & PHA01_Error$$Calibration)
+      result += PHA01_Error$$Calibration$$label;
+    if(f_errors & PHA01_Error$$Linearization)
+      result += PHA01_Error$$Linearization$$label;
+  
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+	
+	/// Properties
+	///
+	property errors;
+	read: { return f_errors$value; }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$I2c|
+                                  PHA01_Error$$Spi|
+                                  PHA01_Error$$RTC|
+                                  PHA01_Error$$Storage); 
+        }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return f_errors & 
+                                (  PHA01_Error$$RTCDateTime|
+                                  PHA01_Error$$StorageData|
+                                  PHA01_Error$$StorageSystem|
+                                  PHA01_Error$$Calibration|
+                                  PHA01_Error$$Linearization);        
+        }
+	// Return true if error flags contain warnings			
+	property hasWarning;
+	read: { return f_errors & PHA01_Error$$Batt; }
+  /// return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  /// return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// pha01 device settings
+object PHA01_Settings
+{
+  // settings block
+  EsFirmwareId f_fwId;
+  
+  if( f_fwId$ver > "1.5" )
+    EsSoftwareInfo f_swInfo;
+  
+  if( f_fwId$ver > "1.1" )
+    PHA01_Hysteresis f_hys;
+
+  esU8 f_autosaveInterval;
+    @default = PHA01_Defs$$AutoIntervalDef;
+    @restriction = [PHA01_Defs$$AutoIntervalMin..PHA01_Defs$$AutoIntervalMax];
+  // linearization data
+  PHA01_Linearization f_lin;
+  // calibration data
+  PHA01_Calibration f_cal;    
+  
+  /// Constructor
+  new(fwId)
+  {
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01 settings");
+    f_fwId.copyFrom(fwId);
+  }
+}

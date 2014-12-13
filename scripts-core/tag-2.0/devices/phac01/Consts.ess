@@ -1,0 +1,163 @@
+/// PHAC01 contants
+///
+
+const c_phac01_unitE = "lx";
+const c_phac01_unitL = "cd/m<sup>2</sup>";
+const c_phac01_unitP = "%";
+const c_phac01_unitCT = "K";
+
+// pha01-specific rpcs 
+enum PHAC01_Rpid
+{
+  // Legacy-mode handlers. PHA-01 ids preserved
+  //
+	LegacyAutosaveIntervalSet = 2048, "VOID_Call_esU8|";
+	LegacyAutosaveIntervalGet = 2049, "esU8_Call|";
+	LegacyOperationModeSet    = 2056, "VOID_Call_esU8|";
+	LegacyOperationModeGet    = 2057, "esU8_Call|";
+	LegacyLiveDataGet         = 2058, "esBA_Call|";
+	LegacyDataAtIdxGet        = 2060, "esBA_Call_esU16|";
+	LegacyDataClear           = 2061, "esBL_Call|";
+	LegacyLiveWithBgndStart   = 2073, "VOID_Call_esU16|";
+	LegacyBgndPeriodLeftGet   = 2074, "esU16_Call|";
+
+  // Native handlers
+  // 
+  // Following handlers are used both, in legacy and native modes
+  DataCountGet              = 2059, "esU16_Call|Return count of data saved in autonomous mode";
+	AllowChargingSet          = 2067, "VOID_Call_esBL|";
+
+  // Pure native handlers
+  //
+  WorkmodeSet               = 2080, "VOID_Call_esU32|";
+  WorkmodeGet               = 2081, "esU32_Call|";
+  LiveDataGet               = 2082, "esBA_Call|";
+  RawDataGet                = 2083, "esBA_Call|";
+  CalibrationClearGet       = 2084, "esBA_Call|";
+  CalibrationClearSet       = 2085, "VOID_Call_esBA|";
+  CalibrationColorGet       = 2086, "esBA_Call|";
+  CalibrationColorSet       = 2087, "VOID_Call_esBA|";
+  BgndTmoGet                = 2088, "esU16_Call|";
+  BgndTmoSet                = 2089, "VOID_Call_esU16|";
+  AutosaveTmoGet            = 2090, "esU16_Call|";
+  AutosaveTmoSet            = 2091, "VOID_Call_esU16|";
+  DataReset                 = 2092, "VOID_Call|";
+  DataAtIdxGet              = 2093, "esBA_Call_esU16|";  
+}
+
+// settings defaults
+enum PHAC01_Defs
+{
+  // Autosave intervals in sec
+  AutoIntervalMin = 5;
+  AutoIntervalMax = 600;
+  AutoIntervalDef = 5;
+  // Background photo measurement length, in sec
+  BgndExposureMin = 5;
+  BgndExposureMax = 60;
+  BgndExposureDef = 15;
+}
+
+// photo appliance operation modes
+enum PHAC01_LegacyOpMode 
+{
+  None          = 0, "NONE";
+  Idle          = 1, "IDLE operation";
+  Live          = 2, "LIVE operation";
+  Autonomous    = 3, "KEO operation";
+  LiveWoBgnd    = 4, "LIVE operation with background subtraction";
+  Oscilloscope  = 5, "OSCILLOSCOPE operation";
+}
+
+/// PHA Color device error flags and bit masks
+enum PHAC01_Error
+{
+  PwrCritical  = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
+  RTC          = 0x00000002, "RTC error";                           ///< RTC initialization error
+  RTC_Invalid  = 0x00000004, "RTC date time corrupt";               ///< RTC date time value is invalid
+  Storage      = 0x00000008, "Storage initialization error";        ///< Storage stream could not be opened
+  ClearNoCal   = 0x00000010, "Clear sensor calibration is missing"; ///< Clear sensor calibration is missing or invalid
+  ColorNoCal   = 0x00000020, "Color sensor calibration is missing"; ///< Color sensor calibration is missing or invalid
+  MAX4400x     = 0x00000040, "Color sensor does not respond";       ///< Color sensor MAX4400x does not respond
+  I2C          = 0x00000080, "I2C bus error";                       ///< Error condition latched on I2C bus     
+}
+
+/// PHA Color operation modes
+enum PHAC01_OpMode
+{
+  None        = 0, "NONE";
+  Idle        = 1, "IDLE operation";
+  Illuminance = 2, "ILLUMINANCE operation";
+  Luminance   = 3, "LUMINANCE operation";
+  Oscilloscope= 4, "OSCILLOSCOPE operation";
+}
+
+/// PHA Color operation modifiers
+enum PHAC01_OpModeModifier
+{
+  None         = 0, "Normal";                       //< Null modifier, normal operation, just for readability        
+  BgndTrim     = 0x10, "Background trimming";       //< Bgnd trimming mode is on (0x1 << 4)
+  Autonomous   = 0x20, "Autonomous";                //< Autonomous operation - write measured data into internal storage memory (0x2 << 4)
+}
+
+/// PHA Color data state flags
+enum PHAC01_DataState
+{
+  None         = 0, "Normal";                       //< Normal data state, just for readability
+  LowSignal    = 0x100, "Low signal";               //< Low value state - no kp data is valid, because slow color sensor output is used (0x1 << 8)
+}
+
+/// PHA Color data (in)validity flags
+enum PHAC01_DataInvalid
+{
+  val          = 0x00010000;  //(0x0001 << 16);
+  valOrg       = 0x00020000;  //(0x0002 << 16);
+  kp           = 0x00040000;  //(0x0004 << 16);
+  kpOrg        = 0x00080000;  //(0x0008 << 16);
+  kpi          = 0x00100000;  //(0x0010 << 16);
+  kpiOrg       = 0x00200000;  //(0x0020 << 16);
+  bgnd         = 0x00400000;  //(0x0040 << 16);
+  bgndTmo      = 0x00800000;  //(0x0080 << 16);
+  xy           = 0x01000000;  //(0x0100 << 16);
+  ct           = 0x02000000;  //(0x0200 << 16);
+}
+
+/// Normal opmode to Legacy opmode converter
+function PHAC01_toLegacyOpmode(opmode)
+var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC01_LegacyOpMode$$None;
+{
+  if(PHAC01_OpMode$$Idle == om)
+    result = PHAC01_LegacyOpMode$$Idle;
+  else if( PHAC01_OpMode$$Illuminance == om  ||
+           PHAC01_OpMode$$Luminance == om )
+  {
+    if( omm & PHAC01_OpModeModifier$$Autonomous )
+      result = PHAC01_LegacyOpMode$$Autonomous;
+    else if( omm & PHAC01_OpModeModifier$$BgndTrim )
+      result = PHAC01_LegacyOpMode$$LiveWoBgnd;
+    else
+      result = PHAC01_LegacyOpMode$$Live;
+  }
+  else if( PHAC01_OpMode$$Oscilloscope == om )
+    result = PHAC01_OpMode$$Oscilloscope;
+    
+  return result;
+}
+
+// Legacy opmode to normal opmode converter
+function PHAC01_fromLegacyOpmode(legacyOpmode)
+var result = PHAC01_OpMode$$None;
+{
+  if( PHAC01_LegacyOpMode$$Idle == legacyOpmode )
+    result = PHAC01_OpMode$$Idle;
+  else if( PHAC01_LegacyOpMode$$Live == legacyOpmode )  
+    result = PHAC01_OpMode$$Illuminance;
+  else if( PHAC01_LegacyOpMode$$Autonomous == legacyOpmode )
+    result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$Autonomous;
+  else if( PHAC01_LegacyOpMode$$LiveWoBgnd == legacyOpmode )
+    result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$BgndTrim;
+  else if( PHAC01_LegacyOpMode$$Oscilloscope == legacyOpmode )
+    result = PHAC01_OpMode$$Oscilloscope;
+    
+  return result;
+}

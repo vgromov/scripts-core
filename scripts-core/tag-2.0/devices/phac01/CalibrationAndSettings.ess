@@ -1,0 +1,180 @@
+/// PHAC01 Calibration and settings data blocks
+///
+
+/// Clear calibration data
+object PHAC01_CalibrationClear
+{
+  EsSpline f_csIllum;    ///< Clear illumination calibration
+  EsSpline f_csLum;      ///< Clear luminance calibration
+  EsSpline f_csKp;       ///< Clear pulsation calibration  
+  
+  /// Default constructor
+  new()
+  {
+    f_csIllum$maxLen = 8;
+    f_csLum$maxLen = 8;
+    f_csKp$maxLen = 8;
+  }  
+  
+  /// Update all crc blocks if needed
+  function crcUpdate()
+  {
+    f_csIllum.crcUpdate();
+    f_csLum.crcUpdate();
+    f_csKp.crcUpdate();
+  }
+  
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+	property crcIsOk;
+	read: { return f_csIllum$crcIsOk && f_csLum$crcIsOk && f_csKp$crcIsOk; }
+	
+  /// Overall validity check
+  property valid;
+  read: { return f_csIllum$valid && f_csLum$valid && f_csKp$valid; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_csIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_csLum; }
+  
+  /// Pulsation calibration
+  property calKp;
+  read: { return f_csKp; }
+}
+
+/// Color calibration data
+object PHAC01_CalibrationColor
+{
+  var m_acfCrcInvalid;
+  
+  PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
+  PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
+  EsSpline f_ccIllum;     ///< Clear channel illumination calibration
+  EsSpline f_ccLum;       ///< Clear channel luminosity calibration
+  esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
+  esU8 f_acfCrc;              ///< ACF vector crc8 field
+  
+  /// Default constructor
+  new()
+  {
+    m_acfCrcInvalid = true;
+    f_ccIllum$maxLen = 8;
+    f_ccLum$maxLen = 8;
+  }
+  
+  /// Calculate CRC8 of ACF block
+  function acfCrcCalc()
+  var crc = new EsCRC8(f_acf#asBinBuffer(), 0xAB);
+  {
+    return crc;
+  }
+  
+  /// Update ACF block crc if neccessary
+  function acfCrcUpdate()
+  {
+    if( m_acfCrcInvalid )
+    {
+      f_acfCrc = acfCrcCalc()$value;
+      m_acfCrcInvalid = false;
+    }
+  }
+  
+  /// Check if CRC of ACF block is OK
+  function acfCrcIsOk()
+  var crc;
+  {
+    acfCrcUpdate();
+    crc = new EsCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
+    return 0 == crc$value;
+  }
+  
+  /// Update CRC of all blocks, if needed
+  function crcUpdate()
+  {
+    f_ccm.crcUpdate();
+    f_tcm.crcUpdate();
+    f_ccIllum.crcUpdate();
+    f_ccLum.crcUpdate();
+		acfCrcUpdate();    
+  }
+  
+  /// ACF block item get
+  function acfGet(idx)
+  {
+    return f_acf[idx]$value;
+  }
+  
+  /// ACF block item set
+  function acfSet(idx, val)
+  {
+    f_acf[idx] = val$value;
+    m_acfCrcInvalid = true;
+  }
+ 
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+	property crcIsOk;
+	read: 
+	{ 
+		return acfCrcIsOk() && 
+			f_ccm$crcIsOk && f_tcm$crcIsOk &&
+       f_ccIllum$crcIsOk && f_ccLum$crcIsOk;
+  }
+	
+	/// Overall validity check
+	property valid;
+	read: { return f_ccIllum$valid && f_ccLum$valid; }
+	
+	/// Access Color space Correlation matrix  
+  property ccm;
+  read: { return f_ccm; }
+	
+	/// Access Color temperature Correlation matrix  
+  property tcm;
+  read: { return f_tcm; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_ccIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_ccLum; }
+}
+
+/// PHAC01 device settings
+object PHAC01_Settings
+{
+  // settings block
+  EsFirmwareId f_fwId;
+  EsSoftwareInfo f_swInfo;
+  
+  esU16 f_autosaveInterval;
+    @default = PHAC01_Defs$$AutoIntervalDef;
+    @restriction = [PHAC01_Defs$$AutoIntervalMin..PHAC01_Defs$$AutoIntervalMax];
+  
+  esU16 f_bgndExp;
+    @default = PHAC01_Defs$$BgndExposureDef;
+    @restriction = [PHAC01_Defs$$BgndExposureMin..PHAC01_Defs$$BgndExposureMax];
+  
+  // Clear calibration data
+  PHAC01_CalibrationClear f_calClear;    
+  
+  // Color calibration data
+  PHAC01_CalibrationColor f_calColor;    
+  
+  /// Constructor
+  new(fwId)
+  {
+    fwIdValidate(fwId, EsDeviceType$$PHAC1, "PHAC01 settings");
+    f_fwId.copyFrom(fwId);
+  }
+}
