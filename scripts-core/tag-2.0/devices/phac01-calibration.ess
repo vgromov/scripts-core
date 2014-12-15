@@ -2,6 +2,40 @@
 ##require("devices/EsDeviceBase.ess");
 ##require("phac01.ess");
 
+/// Nodes type index
+enum PHAC01_CalibrationType {
+  Illuminance     = 1, "Illuminance";
+  Luminanace      = 2, "Luminanace";
+  Pulsation       = 3, "Pulsation";
+  ColorSpace      = 4, "Color space";
+  ColorTemp       = 5, "CCT";
+}
+
+function phac01CalibrationTypeCheck(type)
+{
+  if( !(type in PHAC01_CalibrationType) )
+    throw "Calibration type is out of bounds";
+}
+
+function phac01ClearCalibrationTypeCheck(type)
+{
+  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
+    throw "Clear calibration type is out of bounds";
+}
+
+function phac01UnitsGet(type)
+{
+  phac01CalibrationTypeCheck(type);
+  if( PHAC01_CalibrationType$$Illuminance == type )
+    return "lx";
+  else if( PHAC01_CalibrationType$$Luminanace == type )
+    return "cd/m2";
+  else if( PHAC01_CalibrationType$$Pulsation == type )
+    return "%";
+  else if( PHAC01_CalibrationType$$ColorTemp == type )
+    return "K";
+}  
+
 function phac01create(fwId)
 {
   if( EsDeviceType$$PHAC1 == fwId$devType )
@@ -48,28 +82,40 @@ var result;
   return device.rpcBatchCall( phac01stateBatchPrepare() );
 }
 
-function phac01liveRequest(device)
+function phac01liveRequest(device, verification)
 var batch = phac01stateBatchPrepare(), item = [], result;
 {
-  item += PHAC01_Rpid$$LiveDataGet;
-  item += null;
-  batch#append(item);
+  if( !verification )
+  {
+	  item += PHAC01_Rpid$$RawDataGet;
+	  item += null;
+	  batch#append(item);
+	}
+	else  
+  {
+    item += PHAC01_Rpid$$LiveDataGet;
+    item += null;
+    batch#append(item);
+  }
   
   return device.rpcBatchCall(batch);
 }
 
 /// Reference profile node
-object PHAC01_CalibrationProfileNode
+object PHAC01_ClearProfileNode
 {
-  var m_ref, m_deviation,
-    m_refCalibrated, m_liveVerified;
+  var m_ref,              // Reference value
+      m_deviation,        // Allowed deviation form reference value
+      m_splineOsram,      // If calibraion was using this node - osram sensor spline
+      m_splineMax4400x,   // If calibraion was using this node - osram sensor spline
+      m_verified;         // Calibrated value written during verification stage
     
   function compare(other)
   {
     if( !other#isEmpty() )
     {
-      if( !other#isKindOf("PHAC01_CalibrationProfileNode") )
-        throw "Incompatible comparison argument type, must be 'PHAC01_CalibrationProfileNode'";
+      if( !other#isKindOf("PHAC01_ClearProfileNode") )
+        throw "Incompatible comparison argument type, must be 'PHAC01_ClearProfileNode'";
       
       if(m_ref == other.m_ref)
         return 0;
@@ -143,80 +189,51 @@ object PHAC01_CalibrationProfileNode
   property refMaxStr;
   read: { return PHAC01_ValueFmt( $refMax ); }
   
-  /// Live calibrated node
-  property calibrated;
+  /// Calibraion spline node for OSRAM
+  property splineOsram;
   @persistent;
-  read: { return m_refCalibrated; }
+  read: { return m_splineOsram; }
   write: { 
-    if(__value#isEmpty()) 
-      m_refCalibrated = __value; 
-    else
-      m_refCalibrated = __value#asDouble();
-  }
-  /// Live calibrated node string
-  property calibratedStr;
-  read: { 
-    if(m_refCalibrated#isEmpty()) 
-      return "";
-    else 
-      PHAC01_ValueFmt(m_refCalibrated); 
-  }
-  /// Calibration validity check. If m_refCalibrated is not empty,
-  /// and is more than 2 times greater|smaller than ref, false is returned
-  property calibrationOutOfRange;
-  read: {
-    if( !m_refCalibrated#isEmpty())
-    {
-      return  2. < m_ref / m_refCalibrated ||
-        m_refCalibrated / m_ref > 2.;
-    }
+    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
+      throw "Incompatible object type, expected 'EsSpline'";
     
-    return false;
+    m_splineOsram = __value; 
+  }
+  
+  /// Calibraion spline node for MAX4400x
+  property splineMax4400x;
+  @persistent;
+  read: { return m_splineMax4400x; }
+  write: { 
+    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
+      throw "Incompatible object type, expected 'EsSpline'";
+    
+    m_splineMax4400x = __value; 
   }
   
   /// Live verified node
   property verified;
   @persistent;
-  read: { return m_liveVerified; }
-  write: { m_liveVerified = __value;}
+  read: { return m_verified; }
+  write: { m_verified = __value;}
+  
   /// Live verified node string
   property verifiedStr;
   read: { 
     if(m_liveVerified#isEmpty()) 
       return "";
     else 
-      PHAC01_ValueFmt(m_liveVerified); 
+      PHAC01_ValueFmt(m_verified); 
   }
 }
 
-/// Nodes collection index
-enum PHAC01_CalibrationTypeIndex {
-  Illuminosity   = 1, "Illuminosity";
-  Luminosity     = 2, "Luminosity";
-  Pulsation      = 3, "Pulsation";
-}
-
-function phac01CollectionIndexCheck(collection)
-{
-  if( !(collection in PHAC01_CalibrationTypeIndex) )
-    throw "Collection index parameter is out of bounds";
-}
-
-function phac01UnitsGet(collection)
-{
-  phac01CollectionIndexCheck(collection);
-  if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-    return "lx";
-  else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-    return "cd/m2";
-  else
-    return "%";
-}  
-
 /// Reference profile.
-object PHAC01_CalibrationProfile
+object PHAC01_ClearCalibrationProfile
 {
-  var m_name, m_lux, m_cdm, m_kp;
+  var m_name, // Calibration profile name
+    m_lux,    // Illuminance calibration nodes
+    m_cdm,    // Luminance calibration nodes
+    m_kp;     // Pulsation calibration nodes
   
   function nodesClearAll()
   {
@@ -231,85 +248,86 @@ object PHAC01_CalibrationProfile
     nodesClearAll();
   }
   
-  function nodesCountGet(collection)
+  function nodesCountGet(type)
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       return m_lux#countGet();
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       return m_cdm#countGet();
     else
       return m_kp#countGet();
   }
   
-  function nodesGet(collection)
+  function nodesGet(type)
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       return m_lux;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       return m_cdm;
     else
       return m_kp;
   }
   
-  function nodesCalibrationReset(collection)
+  function nodesCalibrationReset(type)
   var node, nodes;
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       nodes = m_lux;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       nodes = m_cdm;
     else
       nodes = m_kp;
     
     foreach(node in nodes)
     {
-      node.m_liveVerified = null;
-      node.m_refCalibrated = null;
+      node.m_splineOsram = null;
+      node.m_splineMax4400x = null;
+      node.m_verified = null;
     }
   }
   
-  function hasCalibration(collection)
+  function hasCalibration(type)
   var node, nodes;
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       nodes = m_lux;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       nodes = m_cdm;
     else
       nodes = m_kp;
 
     foreach(node in nodes)
-      if( !node.m_refCalibrated#isEmpty() )
+      if( !node.m_splineOsram#isEmpty() && !node.m_splineMax4400x#isEmpty() )
         return true;
       
     return false;
   }
   
-  function nodeGet(collection, idx)
+  function nodeGet(type, idx)
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       return m_lux[idx];
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       return m_cdm[idx];
     else
       return m_kp[idx];
   }
   
-  function nodeAdd(collection, ref, deviation)
-  var newNode = new PHAC01_CalibrationProfileNode(ref, deviation);
+  function nodeAdd(type, ref, deviation)
+  var newNode = new PHAC01_ClearProfileNode(ref, deviation);
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
     {
       m_lux#appendUnique(newNode);
       m_lux#sortAscending();
     }
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
     {
       m_cdm#appendUnique(newNode);
       m_cdm#sortAscending();
@@ -323,29 +341,29 @@ object PHAC01_CalibrationProfile
     return newNode;
   }
   
-  function nodeDelete(collection, idx)
+  function nodeDelete(type, idx)
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       m_lux#itemDelete(idx);
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       m_cdm#itemDelete(idx);
     else
       m_kp#itemDelete(idx);
   }
   
-  function nodeSet(collection, idx, ref, deviation)
+  function nodeSet(type, idx, ref, deviation)
   {
-    nodeDelete(collection, idx);
-    nodeAdd(collection, ref, deviation);
+    nodeDelete(type, idx);
+    nodeAdd(type, ref, deviation);
   }
   
-  function nodesClear(collection)
+  function nodesClear(type)
   {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
       m_lux = [];
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
+    else if( PHAC01_CalibrationType$$Luminanace == type )
       m_cdm = [];
     else
       m_kp = [];
@@ -376,13 +394,18 @@ object PHAC01_CalibrationProfile
   write: { m_name = __value#asString(); }
   
   property isOk;
-  read: { return 0 < m_lux#countGet() && 0 < m_cdm#countGet() && 0 < m_kp#countGet(); }
+  read: 
+  { 
+    return  0 < m_lux#countGet() && 
+            0 < m_cdm#countGet() && 
+            0 < m_kp#countGet(); 
+  }
 }
 
 /// Session verification modes
 enum PHAC01_SessionMode
 {
-  Verification   = 1, "Verification";
+  Verification  = 1, "Verification";
   Calibration   = 2, "Calibration";
   Complete      = 3, "Complete";
 }
@@ -401,84 +424,19 @@ object PHAC01_CalibrationSession
     m_bak,
   // Current settings state  
     m_cur,
-  // Calibration profile used in session
-    m_profile,
-  // Temporary - calibration nodes unmatched against ref nodes in specific collection
-    m_unmatchedLux,
-    m_unmatchedCdm,
-    m_unmatchedKp;
+  // Clear calibration profile used in session
+    m_profileClearClear,
+  // Color calibration profile used in session
+    m_profileClearColor;
   
-  // internal service - recalc raw value depending on collection index
-  // i.e. for kp, we use tenths of percents
-  function adaptVal(collection, rawVal)
-  {
-    if( PHAC01_CalibrationTypeIndex$$Pulsation == collection )
-      return rawVal#asDouble() / 10.;
-    
-    return rawVal;
-  }
-  
-  // update calibration marks for all ref collections, using m_cur 
-  // as reference
-  function calibrationMarksUpdate(collection)
-  var calnodes, calnode, refnodes, refnode, 
-    refFound, unmatched = [];
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-    {
-      calnodes = m_cur.f_cal.f_lux;
-      refnodes = m_profile.m_lux;
-    }
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-    {
-      calnodes = m_cur.f_cal.f_cdm;
-      refnodes = m_profile.m_cdm;
-    }
-    else
-    {
-      calnodes = m_cur.f_cal.f_kp;
-      refnodes = m_profile.m_kp;
-    }
-    
-    foreach(calnode in calnodes)
-    {
-      if( calnode$notEmpty )
-      {
-        refFound = false;
-        foreach(refnode in refnodes)
-        {
-          if( refnode$refMin <= adaptVal(collection, calnode.f_2) && refnode$refMax >= adaptVal(collection, calnode.f_2) )
-          {
-            refnode$calibrated = adaptVal(collection, calnode.f_1);
-            refFound = true;
-            break;
-          }
-        }
-        
-        if( !refFound )
-          unmatched += calnode;
-      }
-    }
-    
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      m_unmatchedLux = unmatched;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      m_unmatchedCdm = unmatched;
-    else
-      m_unmatchedKp = unmatched;
-  }
-  
-  new(mode, settingsBak, profile)
-  var collection;
+  new(mode, settingsBak, profileClear)
+  var type;
   {
     m_created = EsDateTime::now();
     m_mode = mode;
     m_bak = settingsBak;
     m_cur = settingsBak.clone();
-    m_profile = profile.clone();
-    foreach( collection in PHAC01_CalibrationTypeIndex )
-      calibrationMarksUpdate(collection);
+    m_profileClearClear = profile.clone();
   }
   
 /// Custom stream writer
@@ -489,7 +447,8 @@ object PHAC01_CalibrationSession
     stream.valueWrite("completed", m_complete);
     stream.valueWrite("bak", m_bak);
     stream.valueWrite("cur", m_cur);
-    stream.valueWrite("profile", m_profile);
+    stream.valueWrite("profileClear", m_profileClearClear);
+    stream.valueWrite("profileColor", m_profileClearColor);
   }
   
 /// Custom stream reader
@@ -500,160 +459,9 @@ object PHAC01_CalibrationSession
     m_complete = stream.valueRead("completed", null);
     m_bak = stream.valueRead("bak", null);
     m_cur = stream.valueRead("cur", null);
-    m_profile = stream.valueRead("profile", null);
+    m_profileClearClear = stream.valueRead("profileClear", null);
+    m_profileClearColor = stream.valueRead("profileColor", null);
   } 
-
-/// Request calibration node assignment
-  function calibrationSet(device, collection, val)
-  var response, calnode = new PHAC01_CalNode(), args = [],
-    calibration;
-  {
-    phac01CollectionIndexCheck(collection);
-    calnode.f_1 = 0;
-    calnode.f_2 = val;
-    args += collection-1;
-    args += calnode;
-    response = device.rpcCall(PHAC01_Rpid$$CalibrationNodeSet, args);
-    if( response[0] )
-    {
-      response = device.rpcCall(PHAC01_Rpid$$CalibrationGet, null);
-      if( response[0] )
-      {
-        calibration = response[1];
-        m_cur.f_cal.copyFrom( calibration );
-        m_profile.nodesCalibrationReset(collection);
-        calibrationMarksUpdate(collection);
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-/// Request session calibration reset
-  function calibrationReset(device, collection)
-  var response;
-  {
-    phac01CollectionIndexCheck(collection);
-    response = device.rpcCall(PHAC01_Rpid$$CalSelectiveReset, collection-1);
-    if( response[0] )
-    {
-      response = device.rpcCall(PHAC01_Rpid$$CalibrationGet, null);
-      if( response[0] )
-      {
-        m_cur.f_cal.copyFrom( response[1] );
-        // reset all calibrated flags in profile at collection index
-        m_profile.nodesCalibrationReset( collection );
-        if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-          m_unmatchedLux = [];
-        else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-          m_unmatchedCdm = [];
-        else
-          m_unmatchedKp = [];        
-        return true;
-      }
-    }
-    
-    return false;
-  }
-  
-/// Return true if device calibration may be reset for specified collection
-  function calibrationCanReset(collection)
-  {
-    phac01CollectionIndexCheck(collection);
-    return !m_cur.f_cal.checkEmpty(collection-1) || m_profile.hasCalibration(collection);
-  }
-  
-/// Restore calibration backed up in session
-  function calibrationRestore(device)
-  var response, collection;
-  {
-    response = device.rpcCall(PHAC01_Rpid$$CalibrationSet, m_bak.f_cal);
-    if( response[0] )
-    {
-      m_cur.f_cal.copyFrom( m_bak.f_cal );
-      foreach(collection in PHAC01_CalibrationTypeIndex)
-      {
-        m_profile.nodesCalibrationReset(collection);
-        calibrationMarksUpdate(collection);
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }
-
-/// Return calibrated value for node
-  function calibratedGet(collection, nodeIdx)
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      return m_profile.m_lux[nodeIdx]$calibrated;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      return m_profile.m_cdm[nodeIdx]$calibrated;
-    else
-      return m_profile.m_kp[nodeIdx]$calibrated;
-  }
-  
-/// Request verification set|reset
-  function verificationSet(collection, nodeIdx, val)
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      m_profile.m_lux[nodeIdx]$verified = val;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      m_profile.m_cdm[nodeIdx]$verified = val;
-    else
-      m_profile.m_kp[nodeIdx]$verified = val;
-  }
-  
-/// Return verified value  for node
-  function verificationGet(collection, nodeIdx)
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      return m_profile.m_lux[nodeIdx]$verified;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      return m_profile.m_cdm[nodeIdx]$verified;
-    else
-      return m_profile.m_kp[nodeIdx]$verified;
-  }
-
-/// Look-up  reference node by value
-/// Return -1 if not found, or ulong of found node
-  function refNodeLookup(collection, liveVal)
-  var node, nodes, result, idx = 0;
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      nodes = m_profile.m_lux;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      nodes = m_profile.m_cdm;
-    else
-      nodes = m_profile.m_kp;
-    
-    foreach(node in nodes)
-    {
-      if( node$refMin <= liveVal && liveVal <= node$refMax )
-        return idx;
-      ++idx;
-    }
-    
-    return -1;
-  }
-  
-/// Return unmatched calibration nodes in collection
-  function unmatchedGet(collection)
-  {
-    phac01CollectionIndexCheck(collection);
-    if( PHAC01_CalibrationTypeIndex$$Illuminosity == collection )
-      return m_unmatchedLux;
-    else if( PHAC01_CalibrationTypeIndex$$Luminosity == collection )
-      return m_unmatchedCdm;
-    else
-      return m_unmatchedKp;
-  }
   
 /// Properties
 ///  
@@ -689,7 +497,7 @@ object PHAC01_CalibrationSession
   read: { return m_bak.f_fwId$fwIdString; }
   
   property profile;
-  read: { return m_profile; }
+  read: { return m_profileClear; }
   
   property sessionInfoStr;
   read: { return EsStr::format("Session: %s, Created: %s, Complete: %s", 
@@ -701,34 +509,34 @@ object PHAC01_CalibrationSession
 /// Create default profile, with sample points
 ///
 function profileDefaultCreate()
-var profile = new PHAC01_CalibrationProfile("DefaultProfile"),
-  collection;
+var profile = new PHAC01_ClearCalibrationProfile("DefaultProfile"),
+  type;
 {
-  foreach(collection in PHAC01_CalibrationTypeIndex)
-    profile.nodeAdd(collection, 10, 0.1);
+  foreach(type in PHAC01_CalibrationType)
+    profile.nodeAdd(type, 0, 0.1);
   
   return profile;
 }
 
 /// Profile files manipulation
 ///
-function profileLoad(path)
+function profileClearLoad(path)
 var stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, path);
 var profile;
 {
   if( stream.firstRootObjectLocate() )
   {
-    profile = new PHAC01_CalibrationProfile();
+    profile = new PHAC01_ClearCalibrationProfile();
     stream.objectRead(profile);
   }
 
   return profile;
 }
 
-function profileSave(profile, path)
+function profileClearSave(profile, path)
 var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, "");
 {
-  if( !profile#isKindOf("PHAC01_CalibrationProfile") )
+  if( !profile#isKindOf("PHAC01_ClearCalibrationProfile") )
     throw "Could not write incompatible object as profile";
 
   if( !profile$isOk )

@@ -21,6 +21,14 @@ object EsSpline
     f_d = d$value;
   }
   
+  /// Calculate spline value for specified x
+  function valGet(x)
+  var delta;
+  {
+    delta = (x - f_x);
+    return node.f_a + (node.f_b + (node.f_c / 2. + node.f_d * delta / 6.) * delta) * delta;  
+  }
+  
   /// Data access
   property x;
   read: { return f_x$value; }
@@ -191,13 +199,10 @@ object EsMathSpline
   /// Calculate spline value for specified argument
   /// If spline is empty - null is returned
   function valGet(x)
-  var node = nodeFind(x), delta;
+  var node = nodeFind(x);
   {
     if( !node#isEmpty() )
-    {
-      delta = (x - node.f_x);
-      return node.f_a + (node.f_b + (node.f_c / 2. + node.f_d * delta / 6.) * delta) * delta;  
-    }
+      node.valGet(x);
   }
   
   /// Properties

@@ -359,6 +359,24 @@ object EsFirmwareId
                     EsFirmwareIdFmtFlag$$UID);  
   }
   
+  /// Return firmware ID string in universal parseable form
+  function asIdString()
+  var result;
+  {
+    result = "T:" + f_devType;
+    result += ",Y:" + f_serial.f_year;
+    result += ",O:" + f_serial.f_order;
+    result += ",V:" + f_fwVer.asString();
+    
+    if( hasField("f_uid") )
+      result += ",U:" + fieldGet("f_uid").asString();
+		    
+		if( hasField("f_funcMask") )
+			result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
+    
+    return result;
+  }
+  
   new()
   {
     f_devType = EsDeviceType$$ECOL1;
