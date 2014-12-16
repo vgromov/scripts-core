@@ -1,0 +1,18 @@
+/// PHAC01 calibration constants
+
+/// Nodes type index
+enum PHAC01_CalibrationType {
+  Illuminance     = 1, "Illuminance";
+  Luminance       = 2, "Luminanace";
+  Pulsation       = 3, "Pulsation";
+  ColorSpace      = 4, "Color space";
+  ColorTemp       = 5, "CCT";
+}
+
+/// Session verification modes
+enum PHAC01_SessionMode
+{
+  Verification  = 1, "Verification";
+  Calibration   = 2, "Calibration";
+  Complete      = 3, "Complete";
+}

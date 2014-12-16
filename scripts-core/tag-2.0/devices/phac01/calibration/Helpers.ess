@@ -1,0 +1,92 @@
+/// PHAC01 Calibration helpers
+///
+
+function phac01CalibrationTypeCheck(type)
+{
+  if( !(type in PHAC01_CalibrationType) )
+    throw "Calibration type is out of bounds";
+}
+
+function phac01ClearCalibrationTypeCheck(type)
+{
+  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
+    throw "Clear calibration type is out of bounds";
+}
+
+function phac01UnitsGet(type)
+{
+  phac01CalibrationTypeCheck(type);
+  if( PHAC01_CalibrationType$$Illuminance == type )
+    return "lx";
+  else if( PHAC01_CalibrationType$$Luminance == type )
+    return "cd/m2";
+  else if( PHAC01_CalibrationType$$Pulsation == type )
+    return "%";
+  else if( PHAC01_CalibrationType$$ColorTemp == type )
+    return "K";
+}  
+
+function phac01create(fwId)
+{
+  if( EsDeviceType$$PHAC1 == fwId$devType )
+    return new PHAC01(fwId);  
+}
+
+function phac01opmodeCheck(device)
+var result;
+{
+  result = device.rpcCall(PHAC01_Rpid$$WorkmodeGet, null);
+  if( result[0] )
+  {
+    if( !(result[1] in [PHAC01_OpMode$$Illuminance .. PHAC01_OpMode$$Luminance]) )
+      result = device.rpcCall(PHAC01_Rpid$$WorkmodeSet, PHAC01_OpMode$$Illuminance);
+    
+    return result[0];
+  }
+  
+  return false;  
+}
+
+function phac01stateBatchPrepare()
+var batch = [], item = [];
+{
+  // request entire state info
+  item += EsRpcStdId$$HEALTH_INFO_GET;
+  item += null;
+  batch#append(item); item = [];
+
+  item += EsRpcStdId$$DATETIME_GET;
+  item += null;
+  batch#append(item); item = [];
+
+  item += EsRpcStdId$$POWER_STATUS_GET;
+  item += null;
+  batch#append(item);
+  
+  return batch;
+}
+
+function phac01stateRequest(device)
+var result;
+{
+  return device.rpcBatchCall( phac01stateBatchPrepare() );
+}
+
+function phac01liveRequest(device, verification)
+var batch = phac01stateBatchPrepare(), item = [], result;
+{
+  if( !verification )
+  {
+    item += PHAC01_Rpid$$RawDataGet;
+    item += null;
+    batch#append(item);
+  }
+  else  
+  {
+    item += PHAC01_Rpid$$LiveDataGet;
+    item += null;
+    batch#append(item);
+  }
+  
+  return device.rpcBatchCall(batch);
+}

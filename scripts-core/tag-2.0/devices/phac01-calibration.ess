@@ -1,414 +1,10 @@
 // phac01-calibration script
-##require("devices/EsDeviceBase.ess");
+##require("EsDeviceBase.ess");
 ##require("phac01.ess");
-
-/// Nodes type index
-enum PHAC01_CalibrationType {
-  Illuminance     = 1, "Illuminance";
-  Luminanace      = 2, "Luminanace";
-  Pulsation       = 3, "Pulsation";
-  ColorSpace      = 4, "Color space";
-  ColorTemp       = 5, "CCT";
-}
-
-function phac01CalibrationTypeCheck(type)
-{
-  if( !(type in PHAC01_CalibrationType) )
-    throw "Calibration type is out of bounds";
-}
-
-function phac01ClearCalibrationTypeCheck(type)
-{
-  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
-    throw "Clear calibration type is out of bounds";
-}
-
-function phac01UnitsGet(type)
-{
-  phac01CalibrationTypeCheck(type);
-  if( PHAC01_CalibrationType$$Illuminance == type )
-    return "lx";
-  else if( PHAC01_CalibrationType$$Luminanace == type )
-    return "cd/m2";
-  else if( PHAC01_CalibrationType$$Pulsation == type )
-    return "%";
-  else if( PHAC01_CalibrationType$$ColorTemp == type )
-    return "K";
-}  
-
-function phac01create(fwId)
-{
-  if( EsDeviceType$$PHAC1 == fwId$devType )
-    return new PHAC01(fwId);  
-}
-
-function phac01opmodeCheck(device)
-var result;
-{
-  result = device.rpcCall(PHAC01_Rpid$$WorkmodeGet, null);
-  if( result[0] )
-  {
-    if( !(result[1] in [PHAC01_OpMode$$Illuminance .. PHAC01_OpMode$$Luminance]) )
-      result = device.rpcCall(PHAC01_Rpid$$WorkmodeSet, PHAC01_OpMode$$Illuminance);
-    
-    return result[0];
-  }
-  
-  return false;  
-}
-
-function phac01stateBatchPrepare()
-var batch = [], item = [];
-{
-  // request entire state info
-  item += EsRpcStdId$$HEALTH_INFO_GET;
-  item += null;
-  batch#append(item); item = [];
-
-  item += EsRpcStdId$$DATETIME_GET;
-  item += null;
-  batch#append(item); item = [];
-
-  item += EsRpcStdId$$POWER_STATUS_GET;
-  item += null;
-  batch#append(item);
-  
-  return batch;
-}
-
-function phac01stateRequest(device)
-var result;
-{
-  return device.rpcBatchCall( phac01stateBatchPrepare() );
-}
-
-function phac01liveRequest(device, verification)
-var batch = phac01stateBatchPrepare(), item = [], result;
-{
-  if( !verification )
-  {
-	  item += PHAC01_Rpid$$RawDataGet;
-	  item += null;
-	  batch#append(item);
-	}
-	else  
-  {
-    item += PHAC01_Rpid$$LiveDataGet;
-    item += null;
-    batch#append(item);
-  }
-  
-  return device.rpcBatchCall(batch);
-}
-
-/// Reference profile node
-object PHAC01_ClearProfileNode
-{
-  var m_ref,              // Reference value
-      m_deviation,        // Allowed deviation form reference value
-      m_splineOsram,      // If calibraion was using this node - osram sensor spline
-      m_splineMax4400x,   // If calibraion was using this node - osram sensor spline
-      m_verified;         // Calibrated value written during verification stage
-    
-  function compare(other)
-  {
-    if( !other#isEmpty() )
-    {
-      if( !other#isKindOf("PHAC01_ClearProfileNode") )
-        throw "Incompatible comparison argument type, must be 'PHAC01_ClearProfileNode'";
-      
-      if(m_ref == other.m_ref)
-        return 0;
-      else if(m_ref < other.m_ref)
-        return -1;
-    }
-    
-    return 1;
-  }
-    
-  function refValidate(ref)
-  {
-    if( ref <= 0 )
-      throw "Reference must be non-zero positive value";
-  }
-  
-  function deviationValidate(deviation)
-  {
-    EsNumericCheck::checkRangeFloat(0, 1, deviation, "Reference deviation");
-  }
-    
-  new(ref, deviation)
-  {
-    refValidate(ref);
-    m_ref = ref#asDouble();
-    deviationValidate(deviation);
-    m_deviation = deviation#asDouble();
-  }
-
-  /// Custom stream writer
-  function streamWrite(stream)
-  {
-    stream.propertiesWrite( this );
-  }
-  
-  /// Custom stream reader
-  function streamRead(stream)
-  {
-    stream.propertiesRead( this );
-  }    
- 
-  /// Reference node value
-  property ref;
-  @persistent;
-  read: { return m_ref; }
-  write: { refValidate(__value); m_ref = __value#asDouble(); }
-  /// reference formatted string
-  property refStr;
-  read: { return PHAC01_ValueFmt( m_ref ); }    
-  
-  /// reference node deviation ratio, 0..1 (0..100%)
-  property deviation;
-  @persistent;
-  read: { return m_deviation; }
-  write: { deviationValidate(__value); m_deviation = __value#asDouble(); }
-  /// Reference node deviation ratio, 0..1 (0..100%)
-  property deviationStr;
-  read: { return EsStr::format("%0.1f %%", m_deviation*100.); }
-  
-  /// Reference node calculated minimum
-  property refMin;
-  read: { return m_ref*(1.-m_deviation); }
-  /// Reference node calculated minimum string
-  property refMinStr;
-  read: { return PHAC01_ValueFmt( $refMin ); }
-  
-  /// Reference node calculated maximum
-  property refMax;
-  read: { return m_ref*(1.+m_deviation); }
-  /// Reference node calculated maximum string
-  property refMaxStr;
-  read: { return PHAC01_ValueFmt( $refMax ); }
-  
-  /// Calibraion spline node for OSRAM
-  property splineOsram;
-  @persistent;
-  read: { return m_splineOsram; }
-  write: { 
-    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
-      throw "Incompatible object type, expected 'EsSpline'";
-    
-    m_splineOsram = __value; 
-  }
-  
-  /// Calibraion spline node for MAX4400x
-  property splineMax4400x;
-  @persistent;
-  read: { return m_splineMax4400x; }
-  write: { 
-    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
-      throw "Incompatible object type, expected 'EsSpline'";
-    
-    m_splineMax4400x = __value; 
-  }
-  
-  /// Live verified node
-  property verified;
-  @persistent;
-  read: { return m_verified; }
-  write: { m_verified = __value;}
-  
-  /// Live verified node string
-  property verifiedStr;
-  read: { 
-    if(m_liveVerified#isEmpty()) 
-      return "";
-    else 
-      PHAC01_ValueFmt(m_verified); 
-  }
-}
-
-/// Reference profile.
-object PHAC01_ClearCalibrationProfile
-{
-  var m_name, // Calibration profile name
-    m_lux,    // Illuminance calibration nodes
-    m_cdm,    // Luminance calibration nodes
-    m_kp;     // Pulsation calibration nodes
-  
-  function nodesClearAll()
-  {
-    m_lux = [];
-    m_cdm = [];
-    m_kp = [];
-  }
-  
-  new(name)
-  {
-    m_name = name#asString();
-    nodesClearAll();
-  }
-  
-  function nodesCountGet(type)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      return m_lux#countGet();
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      return m_cdm#countGet();
-    else
-      return m_kp#countGet();
-  }
-  
-  function nodesGet(type)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      return m_lux;
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      return m_cdm;
-    else
-      return m_kp;
-  }
-  
-  function nodesCalibrationReset(type)
-  var node, nodes;
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      nodes = m_lux;
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      nodes = m_cdm;
-    else
-      nodes = m_kp;
-    
-    foreach(node in nodes)
-    {
-      node.m_splineOsram = null;
-      node.m_splineMax4400x = null;
-      node.m_verified = null;
-    }
-  }
-  
-  function hasCalibration(type)
-  var node, nodes;
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      nodes = m_lux;
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      nodes = m_cdm;
-    else
-      nodes = m_kp;
-
-    foreach(node in nodes)
-      if( !node.m_splineOsram#isEmpty() && !node.m_splineMax4400x#isEmpty() )
-        return true;
-      
-    return false;
-  }
-  
-  function nodeGet(type, idx)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      return m_lux[idx];
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      return m_cdm[idx];
-    else
-      return m_kp[idx];
-  }
-  
-  function nodeAdd(type, ref, deviation)
-  var newNode = new PHAC01_ClearProfileNode(ref, deviation);
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-    {
-      m_lux#appendUnique(newNode);
-      m_lux#sortAscending();
-    }
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-    {
-      m_cdm#appendUnique(newNode);
-      m_cdm#sortAscending();
-    }
-    else
-    {
-      m_kp#appendUnique(newNode);
-      m_kp#sortAscending();
-    }
-    
-    return newNode;
-  }
-  
-  function nodeDelete(type, idx)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      m_lux#itemDelete(idx);
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      m_cdm#itemDelete(idx);
-    else
-      m_kp#itemDelete(idx);
-  }
-  
-  function nodeSet(type, idx, ref, deviation)
-  {
-    nodeDelete(type, idx);
-    nodeAdd(type, ref, deviation);
-  }
-  
-  function nodesClear(type)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      m_lux = [];
-    else if( PHAC01_CalibrationType$$Luminanace == type )
-      m_cdm = [];
-    else
-      m_kp = [];
-  }
-  
-/// Custom stream writer
-  function streamWrite(stream)
-  {    
-    stream.valueWrite("name", m_name);
-    stream.valueWrite("lux", m_lux);
-    stream.valueWrite("cdm", m_cdm);
-    stream.valueWrite("kp", m_kp);
-  }
-  
-/// Custom stream reader
-  function streamRead(stream)
-  {
-    m_name = stream.valueRead("name", "Profile");
-    m_lux = stream.valueRead("lux", []);
-    m_cdm = stream.valueRead("cdm", []);
-    m_kp = stream.valueRead("kp", []);
-  }
-
-/// Properties
-///
-  property name;
-  read: { return m_name; }
-  write: { m_name = __value#asString(); }
-  
-  property isOk;
-  read: 
-  { 
-    return  0 < m_lux#countGet() && 
-            0 < m_cdm#countGet() && 
-            0 < m_kp#countGet(); 
-  }
-}
-
-/// Session verification modes
-enum PHAC01_SessionMode
-{
-  Verification  = 1, "Verification";
-  Calibration   = 2, "Calibration";
-  Complete      = 3, "Complete";
-}
+##require("phac01/calibration/Consts.ess");
+##require("phac01/calibration/Helpers.ess");
+##require("phac01/calibration/ProfileClear.ess");
+##require("phac01/calibration/ProfileColor.ess");
 
 /// Calibration|verification session object
 object PHAC01_CalibrationSession
@@ -425,10 +21,47 @@ object PHAC01_CalibrationSession
   // Current settings state  
     m_cur,
   // Clear calibration profile used in session
-    m_profileClearClear,
+    m_profileClear,
   // Color calibration profile used in session
-    m_profileClearColor;
+    m_profileColor,
+  // Temporary value accumulators for reading methods  
+    m_acc,
+  // Temporary accumulated values counter  
+    m_cnt; 
   
+  // Reset temporary value accumulator
+  function accumReset()
+  {
+    m_acc = [0,0,0,0];
+    m_cnt = 0;
+  }
+  
+  // Retrieve temporary accumulator value
+  function accumGet()
+  var idx, result = m_acc;
+  {
+    for(idx = 0; idx < m_cnt; ++idx)
+      result[idx]#asDouble() = result[idx]#asDouble()/m_cnt#asDouble();
+          
+    return result;
+  }
+  
+  // Append value to temporary accumulator
+  function accumAppend(val)
+  var idx;
+  {
+    if( val#isIndexed() )
+    {
+	    for(idx = 0; idx < val#countGet(); ++idx)
+	      m_acc[idx] += val#asDouble();
+	  }
+	  else
+	    m_acc[0] += val#asDouble();
+	        
+    ++m_cnt;
+  }  
+  
+  // Parametrized constructor
   new(mode, settingsBak, profileClear)
   var type;
   {
@@ -436,7 +69,8 @@ object PHAC01_CalibrationSession
     m_mode = mode;
     m_bak = settingsBak;
     m_cur = settingsBak.clone();
-    m_profileClearClear = profile.clone();
+    m_profileClear = profileClear.clone();
+    accumReset();    
   }
   
 /// Custom stream writer
@@ -447,8 +81,8 @@ object PHAC01_CalibrationSession
     stream.valueWrite("completed", m_complete);
     stream.valueWrite("bak", m_bak);
     stream.valueWrite("cur", m_cur);
-    stream.valueWrite("profileClear", m_profileClearClear);
-    stream.valueWrite("profileColor", m_profileClearColor);
+    stream.valueWrite("profileClear", m_profileClear);
+    stream.valueWrite("profileColor", m_profileColor);
   }
   
 /// Custom stream reader
@@ -459,19 +93,22 @@ object PHAC01_CalibrationSession
     m_complete = stream.valueRead("completed", null);
     m_bak = stream.valueRead("bak", null);
     m_cur = stream.valueRead("cur", null);
-    m_profileClearClear = stream.valueRead("profileClear", null);
-    m_profileClearColor = stream.valueRead("profileColor", null);
+    m_profileClear = stream.valueRead("profileClear", null);
+    m_profileColor = stream.valueRead("profileColor", null);
   } 
   
 /// Properties
 ///  
+	/// Sessions creation time
   property created;
   read: { return m_created; }
   
+  /// Is Session comlpete
   property isComplete;
   read: { return !m_complete#isEmpty() &&
           PHAC01_SessionMode$$Complete == m_mode; }
   
+  /// Session working mode
   property mode;
   read: { return m_mode; }
   write: { 
@@ -479,9 +116,11 @@ object PHAC01_CalibrationSession
       throw "Invalid working mode value";
     m_mode = __value; }
   
+  /// Session completion timestamp
   property completed;
   read: { return m_complete; }
 
+  /// Completion string representation
   property completedStr;
   read: { 
     if( m_complete#isEmpty() )
@@ -496,55 +135,20 @@ object PHAC01_CalibrationSession
   property fwIdStr;
   read: { return m_bak.f_fwId$fwIdString; }
   
-  property profile;
+  property profileClear;
   read: { return m_profileClear; }
+  
+  property profileColor;
+  read: { return m_profileColor; }
+  
+  property accum;
+  read: { return accumGet(); }  
   
   property sessionInfoStr;
   read: { return EsStr::format("Session: %s, Created: %s, Complete: %s", 
     $fwIdStr, 
     m_created.asString(), 
     $completedStr ); }
-}
-
-/// Create default profile, with sample points
-///
-function profileDefaultCreate()
-var profile = new PHAC01_ClearCalibrationProfile("DefaultProfile"),
-  type;
-{
-  foreach(type in PHAC01_CalibrationType)
-    profile.nodeAdd(type, 0, 0.1);
-  
-  return profile;
-}
-
-/// Profile files manipulation
-///
-function profileClearLoad(path)
-var stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, path);
-var profile;
-{
-  if( stream.firstRootObjectLocate() )
-  {
-    profile = new PHAC01_ClearCalibrationProfile();
-    stream.objectRead(profile);
-  }
-
-  return profile;
-}
-
-function profileClearSave(profile, path)
-var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, "");
-{
-  if( !profile#isKindOf("PHAC01_ClearCalibrationProfile") )
-    throw "Could not write incompatible object as profile";
-
-  if( !profile$isOk )
-    throw EsStr::format("Could not write incomplete profile '%s'. Valid profile should contain at least one node for each data type",
-      profile$name);
-    
-  stream.objectWrite(profile);  
-  stream.save(path);
 }
 
 /// Calibration sessions file manipulation

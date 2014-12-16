@@ -1,0 +1,449 @@
+/// Clear calibration profile object
+///
+
+/// Reference profile node
+object PHAC01_ClearProfileNode
+{
+  var m_ref,              // Reference value
+      m_deviation,        // Allowed deviation form reference value
+      m_rawOsram,         // Raw uncalibrated value of OSRAM sensor used to calculated spline node
+      m_splineOsram,      // If calibraion was using this node - osram sensor spline
+      m_rawMax4400x,      // Raw uncalibrated value of MAX4400x sensor used to calculated spline node
+      m_splineMax4400x,   // If calibraion was using this node - osram sensor spline
+      m_verified;         // Calibrated value written during verification stage
+    
+  function compare(other)
+  {
+    if( !other#isEmpty() )
+    {
+      if( !other#isKindOf("PHAC01_ClearProfileNode") )
+        throw "Incompatible comparison argument type, must be 'PHAC01_ClearProfileNode'";
+      
+      if(m_ref == other.m_ref)
+        return 0;
+      else if(m_ref < other.m_ref)
+        return -1;
+    }
+    
+    return 1;
+  }
+    
+  function refValidate(ref)
+  {
+    if( ref < 0 )
+      throw "Reference must be non-negative value";
+  }
+  
+  function deviationValidate(deviation)
+  {
+    EsNumericCheck::checkRangeFloat(0, 1, deviation, "Reference deviation");
+  }
+    
+  new(ref, deviation)
+  {
+    refValidate(ref);
+    m_ref = ref#asDouble();
+    deviationValidate(deviation);
+    m_deviation = deviation#asDouble();
+  }
+
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.propertiesWrite( this );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    stream.propertiesRead( this );
+  }    
+ 
+  /// Reference node value
+  property ref;
+  @persistent;
+  read: { return m_ref; }
+  write: { refValidate(__value); m_ref = __value#asDouble(); }
+  /// reference formatted string
+  property refStr;
+  read: { return PHAC01_ValueFmt( m_ref ); }    
+  
+  /// reference node deviation ratio, 0..1 (0..100%)
+  property deviation;
+  @persistent;
+  read: { return m_deviation; }
+  write: { deviationValidate(__value); m_deviation = __value#asDouble(); }
+  /// Reference node deviation ratio, 0..1 (0..100%)
+  property deviationStr;
+  read: { return EsStr::format("%0.1f %%", m_deviation*100.); }
+  
+  /// Reference node calculated minimum
+  property refMin;
+  read: { return m_ref*(1.-m_deviation); }
+  /// Reference node calculated minimum string
+  property refMinStr;
+  read: { return PHAC01_ValueFmt( $refMin ); }
+  
+  /// Reference node calculated maximum
+  property refMax;
+  read: { return m_ref*(1.+m_deviation); }
+  /// Reference node calculated maximum string
+  property refMaxStr;
+  read: { return PHAC01_ValueFmt( $refMax ); }
+
+  /// Raw uncalibrated OSRAM value
+  property rawOsram;
+  @persistent;
+  read: { return m_rawOsram; }
+  write: 
+  { 
+    m_rawOsram = __value;
+    if( m_rawOsram#isEmpty() )
+      m_splineOsram = null;
+  }
+  
+  /// Raw uncalibrated value string
+  property rawOsramStr;
+  read: { 
+    if(m_rawOsram#isEmpty()) 
+      return "";
+    else 
+      PHAC01_ValueFmt(m_rawOsram); 
+  }
+
+  /// Raw uncalibrated MAX4400x value
+  property rawMax4400x;
+  @persistent;
+  read: { return m_rawMax4400x; }
+  write: 
+  { 
+    m_rawMax4400x = __value;
+    if( m_rawMax4400x#isEmpty() )
+      m_splineMax4400x = null;
+  }
+  
+  /// Raw uncalibrated value string
+  property rawMax4400xStr;
+  read: { 
+    if(m_rawMax4400x#isEmpty()) 
+      return "";
+    else 
+      PHAC01_ValueFmt(m_rawMax4400x); 
+  }
+ 
+  /// Calibrated verified value
+  property verified;
+  @persistent;
+  read: { return m_verified; }
+  write: { m_verified = __value;}
+  
+  /// Live verified node string
+  property verifiedStr;
+  read: { 
+    if(m_verified#isEmpty()) 
+      return "";
+    else 
+      PHAC01_ValueFmt(m_verified); 
+  }
+ 
+  /// Calibraion spline node for OSRAM
+  property splineOsram;
+  @persistent;
+  read: { return m_splineOsram; }
+  write: { 
+    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
+      throw "Incompatible object type, expected 'EsSpline'";
+    
+    m_splineOsram = __value; 
+  }
+  
+  /// Calibraion spline node for MAX4400x
+  property splineMax4400x;
+  @persistent;
+  read: { return m_splineMax4400x; }
+  write: { 
+    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
+      throw "Incompatible object type, expected 'EsSpline'";
+    
+    m_splineMax4400x = __value; 
+  }
+  
+  /// Node was used in calibration - it has raw value set
+  property hasRawValues;
+  read: { return !m_rawOsram#isEmpty() || !m_rawMax4400x#isEmpty(); }
+
+  /// Node has calculated calibration splines assigned
+  property isCalculated;
+  read: { return !m_splineOsram#isEmpty() || !m_splineMax4400x#isEmpty(); }
+}
+
+/// Reference profile.
+object PHAC01_ClearCalibrationProfile
+{
+  var m_name, // Calibration profile name
+    m_lux,    // Illuminance calibration nodes
+    m_cdm,    // Luminance calibration nodes
+    m_kp;     // Pulsation calibration nodes
+  
+  function nodesClearAll()
+  {
+    m_lux = [];
+    m_cdm = [];
+    m_kp = [];
+  }
+  
+  new(name)
+  {
+    m_name = name#asString();
+    nodesClearAll();
+  }
+  
+  function nodesCountGet(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return m_lux#countGet();
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      return m_cdm#countGet();
+    else
+      return m_kp#countGet();
+  }
+  
+  function nodesGet(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      return m_cdm;
+    else
+      return m_kp;
+  }
+  
+  function nodesRawDataReset(type)
+  var node, nodes;
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = m_cdm;
+    else
+      nodes = m_kp;
+    
+    foreach(node in nodes)
+    {
+      node$rawOsram = null;
+      node$rawMax4400x = null;
+      node.m_verified = null;
+    }
+  }
+  
+  function calculationReset(type)
+  var node, nodes;
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = m_cdm;
+    else
+      nodes = m_kp;
+    
+    foreach(node in nodes)
+    {
+      node.m_splineOsram = null;
+      node.m_splineMax4400x = null;
+      node.m_verified = null;
+    }
+  }
+  
+  function isCalculated(type)
+  var node, nodes;
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = m_cdm;
+    else
+      nodes = m_kp;
+
+    foreach(node in nodes)
+      if( node$isCalculated )
+        return true;
+      
+    return false;
+  }
+  
+  function nodeGet(type, idx)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return m_lux[idx];
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      return m_cdm[idx];
+    else
+      return m_kp[idx];
+  }
+  
+  function nodeAdd(type, ref, deviation)
+  var newNode;
+  {
+    newNode = new PHAC01_ClearProfileNode(ref, deviation);
+
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+    {
+      m_lux#appendUnique(newNode);
+      m_lux#sortAscending();
+    }
+    else if( PHAC01_CalibrationType$$Luminance == type )
+    {
+      m_cdm#appendUnique(newNode);
+      m_cdm#sortAscending();
+    }
+    else
+    {
+      m_kp#appendUnique(newNode);
+      m_kp#sortAscending();
+    }
+    
+    return newNode;
+  }
+  
+  function nodeDelete(type, idx)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      m_lux#itemDelete(idx);
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      m_cdm#itemDelete(idx);
+    else
+      m_kp#itemDelete(idx);
+  }
+  
+  function nodeSet(type, idx, ref, deviation)
+  {
+    nodeDelete(type, idx);
+    nodeAdd(type, ref, deviation);
+  }
+  
+  function nodeRawValueSet(type, idx, rawVals)
+  var node = nodeGet(type, idx), nodes = nodesWithRawDataGet(type);
+  {
+    if( nodes#countGet() < 8 )
+    {
+      node$rawOsram = rawVals[0];
+      if( PHAC01_CalibrationType$$Pulsation != type )
+        node$rawMax4400x = rawVals[1];
+    }
+    else
+      throw I"Could not use more than 8 points in calibration calculation";
+  }
+  
+  function nodesClear(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      m_lux = [];
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      m_cdm = [];
+    else
+      m_kp = [];
+  }
+  
+  function nodesWithRawDataGet(type)
+  var nodes, node, result = [];
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = [];
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = [];
+    else
+      nodes = [];
+    
+    foreach(node in nodes)
+    {
+      if( node$hasRawValues )
+        result += node;
+    }
+    
+    return result;
+  }
+  
+/// Custom stream writer
+  function streamWrite(stream)
+  {    
+    stream.valueWrite("name", m_name);
+    stream.valueWrite("lux", m_lux);
+    stream.valueWrite("cdm", m_cdm);
+    stream.valueWrite("kp", m_kp);
+  }
+  
+/// Custom stream reader
+  function streamRead(stream)
+  {
+    m_name = stream.valueRead("name", "Profile");
+    m_lux = stream.valueRead("lux", []);
+    m_cdm = stream.valueRead("cdm", []);
+    m_kp = stream.valueRead("kp", []);
+  }
+
+/// Properties
+///
+  property name;
+  read: { return m_name; }
+  write: { m_name = __value#asString(); }
+  
+  property isOk;
+  read: 
+  { 
+    return  0 < m_lux#countGet() && 
+            0 < m_cdm#countGet() && 
+            0 < m_kp#countGet(); 
+  }
+}
+
+/// Create default profile object, with sample points
+///
+function profileDefaultCreate()
+var profile = new PHAC01_ClearCalibrationProfile("DefaultProfile");
+{
+  // Create zero nodes by default 
+  profile.nodeAdd(PHAC01_CalibrationType$$Illuminance, 0, 0.1);
+  profile.nodeAdd(PHAC01_CalibrationType$$Luminance, 0, 0.1);
+  profile.nodeAdd(PHAC01_CalibrationType$$Pulsation, 0, 0.1);
+  
+  return profile;
+}
+
+/// Profile files manipulation
+///
+function profileClearLoad(path)
+var stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, path);
+var profile;
+{
+  if( stream.firstRootObjectLocate() )
+  {
+    profile = new PHAC01_ClearCalibrationProfile();
+    stream.objectRead(profile);
+  }
+
+  return profile;
+}
+
+function profileClearSave(profile, path)
+var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, "");
+{
+  if( !profile#isKindOf("PHAC01_ClearCalibrationProfile") )
+    throw "Could not write incompatible object as profile";
+
+  if( !profile$isOk )
+    throw EsStr::format("Could not write incomplete profile '%s'. Valid profile should contain at least one node for each data type",
+      profile$name);
+    
+  stream.objectWrite(profile);  
+  stream.save(path);
+}

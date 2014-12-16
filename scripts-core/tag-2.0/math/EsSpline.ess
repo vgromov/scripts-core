@@ -26,7 +26,7 @@ object EsSpline
   var delta;
   {
     delta = (x - f_x);
-    return node.f_a + (node.f_b + (node.f_c / 2. + node.f_d * delta / 6.) * delta) * delta;  
+    return f_a + (f_b + (f_c / 2. + f_d * delta / 6.) * delta) * delta;  
   }
   
   /// Data access
