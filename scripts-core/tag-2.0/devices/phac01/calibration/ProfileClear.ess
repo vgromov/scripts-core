@@ -329,6 +329,26 @@ object PHAC01_ClearCalibrationProfile
     nodeAdd(type, ref, deviation);
   }
   
+  function nodesWithRawDataGet(type)
+  var nodes, node, result = [];
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = [];
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = [];
+    else
+      nodes = [];
+    
+    foreach(node in nodes)
+    {
+      if( node$hasRawValues )
+        result += node;
+    }
+    
+    return result;
+  }
+  
   function nodeRawValueSet(type, idx, rawVals)
   var node = nodeGet(type, idx), nodes = nodesWithRawDataGet(type);
   {
@@ -352,27 +372,7 @@ object PHAC01_ClearCalibrationProfile
     else
       m_kp = [];
   }
-  
-  function nodesWithRawDataGet(type)
-  var nodes, node, result = [];
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      nodes = [];
-    else if( PHAC01_CalibrationType$$Luminance == type )
-      nodes = [];
-    else
-      nodes = [];
-    
-    foreach(node in nodes)
-    {
-      if( node$hasRawValues )
-        result += node;
-    }
-    
-    return result;
-  }
-  
+
 /// Custom stream writer
   function streamWrite(stream)
   {    

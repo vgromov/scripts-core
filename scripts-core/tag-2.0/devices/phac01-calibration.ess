@@ -52,12 +52,12 @@ object PHAC01_CalibrationSession
   {
     if( val#isIndexed() )
     {
-	    for(idx = 0; idx < val#countGet(); ++idx)
-	      m_acc[idx] += val#asDouble();
-	  }
-	  else
-	    m_acc[0] += val#asDouble();
-	        
+      for(idx = 0; idx < val#countGet(); ++idx)
+        m_acc[idx] += val#asDouble();
+    }
+    else
+      m_acc[0] += val#asDouble();
+          
     ++m_cnt;
   }  
   
@@ -99,7 +99,7 @@ object PHAC01_CalibrationSession
   
 /// Properties
 ///  
-	/// Sessions creation time
+  /// Sessions creation time
   property created;
   read: { return m_created; }
   
