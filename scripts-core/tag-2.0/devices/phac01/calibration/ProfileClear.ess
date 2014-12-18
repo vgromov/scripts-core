@@ -408,7 +408,7 @@ object PHAC01_ClearCalibrationProfile
 
 /// Create default profile object, with sample points
 ///
-function profileDefaultCreate()
+function profileClearDefaultCreate()
 var profile = new PHAC01_ClearCalibrationProfile("DefaultProfile");
 {
   // Create zero nodes by default 
