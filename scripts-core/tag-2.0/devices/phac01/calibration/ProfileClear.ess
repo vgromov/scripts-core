@@ -239,6 +239,24 @@ object PHAC01_ClearCalibrationProfile
     }
   }
   
+  function nodeRawDataReset(type, idx)
+  var node, nodes;
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      nodes = m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      nodes = m_cdm;
+    else
+      nodes = m_kp;
+    
+    node = nodes[idx];
+    
+    node$rawOsram = null;
+    node$rawMax4400x = null;
+    node.m_verified = null;
+  }  
+  
   function calculationReset(type)
   var node, nodes;
   {

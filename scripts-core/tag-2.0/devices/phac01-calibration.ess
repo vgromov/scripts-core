@@ -23,43 +23,7 @@ object PHAC01_CalibrationSession
   // Clear calibration profile used in session
     m_profileClear,
   // Color calibration profile used in session
-    m_profileColor,
-  // Temporary value accumulators for reading methods  
-    m_acc,
-  // Temporary accumulated values counter  
-    m_cnt; 
-  
-  // Reset temporary value accumulator
-  function accumReset()
-  {
-    m_acc = [0,0,0,0];
-    m_cnt = 0;
-  }
-  
-  // Retrieve temporary accumulator value
-  function accumGet()
-  var idx, result = m_acc;
-  {
-    for(idx = 0; idx < m_cnt; ++idx)
-      result[idx]#asDouble() = result[idx]#asDouble()/m_cnt#asDouble();
-          
-    return result;
-  }
-  
-  // Append value to temporary accumulator
-  function accumAppend(val)
-  var idx;
-  {
-    if( val#isIndexed() )
-    {
-      for(idx = 0; idx < val#countGet(); ++idx)
-        m_acc[idx] += val#asDouble();
-    }
-    else
-      m_acc[0] += val#asDouble();
-          
-    ++m_cnt;
-  }  
+    m_profileColor; 
   
   // Parametrized constructor
   new(mode, settingsBak, profileClear)
@@ -70,7 +34,7 @@ object PHAC01_CalibrationSession
     m_bak = settingsBak;
     m_cur = settingsBak.clone();
     m_profileClear = profileClear.clone();
-    accumReset();    
+    // TODO:m_profileColor = 
   }
   
 /// Custom stream writer
@@ -140,9 +104,6 @@ object PHAC01_CalibrationSession
   
   property profileColor;
   read: { return m_profileColor; }
-  
-  property accum;
-  read: { return accumGet(); }  
   
   property sessionInfoStr;
   read: { return EsStr::format("Session: %s, Created: %s, Complete: %s", 
