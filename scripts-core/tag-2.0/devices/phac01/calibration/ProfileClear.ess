@@ -332,14 +332,14 @@ object PHAC01_ClearCalibrationProfile
   function nodeRawValueSet(type, idx, rawVals)
   var node = nodeGet(type, idx), nodes = nodesWithRawDataGet(type);
   {
-    if( nodes#countGet() < 8 )
+    if( nodes#countGet() < 9 )
     {
       node$rawOsram = rawVals[0];
       if( PHAC01_CalibrationType$$Pulsation != type )
         node$rawMax4400x = rawVals[1];
     }
     else
-      throw I"Could not use more than 8 points in calibration calculation";
+      throw I"Could not use more than 9 points in calibration calculation";
   }
   
   function nodesClear(type)

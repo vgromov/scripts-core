@@ -161,6 +161,19 @@ object EsMathSpline
     f_nodes[idx].copyFrom(node);
     m_crcInvalid = true;
   }
+
+  /// Set new spline node data at specified index
+  function nodeSet(idx, x, a, b, c, d)
+  var node = f_nodes[idx];
+  {
+    node$x = x;
+    node$a = a;
+    node$b = b;
+    node$c = c;
+    node$d = d;
+    
+    m_crcInvalid = true;
+  }
   
   /// Find corresponding spline node by argument value
   /// If spline is empty, or node is not found, empty value is returned

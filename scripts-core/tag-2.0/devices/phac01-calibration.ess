@@ -37,7 +37,42 @@ object PHAC01_CalibrationSession
     // TODO:m_profileColor = 
   }
   
-/// Custom stream writer
+  /// Clear calibration simulation. Calculate pair of calibrated values [clear, color],
+  /// taking raw data struct as input, and using dataType to specify which calibration spline
+  /// to use, and how to interpret input values
+  ///
+  function calibrationSimulationGet(rawData, type)
+  var splineClear, splineColor, result = [null, null];
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+    {
+      splineClear = m_cur$calClear$calIlluminance;
+      splineColor = m_cur$calColor$calIlluminance;
+    }
+    else if( PHAC01_CalibrationType$$Luminance == type )
+    {
+      splineClear = m_cur$calClear$calLuminance;
+      splineColor = m_cur$calColor$calLuminance;
+    }
+    else if( PHAC01_CalibrationType$$Pulsation == type )
+      splineClear = m_cur$calClear$calPulsation;
+    
+    if( !splineClear#isEmpty() && splineClear$valid )
+    {
+      if( PHAC01_CalibrationType$$Pulsation == type )
+        result[0] = splineClear.valGet( rawData$kpi );
+      else
+        result[0] = splineClear.valGet( rawData$val );
+    }
+
+    if( !splineColor#isEmpty() && splineColor$valid )
+      result[1] = splineColor.valGet( rawData$white );
+    
+    return result;
+  }
+  
+  /// Custom stream writer
   function streamWrite(stream)
   {
     stream.valueWrite("created", m_created);
@@ -49,7 +84,7 @@ object PHAC01_CalibrationSession
     stream.valueWrite("profileColor", m_profileColor);
   }
   
-/// Custom stream reader
+  /// Custom stream reader
   function streamRead(stream)
   {
     m_created = stream.valueRead("created", EsDateTime::now());
