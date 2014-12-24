@@ -177,4 +177,26 @@ object PHAC01_Settings
     fwIdValidate(fwId, EsDeviceType$$PHAC1, "PHAC01 settings");
     f_fwId.copyFrom(fwId);
   }
+  
+  /// Propertires
+  ///
+  property fwId;
+  read: { return f_fwId.clone(); }
+  
+  property swInfo;
+  read: { return f_swInfo.clone(); }
+  
+  property autosaveInterval;
+  read: { return f_autosaveInterval$value; }
+  write: { f_autosaveInterval = __value; }
+  
+  property bgndExposure;
+  read: { return f_bgndExp$value; }
+  write: { f_bgndExp = __value; }
+  
+  property calClear;
+  read: { return f_calClear; }
+  
+  property calColor;
+  read: { return f_calColor; }
 }

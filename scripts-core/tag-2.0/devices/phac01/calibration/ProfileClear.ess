@@ -7,9 +7,7 @@ object PHAC01_ClearProfileNode
   var m_ref,              // Reference value
       m_deviation,        // Allowed deviation form reference value
       m_rawOsram,         // Raw uncalibrated value of OSRAM sensor used to calculated spline node
-      m_splineOsram,      // If calibraion was using this node - osram sensor spline
       m_rawMax4400x,      // Raw uncalibrated value of MAX4400x sensor used to calculated spline node
-      m_splineMax4400x,   // If calibraion was using this node - osram sensor spline
       m_verified;         // Calibrated value written during verification stage
     
   function compare(other)
@@ -95,12 +93,7 @@ object PHAC01_ClearProfileNode
   property rawOsram;
   @persistent;
   read: { return m_rawOsram; }
-  write: 
-  { 
-    m_rawOsram = __value;
-    if( m_rawOsram#isEmpty() )
-      m_splineOsram = null;
-  }
+  write: { m_rawOsram = __value; }
   
   /// Raw uncalibrated value string
   property rawOsramStr;
@@ -115,12 +108,7 @@ object PHAC01_ClearProfileNode
   property rawMax4400x;
   @persistent;
   read: { return m_rawMax4400x; }
-  write: 
-  { 
-    m_rawMax4400x = __value;
-    if( m_rawMax4400x#isEmpty() )
-      m_splineMax4400x = null;
-  }
+  write: { m_rawMax4400x = __value; }
   
   /// Raw uncalibrated value string
   property rawMax4400xStr;
@@ -146,35 +134,9 @@ object PHAC01_ClearProfileNode
       PHAC01_ValueFmt(m_verified); 
   }
  
-  /// Calibraion spline node for OSRAM
-  property splineOsram;
-  @persistent;
-  read: { return m_splineOsram; }
-  write: { 
-    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
-      throw "Incompatible object type, expected 'EsSpline'";
-    
-    m_splineOsram = __value; 
-  }
-  
-  /// Calibraion spline node for MAX4400x
-  property splineMax4400x;
-  @persistent;
-  read: { return m_splineMax4400x; }
-  write: { 
-    if( !__value#isEmpty() && !__value#isKindOf("EsSpline") )
-      throw "Incompatible object type, expected 'EsSpline'";
-    
-    m_splineMax4400x = __value; 
-  }
-  
   /// Node was used in calibration - it has raw value set
   property hasRawValues;
   read: { return !m_rawOsram#isEmpty() || !m_rawMax4400x#isEmpty(); }
-
-  /// Node has calculated calibration splines assigned
-  property isCalculated;
-  read: { return !m_splineOsram#isEmpty() || !m_splineMax4400x#isEmpty(); }
 }
 
 /// Reference profile.

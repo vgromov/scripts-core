@@ -106,10 +106,16 @@ object PHAC01_CalibrationSession
   read: { return m_profileColor; }
   
   property sessionInfoStr;
-  read: { return EsStr::format("Session: %s, Created: %s, Complete: %s", 
-    $fwIdStr, 
-    m_created.asString(), 
-    $completedStr ); }
+  read: { 
+    return EsStr::format("Session: %s, Created: %s, Complete: %s", 
+      $fwIdStr, 
+      m_created.asString(), 
+      $completedStr 
+    ); 
+  }
+  
+  property settingsCur;
+  read: { return m_cur; }
 }
 
 /// Calibration sessions file manipulation
