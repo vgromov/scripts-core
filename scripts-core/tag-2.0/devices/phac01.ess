@@ -171,7 +171,7 @@ object PHAC01 extends EsDeviceBase
     
     return rpcResult;
   }
-	
+  
   /// Upload settings object
   function settingsUpload(settings)
   var batch = [], batchItem = [];
@@ -215,18 +215,18 @@ object PHAC01 extends EsDeviceBase
 
     return batchItem;
   }
-	
-	/// Properties
-	///
-	/// Currently active opmode
-	property opmode;
-	read: { return m_opMode; }
-	
-	/// Opmode string
-	property opmodeStr;
-	read:
-	var helper = new PHAC01_DataFlags(m_opMode);
-	{ 
-		return m_opMode;
-	}
+  
+  /// Properties
+  ///
+  /// Currently active opmode
+  property opmode;
+  read: { return m_opMode; }
+  
+  /// Opmode string
+  property opmodeStr;
+  read:
+  var helper = new PHAC01_DataFlags(m_opMode);
+  { 
+    return m_opMode;
+  }
 }

@@ -7,12 +7,6 @@ function phac01CalibrationTypeCheck(type)
     throw "Calibration type is out of bounds";
 }
 
-function phac01ClearCalibrationTypeCheck(type)
-{
-  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
-    throw "Clear calibration type is out of bounds";
-}
-
 function phac01UnitsGet(type)
 {
   phac01CalibrationTypeCheck(type);

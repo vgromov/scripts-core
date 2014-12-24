@@ -1,5 +1,12 @@
 /// PHAC01 Calibration and settings data blocks
 ///
+##require("calibration/Consts.ess");
+
+function phac01ClearCalibrationTypeCheck(type)
+{
+  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
+    throw "Clear calibration type is out of bounds";
+}
 
 /// Clear calibration data
 object PHAC01_CalibrationClear
@@ -28,9 +35,9 @@ object PHAC01_CalibrationClear
   ///
   
   /// Return true if all blocks have valid crc
-	property crcIsOk;
-	read: { return f_csIllum$crcIsOk && f_csLum$crcIsOk && f_csKp$crcIsOk; }
-	
+  property crcIsOk;
+  read: { return f_csIllum$crcIsOk && f_csLum$crcIsOk && f_csKp$crcIsOk; }
+  
   /// Overall validity check
   property valid;
   read: { return f_csIllum$valid && f_csLum$valid && f_csKp$valid; }
@@ -101,7 +108,7 @@ object PHAC01_CalibrationColor
     f_tcm.crcUpdate();
     f_ccIllum.crcUpdate();
     f_ccLum.crcUpdate();
-		acfCrcUpdate();    
+    acfCrcUpdate();    
   }
   
   /// ACF block item get
@@ -121,23 +128,23 @@ object PHAC01_CalibrationColor
   ///
   
   /// Return true if all blocks have valid crc
-	property crcIsOk;
-	read: 
-	{ 
-		return acfCrcIsOk() && 
-			f_ccm$crcIsOk && f_tcm$crcIsOk &&
+  property crcIsOk;
+  read: 
+  { 
+    return acfCrcIsOk() && 
+      f_ccm$crcIsOk && f_tcm$crcIsOk &&
        f_ccIllum$crcIsOk && f_ccLum$crcIsOk;
   }
-	
-	/// Overall validity check
-	property valid;
-	read: { return f_ccIllum$valid && f_ccLum$valid; }
-	
-	/// Access Color space Correlation matrix  
+  
+  /// Overall validity check
+  property valid;
+  read: { return f_ccIllum$valid && f_ccLum$valid; }
+  
+  /// Access Color space Correlation matrix  
   property ccm;
   read: { return f_ccm; }
-	
-	/// Access Color temperature Correlation matrix  
+  
+  /// Access Color temperature Correlation matrix  
   property tcm;
   read: { return f_tcm; }
   
