@@ -178,6 +178,28 @@ object PHAC01_Settings
     f_fwId.copyFrom(fwId);
   }
   
+  // Return clear clibration spline by data type
+  function calClearGet(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return f_calClear$calIlluminance;
+    else if( PHAC01_CalibrationType$$Luminance == type )  
+      return f_calClear$calLuminance;
+    else if( PHAC01_CalibrationType$$Pulsation == type ) 
+      return f_calClear$calKp;
+  }
+
+  // Return clear calibration splines for color sensor
+  function calColorClearGet(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return f_calColor$calIlluminance;
+    else if( PHAC01_CalibrationType$$Luminance == type )  
+      return f_calColor$calLuminance;
+  }
+  
   /// Propertires
   ///
   property fwId;
