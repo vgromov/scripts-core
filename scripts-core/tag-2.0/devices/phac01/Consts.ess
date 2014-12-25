@@ -53,9 +53,9 @@ enum PHAC01_Defs
   AutoIntervalMax = 600;
   AutoIntervalDef = 5;
   // Background photo measurement length, in sec
-  BgndExposureMin = 5;
+  BgndExposureMin = 3;
   BgndExposureMax = 60;
-  BgndExposureDef = 15;
+  BgndExposureDef = 5;
 }
 
 // photo appliance operation modes

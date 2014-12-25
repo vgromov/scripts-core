@@ -11,16 +11,25 @@ function phac01ClearCalibrationTypeCheck(type)
 /// Clear calibration data
 object PHAC01_CalibrationClear
 {
-  EsSpline f_csIllum;    ///< Clear illumination calibration
-  EsSpline f_csLum;      ///< Clear luminance calibration
-  EsSpline f_csKp;       ///< Clear pulsation calibration  
+  EsSplineCollection f_csIllum;    ///< Clear illumination calibration
+  EsSplineCollection f_csLum;      ///< Clear luminance calibration
+  EsSplineCollection f_csKp;       ///< Clear pulsation calibration  
   
-  /// Default constructor
-  new()
+  // We should have separate initialization 
+  // method to work-around cases, when this object is used as filed
+  // in other compound object(s), and default ctors are not being called for fields
+  // 
+  function init()
   {
     f_csIllum$maxLen = 8;
     f_csLum$maxLen = 8;
     f_csKp$maxLen = 8;
+  }
+  
+  /// Default constructor
+  new()
+  {
+		init();
   }  
   
   /// Update all crc blocks if needed
@@ -62,17 +71,26 @@ object PHAC01_CalibrationColor
   
   PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
   PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
-  EsSpline f_ccIllum;     ///< Clear channel illumination calibration
-  EsSpline f_ccLum;       ///< Clear channel luminosity calibration
+  EsSplineCollection f_ccIllum;///< Clear channel illumination calibration
+  EsSplineCollection f_ccLum; ///< Clear channel luminosity calibration
   esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
   esU8 f_acfCrc;              ///< ACF vector crc8 field
   
-  /// Default constructor
-  new()
+  // We should have separate initialization 
+  // method to work-around cases, when this object is used as filed
+  // in other compound object(s), and default ctors are not being called for fields
+  // 
+  function init()
   {
     m_acfCrcInvalid = true;
     f_ccIllum$maxLen = 8;
     f_ccLum$maxLen = 8;
+  }  
+  
+  /// Default constructor
+  new()
+  {
+    init();
   }
   
   /// Calculate CRC8 of ACF block
@@ -178,11 +196,20 @@ object PHAC01_Settings
   // Color calibration data
   PHAC01_CalibrationColor f_calColor;    
   
-  /// Constructor
+  /// Constructors
+  new()
+  {
+    f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$PHAC1) );
+    f_calClear.init();
+    f_calColor.init();
+  }
+  
   new(fwId)
   {
     fwIdValidate(fwId, EsDeviceType$$PHAC1, "PHAC01 settings");
     f_fwId.copyFrom(fwId);
+    f_calClear.init();
+    f_calColor.init();
   }
   
   // Return clear clibration spline by data type

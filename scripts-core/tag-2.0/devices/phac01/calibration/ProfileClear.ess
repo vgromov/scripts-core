@@ -310,16 +310,8 @@ object PHAC01_ClearCalibrationProfile
   }
   
   function nodesWithRawDataGet(type)
-  var nodes, node, result = [];
+  var nodes = nodesGet(type), node, result = [];
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      nodes = [];
-    else if( PHAC01_CalibrationType$$Luminance == type )
-      nodes = [];
-    else
-      nodes = [];
-    
     foreach(node in nodes)
     {
       if( node$hasRawValues )

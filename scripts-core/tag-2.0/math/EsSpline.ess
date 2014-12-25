@@ -52,7 +52,7 @@ object EsSpline
 }
 
 /// Spline itself
-object EsMathSpline
+object EsSplineCollection
 {
   var m_crcInvalid,
       m_maxLen;
@@ -95,10 +95,10 @@ object EsMathSpline
     }
   }
   
-  /// Return true if spline contains at least 2 nodes
+  /// Return true if spline contains at least 1 node
   function isEmpty()
   {
-    return f_cnt > 0;    
+    return 0 == f_cnt;    
   }
   
   /// Return true if spline is valid (non empty and nodes are sorted)
@@ -147,7 +147,7 @@ object EsMathSpline
   var node, result;
   {
     node = f_nodes[idx];
-    result = new EsMathSpline();
+    result = new EsSplineCollection();
     result.copyFrom( node );
     
     return result;
@@ -215,7 +215,7 @@ object EsMathSpline
   var node = nodeFind(x);
   {
     if( !node#isEmpty() )
-      node.valGet(x);
+      return node.valGet(x);
   }
   
   /// Properties
@@ -226,8 +226,8 @@ object EsMathSpline
   read: { return m_maxLen; }
   write: 
   {
-    if( __value in [2 .. 65535] )
-      throw EsStr::format(I"Spline maximum length %d is out of [2..65536] range", __value);
+    if( !(__value in [2 .. 65535]) )
+      throw EsStr::format(I"Spline collection maximum length %d is out of [2..65536] range", __value);
       
     m_maxLen = __value;  
     if( f_cnt > m_maxLen )
