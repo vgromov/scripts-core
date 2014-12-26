@@ -64,10 +64,18 @@ object PHAC01_CalibrationSession
         result[0] = splineClear.valGet( rawData$kpi );
       else
         result[0] = splineClear.valGet( rawData$val );
+        
+      if( result[0] < 0 )
+        result[0] = 0;
     }
 
     if( !splineColor#isEmpty() && splineColor$valid )
+    {
       result[1] = splineColor.valGet( rawData$white );
+      
+      if( result[1] < 0 )
+        result[1] = 0;
+    }
     
     return result;
   }

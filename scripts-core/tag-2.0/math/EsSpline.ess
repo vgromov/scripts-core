@@ -3,7 +3,7 @@
 /// Spline structure data && methods
 ///
 /// Spline node
-object EsSpline
+object EsSplineNode
 {
   esF f_x;
   esF f_a;  ///< pow 0
@@ -26,7 +26,7 @@ object EsSpline
   var delta;
   {
     delta = (x - f_x);
-    return f_a + (f_b + (f_c / 2. + f_d * delta / 6.) * delta) * delta;  
+    return f_a + (f_b + (f_c + f_d * delta) * delta) * delta;  
   }
   
   /// Data access
@@ -52,13 +52,13 @@ object EsSpline
 }
 
 /// Spline itself
-object EsSplineCollection
+object EsSpline
 {
   var m_crcInvalid,
       m_maxLen;
   
   esU16 f_cnt;
-  EsSpline f_nodes[f_cnt];
+  EsSplineNode f_nodes[f_cnt];
   esU8 f_crc;
     
   /// Default constructor  
@@ -132,7 +132,7 @@ object EsSplineCollection
   function nodeCheck(node)
   var lnode;
   {
-    if( node#isEmpty() || !node.isKindOk("EsSpline") )
+    if( node#isEmpty() || !node.isKindOk("EsSplineNode") )
       throw I"Node object is empty or of incompatible type";
       
     foreach(lnode in f_nodes)
@@ -147,7 +147,7 @@ object EsSplineCollection
   var node, result;
   {
     node = f_nodes[idx];
-    result = new EsSplineCollection();
+    result = new EsSpline();
     result.copyFrom( node );
     
     return result;

@@ -11,9 +11,9 @@ function phac01ClearCalibrationTypeCheck(type)
 /// Clear calibration data
 object PHAC01_CalibrationClear
 {
-  EsSplineCollection f_csIllum;    ///< Clear illumination calibration
-  EsSplineCollection f_csLum;      ///< Clear luminance calibration
-  EsSplineCollection f_csKp;       ///< Clear pulsation calibration  
+  EsSpline f_csIllum;    ///< Clear illumination calibration
+  EsSpline f_csLum;      ///< Clear luminance calibration
+  EsSpline f_csKp;       ///< Clear pulsation calibration  
   
   // We should have separate initialization 
   // method to work-around cases, when this object is used as filed
@@ -60,7 +60,7 @@ object PHAC01_CalibrationClear
   read: { return f_csLum; }
   
   /// Pulsation calibration
-  property calKp;
+  property calPulsation;
   read: { return f_csKp; }
 }
 
@@ -71,8 +71,8 @@ object PHAC01_CalibrationColor
   
   PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
   PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
-  EsSplineCollection f_ccIllum;///< Clear channel illumination calibration
-  EsSplineCollection f_ccLum; ///< Clear channel luminosity calibration
+  EsSpline f_ccIllum;///< Clear channel illumination calibration
+  EsSpline f_ccLum; ///< Clear channel luminosity calibration
   esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
   esU8 f_acfCrc;              ///< ACF vector crc8 field
   
@@ -221,7 +221,7 @@ object PHAC01_Settings
     else if( PHAC01_CalibrationType$$Luminance == type )  
       return f_calClear$calLuminance;
     else if( PHAC01_CalibrationType$$Pulsation == type ) 
-      return f_calClear$calKp;
+      return f_calClear$calPulsation;
   }
 
   // Return clear calibration splines for color sensor
