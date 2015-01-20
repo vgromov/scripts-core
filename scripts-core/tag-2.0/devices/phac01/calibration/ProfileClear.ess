@@ -158,9 +158,11 @@ object PHAC01_ClearCalibrationProfile
   var m_name, // Calibration profile name
     m_lux,    // Illuminance calibration nodes
     m_cdm,    // Luminance calibration nodes
-    m_kp;     // Pulsation calibration nodes
+    m_kp,     // Pulsation calibration nodes
+    m_linkedSettings; // Optional linked settings object, to allow automatic
+                      // calibration update on node values change
 
-  // Internal helper
+  // Internal helper. Create default node collection contents
   function defaultNodesCreate(type)
   var result = [];
   {
@@ -185,6 +187,139 @@ object PHAC01_ClearCalibrationProfile
     return result;
   }
   
+  // Internal helper. Reset raw data for profile node of specified type
+  function intenralNodeRawDataReset(node, type)
+  {
+    if( PHAC01_CalibrationType$$Pulsation == type )
+    {
+      // Reset values for zero or 100% points to default
+      if( EsUtils::areEqualFloats(0., node$ref) )
+        node$rawOsram = 0;
+      else if( EsUtils::areEqualFloats(100., node$ref) )
+        node$rawOsram = 100;
+    }
+    else
+      node$rawOsram = null;
+
+    node$rawMax4400x = null;
+    node.m_verified = null;
+  } 
+   
+  /// Access nodes collection of specified type
+  function nodesGet(type)
+  {
+    phac01ClearCalibrationTypeCheck(type);
+    if( PHAC01_CalibrationType$$Illuminance == type )
+      return m_lux;
+    else if( PHAC01_CalibrationType$$Luminance == type )
+      return m_cdm;
+    else
+      return m_kp;
+  }   
+   
+  /// Get all profile nodes, which have raw data assigned
+  function nodesWithRawDataGet(type)
+  var nodes = nodesGet(type), node, result = [];
+  {
+    foreach(node in nodes)
+    {
+      if( node$hasRawValues )
+        result += node;
+    }
+    
+    return result;
+  }
+  
+  /// Calculate fitting spline nodes for specified node types, and sensor kind (osram|max4400x)
+  /// If fitting spline could not be calculated, an empty value is returned
+  ///
+  function fittingSplineCalculate(type, isOsram)
+  var node, nodes = nodesWithRawDataGet(type), zeroc = [],
+    fit, fitc = [], pfit, x = [], y = [],
+    coeffs, farvalc = [], farderc = [];
+  {
+    if( nodes#countGet() >= 2 )
+    {
+      fit = new EsMathSplineFit();
+	    
+	    foreach(node in nodes)
+	    {
+        x += isOsram ? node$rawOsram : node$rawMax4400x;
+	      y += node$ref;
+	    }
+	    
+	    zeroc += x[0];
+	    zeroc += y[0];
+	    zeroc += EsMathFitConstraintKind$$Value;
+	    fitc#append(zeroc);
+	    
+	    if( type != PHAC01_CalibrationType$$Pulsation )
+	    {
+	      pfit = new EsMathPolyFit();
+		    
+		    // Create linear fit to define additional condition for maximum values,
+		    // and first derivative in it
+		    pfit.buildConstrained(x, y, 1, zeroc);
+		    coeffs = pfit$coefficients;
+		    
+		    // Get raw value estimate for maximum known reference
+		    farvalc += (200000. - coeffs[0])/coeffs[1];
+		    farvalc += 200000.;
+		    farvalc += EsMathFitConstraintKind$$Value;
+		    
+		    farderc += farvalc[0];
+		    farderc += coeffs[1];
+		    farderc += EsMathFitConstraintKind$$FirstDerivative;
+	    
+		    fitc#append(farvalc);
+		    fitc#append(farderc);
+			}
+			    
+	    // Build fitting with constraints
+	    fit.buildConstrained(x, y, nodes#countGet() > 6 ? 8 : nodes#countGet()+2, fitc );
+	    
+	    if( fit$isOk )
+	      return fit$nodes;
+	  }
+  } 
+    
+  // Update linked splines of specific type
+  function splinesUpdate(type)
+  var nodesOsram, splineOsram, nodesMax, splineMax;
+  {
+    if( !m_linkedSettings#isEmpty() )
+    {
+      if( type != PHAC01_CalibrationType$$Pulsation )
+      {
+        nodesOsram = fittingSplineCalculate(type, true);
+        nodesMax = fittingSplineCalculate(type, false);
+        
+        if( type == PHAC01_CalibrationType$$Illuminance )
+        {
+          splineOsram = m_linkedSettings$calClear$calIlluminance;
+          splineMax = m_linkedSettings$calColor$calIlluminance;
+        }
+        else
+        {
+          splineOsram = m_linkedSettings$calClear$calLuminance;
+          splineMax = m_linkedSettings$calColor$calLuminance;
+        }
+      }
+      else
+      {
+        nodesOsram = fittingSplineCalculate(type, true);
+        splineOsram = m_linkedSettings$calClear$calPulsation;
+      }
+      
+      splineOsram.fromMathNodes(nodesOsram);
+      if( !splineMax#isEmpty() )
+        splineMax.fromMathNodes(nodesMax);
+    }
+  }
+   
+  /// Clear profile nodes of specified type. Contents of collection
+  /// of specified type is reset to defaults.
+  ///
   function nodesClear(type)
   {
     phac01ClearCalibrationTypeCheck(type);
@@ -194,21 +329,32 @@ object PHAC01_ClearCalibrationProfile
       m_cdm = defaultNodesCreate(type);
     else
       m_kp = defaultNodesCreate(type);
+      
+		splinesUpdate(type);      
   }
   
+  /// Clear all node collections to defaults
   function nodesClearAll()
   {
     m_lux = defaultNodesCreate(PHAC01_CalibrationType$$Illuminance);
     m_cdm = defaultNodesCreate(PHAC01_CalibrationType$$Luminance);
     m_kp = defaultNodesCreate(PHAC01_CalibrationType$$Pulsation);
+    
+		splinesUpdate(PHAC01_CalibrationType$$Illuminance);    
+		splinesUpdate(PHAC01_CalibrationType$$Luminance);    
+		splinesUpdate(PHAC01_CalibrationType$$Pulsation);    
   }
   
+  /// Create new profile, all node collections got created with
+  /// default contents, optional profile name is set as specified
+  ///
   new(name)
   {
     m_name = name#asString();
     nodesClearAll();
   }
   
+  /// Return count of nodes of specified type in profile
   function nodesCountGet(type)
   {
     phac01ClearCalibrationTypeCheck(type);
@@ -220,65 +366,32 @@ object PHAC01_ClearCalibrationProfile
       return m_kp#countGet();
   }
   
-  function nodesGet(type)
-  {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
-      return m_lux;
-    else if( PHAC01_CalibrationType$$Luminance == type )
-      return m_cdm;
-    else
-      return m_kp;
-  }
-  
+  /// Reset raw data for profile nodes of specified type
   function nodesRawDataReset(type)
   var idx, node, nodes = nodesGet(type);
   {
     for(idx = 0; idx < nodes#countGet(); ++idx)
-    {
-      node = nodes[idx];
+      intenralNodeRawDataReset(nodes[idx], type);
       
-      if( PHAC01_CalibrationType$$Pulsation == type )
-      {
-        // Reset values for zero and 100% points
-        if( 0 == idx )
-          node$rawOsram = 0;
-        else if( EsUtils::areEqualFloats(100., node$ref) )
-          node$rawOsram = 100;
-      }
-      else
-        node$rawOsram = null;
-
-      node$rawMax4400x = null;
-      node.m_verified = null;
-    }
+		splinesUpdate(type);      
   }
   
+  /// Reset raw data for profile node of specified type
   function nodeRawDataReset(type, idx)
-  var node, nodes = nodesGet(type);
+  var nodes = nodesGet(type);
   {
-    node = nodes[idx];
+    intenralNodeRawDataReset(nodes[idx], type);
     
-    if( PHAC01_CalibrationType$$Pulsation == type )
-    {
-      // Reset values for zero or 100% points to default
-      if( 0 == idx )
-        node$rawOsram = 0;
-      else if( EsUtils::areEqualFloats(100., node$ref) )
-        node$rawOsram = 100;
-    }
-    else
-      node$rawOsram = null;
-
-    node$rawMax4400x = null;
-    node.m_verified = null;
+		splinesUpdate(type);    
   }  
   
+  /// Get profile node of specific type at specified index
   function nodeGet(type, idx)
   {
     return nodesGet(type)[idx];
   }
   
+  /// Add node to profile
   function nodeAdd(type, ref, deviation)
   var newNode;
   {
@@ -323,6 +436,8 @@ object PHAC01_ClearCalibrationProfile
       m_cdm#itemDelete(idx);
     else
       m_kp#itemDelete(idx);
+      
+		splinesUpdate(type);      
   }
   
   function nodeSet(type, idx, ref, deviation)
@@ -334,7 +449,7 @@ object PHAC01_ClearCalibrationProfile
       
       // For system nodes, allow to change deviation only
       if( EsUtils::areEqualFloats(nodes[idx]$ref, ref) )
-        node[idx].deviationSet(deviation);
+        nodes[idx].deviationSet(deviation);
       else
         throw I"Reference value of system node may not be changed";
     }  
@@ -344,19 +459,7 @@ object PHAC01_ClearCalibrationProfile
       nodeAdd(type, ref, deviation);
     }
   }
-  
-  function nodesWithRawDataGet(type)
-  var nodes = nodesGet(type), node, result = [];
-  {
-    foreach(node in nodes)
-    {
-      if( node$hasRawValues )
-        result += node;
-    }
-    
-    return result;
-  }
-  
+ 
   function nodeRawValueSet(type, idx, rawVals)
   var node = nodeGet(type, idx), nodes = nodesWithRawDataGet(type);
   {
@@ -385,6 +488,8 @@ object PHAC01_ClearCalibrationProfile
           node$rawMax4400x = rawVals[1];
         }
       }
+      
+      splinesUpdate(type);
     }
     else
       throw I"Could not use more than 9 points in calibration calculation";
@@ -421,6 +526,10 @@ object PHAC01_ClearCalibrationProfile
             0 < m_cdm#countGet() && 
             0 < m_kp#countGet(); 
   }
+  
+  property linkedSettings;
+  read: { return m_linkedSettings; }
+  write: { m_linkedSettings = __value; }
 }
 
 /// Create default profile object, with system-only points

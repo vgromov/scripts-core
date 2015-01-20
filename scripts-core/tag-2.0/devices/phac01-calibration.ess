@@ -34,6 +34,7 @@ object PHAC01_CalibrationSession
     m_bak = settingsBak;
     m_cur = settingsBak.clone();
     m_profileClear = profileClear.clone();
+    m_profileClear$linkedSettings = m_cur;
     // TODO:m_profileColor = 
   }
   
@@ -101,6 +102,7 @@ object PHAC01_CalibrationSession
     m_bak = stream.valueRead("bak", null);
     m_cur = stream.valueRead("cur", null);
     m_profileClear = stream.valueRead("profileClear", null);
+    m_profileClear$linkedSettings = m_cur;
     m_profileColor = stream.valueRead("profileColor", null);
   } 
   

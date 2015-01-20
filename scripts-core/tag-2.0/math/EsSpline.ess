@@ -142,6 +142,15 @@ object EsSpline
     }
   }
   
+  /// Set new nodes count with length checking
+  function countSet(newCount)
+  { 
+    maxLenCheck(newCount);
+  
+    f_cnt = newCount;
+    m_crcInvalid = true;
+	}  
+  
   /// Return node at index
   function nodeGet(idx)
   var node, result;
@@ -218,6 +227,21 @@ object EsSpline
       return node.valGet(x);
   }
   
+  // Assign EsMathSpline nodes collection to EsSpline object
+	function fromMathNodes(nodes)
+	var node, idx = 0;
+	{
+    if( nodes#isEmpty() )
+      countSet(0);
+    else
+    {  
+	    countSet( nodes#countGet() );
+	    
+	    foreach(node in nodes)
+	      nodeSet(idx++, node[0], node[2], node[3], node[4], node[5]);
+	  }
+	}
+  
   /// Properties
   ///
   
@@ -257,11 +281,5 @@ object EsSpline
   /// Access nodes count
   property cnt;
   read: { return f_cnt$value; }
-  write: 
-  { 
-    maxLenCheck(__value);
-  
-    f_cnt = __value;
-    m_crcInvalid = true;
-  }
+  write: { countSet(__value); }
 }
