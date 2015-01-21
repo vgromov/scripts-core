@@ -22,7 +22,7 @@ object EsSplineNode
   }
   
   /// Calculate spline value for specified x
-  function valGet(x)
+  function calculate(x)
   var delta;
   {
     delta = (x - f_x);
@@ -72,7 +72,7 @@ object EsSpline
   new(maxLen)
   {
     m_crcInvalid = false;
-    m_maxLen = maxLen$value;
+    m_maxLen = maxLen;
   }    
     
   /// CRC8 calculator  
@@ -149,7 +149,7 @@ object EsSpline
   
     f_cnt = newCount;
     m_crcInvalid = true;
-	}  
+  }  
   
   /// Return node at index
   function nodeGet(idx)
@@ -220,27 +220,27 @@ object EsSpline
   
   /// Calculate spline value for specified argument
   /// If spline is empty - null is returned
-  function valGet(x)
+  function calculate(x)
   var node = nodeFind(x);
   {
     if( !node#isEmpty() )
-      return node.valGet(x);
+      return node.calculate(x);
   }
   
   // Assign EsMathSpline nodes collection to EsSpline object
-	function fromMathNodes(nodes)
-	var node, idx = 0;
-	{
+  function fromMathNodes(nodes)
+  var node, idx = 0;
+  {
     if( nodes#isEmpty() )
       countSet(0);
     else
     {  
-	    countSet( nodes#countGet() );
-	    
-	    foreach(node in nodes)
-	      nodeSet(idx++, node[0], node[2], node[3], node[4], node[5]);
-	  }
-	}
+      countSet( nodes#countGet() );
+      
+      foreach(node in nodes)
+        nodeSet(idx++, node[0], node[2], node[3], node[4], node[5]);
+    }
+  }
   
   /// Properties
   ///
