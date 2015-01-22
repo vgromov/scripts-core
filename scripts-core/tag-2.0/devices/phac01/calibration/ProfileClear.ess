@@ -234,9 +234,8 @@ object PHAC01_ClearCalibrationProfile
   /// If fitting spline could not be calculated, an empty value is returned
   ///
   function fittingSplineCalculate(type, isOsram)
-  var node, nodes = nodesWithRawDataGet(type), zeroc = [],
-    fit, fitc = [], pfit, x = [], y = [],
-    coeffs, farvalc = [], farderc = [];
+  var node, nodes = nodesWithRawDataGet(type), constraint = [],
+    fit, fitc = [], pfit, x = [], y = [], coeffs;
   {
     if( nodes#countGet() >= 2 )
     {
@@ -248,38 +247,51 @@ object PHAC01_ClearCalibrationProfile
 	      y += node$ref;
 	    }
 	    
-	    zeroc += x[0];
-	    zeroc += y[0];
-	    zeroc += EsMathFitConstraintKind$$Value;
-	    fitc#append(zeroc);
+	    constraint += x[0];
+	    constraint += y[0];
+	    constraint += EsMathFitConstraintKind$$Value;
+	    fitc#append(constraint);
 	    
-	    if( type != PHAC01_CalibrationType$$Pulsation )
-	    {
-	      pfit = new EsMathPolyFit();
-		    
-		    // Create linear fit to define additional condition for maximum values,
-		    // and first derivative in it
-		    pfit.buildConstrained(x, y, 1, zeroc);
-		    coeffs = pfit$coefficients;
-		    
-		    // Get raw value estimate for maximum known reference
-		    farvalc += (200000. - coeffs[0])/coeffs[1];
-		    farvalc += 200000.;
-		    farvalc += EsMathFitConstraintKind$$Value;
-		    
-		    farderc += farvalc[0];
-		    farderc += coeffs[1];
-		    farderc += EsMathFitConstraintKind$$FirstDerivative;
+      pfit = new EsMathPolyFit();
 	    
-		    fitc#append(farvalc);
-		    fitc#append(farderc);
-			}
+	    // Create linear fit to define additional conditions 
+	    // for first derivatives in nodes
+	    //
+	    pfit.buildConstrained(x, y, 1, fitc);
+	    coeffs = pfit$coefficients;
+	    
+	    // Get raw value estimate for maximum known reference
+	    constraint = [];
+	    constraint += x[0];
+	    constraint += coeffs[1];
+	    constraint += EsMathFitConstraintKind$$FirstDerivative;
+	    fitc#append(constraint);
+	    
+	    constraint = [];
+	    constraint += x[nodes#countGet()-1];
+	    constraint += coeffs[1];
+	    constraint += EsMathFitConstraintKind$$FirstDerivative;
+      fitc#append(constraint);
 			    
 	    // Build fitting with constraints
 	    fit.buildConstrained(x, y, nodes#countGet() > 6 ? 8 : nodes#countGet()+2, fitc );
 	    
 	    if( fit$isOk )
-	      return fit$nodes;
+	    {
+        nodes = fit$nodes;
+        
+        // Tune up the last spline node - add linear segment
+        node = [];
+        node += nodes[nodes#countGet()-1][1]; // The end of the last spline segment is the start of linear segment
+        node += 0;                            // Use some dummy value as the linear segment ending, it's not used anyway
+        node += y[y#countGet()-1];            // Use the last reference value, as line segment starting point
+        node += coeffs[1];                    // Use the line segment inclination
+        node += 0;                            // Do not use any coeffs for members with power > 1
+        node += 0;
+        nodes#append(node);
+				        
+	      return nodes;
+	    }
 	  }
   } 
     

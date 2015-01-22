@@ -43,9 +43,11 @@ object PHAC01_CalibrationSession
   /// to use, and how to interpret input values
   ///
   function calibrationSimulationGet(rawData, type)
-  var splineClear, splineColor, result = [null, null];
+  var splineClear, splineColor, result;
   {
+    // Clear calibration simulation
     phac01ClearCalibrationTypeCheck(type);
+    result = [null, null];
     if( PHAC01_CalibrationType$$Illuminance == type )
     {
       splineClear = m_cur$calClear$calIlluminance;
@@ -62,9 +64,9 @@ object PHAC01_CalibrationSession
     if( !splineClear#isEmpty() && splineClear$valid )
     {
       if( PHAC01_CalibrationType$$Pulsation == type )
-        result[0] = splineClear.valGet( rawData$kpi );
+        result[0] = splineClear.calculate( rawData$kpi );
       else
-        result[0] = splineClear.valGet( rawData$val );
+        result[0] = splineClear.calculate( rawData$val );
         
       if( result[0] < 0 )
         result[0] = 0;
@@ -72,13 +74,32 @@ object PHAC01_CalibrationSession
 
     if( !splineColor#isEmpty() && splineColor$valid )
     {
-      result[1] = splineColor.valGet( rawData$white );
+      result[1] = splineColor.calculate( rawData$white );
       
       if( result[1] < 0 )
         result[1] = 0;
     }
     
+    // TODO: color XYZ|CCT simulation
+    
     return result;
+  }
+  
+  /// Restore calibration from bak storage
+  function settingsRestore(device)
+  var response = device.settingsUpload(m_bak);  
+  {
+    if( deviceCheckBatchResultOk(response) )
+      m_cur.copyFrom(m_bak);
+      
+    return response;
+  }
+  
+  /// Set calibration from cur storage
+  function settingsSet(device)
+  var response = device.settingsUpload(m_cur);  
+  {
+		return deviceCheckBatchResultOk(response);    
   }
   
   /// Custom stream writer

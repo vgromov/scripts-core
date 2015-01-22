@@ -44,11 +44,6 @@ var result;
 function phac01stateBatchPrepare()
 var batch = [], item = [];
 {
-  // request entire state info
-  item += EsRpcStdId$$HEALTH_INFO_GET;
-  item += null;
-  batch#append(item); item = [];
-
   item += EsRpcStdId$$DATETIME_GET;
   item += null;
   batch#append(item); item = [];
