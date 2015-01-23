@@ -234,6 +234,13 @@ object PHAC01_Settings
       return f_calColor$calLuminance;
   }
   
+  /// Update CRC data in clear and color calibrations
+  function crcUpdate()
+  {
+    f_calClear.crcUpdate();
+    f_calColor.crcUpdate();
+  }
+  
   /// Propertires
   ///
   property fwId;
@@ -255,4 +262,7 @@ object PHAC01_Settings
   
   property calColor;
   read: { return f_calColor; }
+  
+  property crcIsOk;
+  read: { return f_calClear$crcIsOk && f_calColor$crcIsOk; }
 }

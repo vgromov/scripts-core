@@ -105,6 +105,8 @@ object PHAC01_CalibrationSession
   /// Custom stream writer
   function streamWrite(stream)
   {
+    m_bak.crcUpdate();
+    m_cur.crcUpdate();  
     stream.valueWrite("created", m_created);
     stream.valueWrite("mode", m_mode);
     stream.valueWrite("completed", m_complete);
@@ -127,8 +129,9 @@ object PHAC01_CalibrationSession
     m_profileColor = stream.valueRead("profileColor", null);
   } 
   
-/// Properties
-///  
+	/// Properties
+	///  
+	
   /// Sessions creation time
   property created;
   read: { return m_created; }
@@ -159,18 +162,23 @@ object PHAC01_CalibrationSession
       return m_complete.asString(); 
   }
   
+  /// Firmware ID
   property fwId;
   read: { return m_bak.f_fwId; }
 
+  /// Firmware ID string
   property fwIdStr;
   read: { return m_bak.f_fwId$fwIdString; }
   
+  /// Get clear calibration profile
   property profileClear;
   read: { return m_profileClear; }
   
+  /// Get color calibration profile
   property profileColor;
   read: { return m_profileColor; }
   
+  /// Get session imformation string
   property sessionInfoStr;
   read: { 
     return EsStr::format("Session: %s, Created: %s, Complete: %s", 
@@ -180,6 +188,7 @@ object PHAC01_CalibrationSession
     ); 
   }
   
+  /// Get settings currently being changed/applied
   property settingsCur;
   read: { return m_cur; }
 }

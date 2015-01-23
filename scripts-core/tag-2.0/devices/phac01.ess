@@ -179,6 +179,8 @@ object PHAC01 extends EsDeviceBase
     if( settings.f_fwId != m_fwId )
       throw "Could not upload incompatible device settings";
     
+    settings.crcUpdate();
+    
     batchItem += PHAC01_Rpid$$AutosaveTmoSet;
     batchItem += settings.f_autosaveInterval;
     batch#append(batchItem);
