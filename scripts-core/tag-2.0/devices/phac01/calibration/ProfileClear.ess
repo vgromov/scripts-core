@@ -323,10 +323,21 @@ object PHAC01_ClearCalibrationProfile
         splineOsram = m_linkedSettings$calClear$calPulsation;
       }
       
+      EsScriptDebug::log(nodesOsram);
       splineOsram.fromMathNodes(nodesOsram);
       if( !splineMax#isEmpty() )
+      {
+        EsScriptDebug::log(nodesMax);
         splineMax.fromMathNodes(nodesMax);
+      }
     }
+  }
+  
+  function splinesUpdateAll()
+  { 
+  	splinesUpdate(PHAC01_CalibrationType$$Illuminance);    
+		splinesUpdate(PHAC01_CalibrationType$$Luminance);    
+		splinesUpdate(PHAC01_CalibrationType$$Pulsation);  
   }
    
   /// Clear profile nodes of specified type. Contents of collection
@@ -352,9 +363,7 @@ object PHAC01_ClearCalibrationProfile
     m_cdm = defaultNodesCreate(PHAC01_CalibrationType$$Luminance);
     m_kp = defaultNodesCreate(PHAC01_CalibrationType$$Pulsation);
     
-		splinesUpdate(PHAC01_CalibrationType$$Illuminance);    
-		splinesUpdate(PHAC01_CalibrationType$$Luminance);    
-		splinesUpdate(PHAC01_CalibrationType$$Pulsation);    
+		splinesUpdateAll();  
   }
   
   /// Create new profile, all node collections got created with
@@ -541,7 +550,7 @@ object PHAC01_ClearCalibrationProfile
   
   property linkedSettings;
   read: { return m_linkedSettings; }
-  write: { m_linkedSettings = __value; }
+  write: { m_linkedSettings = __value; splinesUpdateAll(); }
 }
 
 /// Create default profile object, with system-only points

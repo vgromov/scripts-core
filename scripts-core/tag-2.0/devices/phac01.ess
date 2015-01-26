@@ -195,6 +195,7 @@ object PHAC01 extends EsDeviceBase
     batchItem += settings.f_calClear;
     batch#append(batchItem);
     batchItem = [];
+    //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
     
     batchItem += PHAC01_Rpid$$CalibrationColorSet;
     batchItem += settings.f_calColor;
@@ -202,6 +203,8 @@ object PHAC01 extends EsDeviceBase
     batchItem = [];
     
     batch = rpcBatchCall(batch);
+    //EsScriptDebug::log(batch);
+    
     // We're not interested in returning entire batch result.
     // just treat batch results as a whole.
     if( deviceCheckBatchResultOk(batch) )
@@ -214,8 +217,10 @@ object PHAC01 extends EsDeviceBase
       batchItem += false;
       batchItem += "Device settings upload fail";
     }
-
-    return batchItem;
+    batch = [];
+    batch#append(batchItem);
+		
+    return batch;
   }
   
   /// Properties

@@ -35,7 +35,9 @@ enum EsDeviceEvtId {
 function deviceCheckBatchResultOk(batchResult)
 var batchItem;
 {
-  if( batchResult#isEmpty() || !batchResult#countGet() )
+  if( batchResult#isEmpty() || 
+      !batchResult#isIndexed() ||
+      (batchResult#isIndexed() && !batchResult#countGet()) )
     return false;
   
   foreach( batchItem in batchResult )

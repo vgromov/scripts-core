@@ -196,8 +196,10 @@ object PHA01 extends EsDeviceBase
       batchItem += false;
       batchItem += "Device settings upload fail";
     }
-
-    return batchItem;
+    batch = [];
+    batch#append(batchItem);
+    
+    return batch;
   }
 	
 	/// Properties
