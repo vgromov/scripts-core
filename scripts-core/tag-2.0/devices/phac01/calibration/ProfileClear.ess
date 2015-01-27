@@ -323,11 +323,11 @@ object PHAC01_ClearCalibrationProfile
         splineOsram = m_linkedSettings$calClear$calPulsation;
       }
       
-      EsScriptDebug::log(nodesOsram);
+      //EsScriptDebug::log(nodesOsram);
       splineOsram.fromMathNodes(nodesOsram);
       if( !splineMax#isEmpty() )
       {
-        EsScriptDebug::log(nodesMax);
+        //EsScriptDebug::log(nodesMax);
         splineMax.fromMathNodes(nodesMax);
       }
     }

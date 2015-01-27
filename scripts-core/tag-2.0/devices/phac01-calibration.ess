@@ -99,7 +99,7 @@ object PHAC01_CalibrationSession
   function settingsSet(device)
   var response = device.settingsUpload(m_cur);  
   {
-		return deviceCheckBatchResultOk(response);    
+    return deviceCheckBatchResultOk(response);    
   }
   
   /// Custom stream writer
@@ -125,13 +125,13 @@ object PHAC01_CalibrationSession
     m_bak = stream.valueRead("bak", null);
     m_cur = stream.valueRead("cur", null);
     m_profileClear = stream.valueRead("profileClear", null);
-    m_profileClear$linkedSettings = m_cur;    
+    m_profileClear$linkedSettings = m_cur;
     m_profileColor = stream.valueRead("profileColor", null);
   } 
   
-	/// Properties
-	///  
-	
+  /// Properties
+  ///  
+  
   /// Sessions creation time
   property created;
   read: { return m_created; }
