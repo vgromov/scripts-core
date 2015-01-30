@@ -16,3 +16,16 @@ enum PHAC01_SessionMode
   Calibration   = 2, "Calibration";
   Complete      = 3, "Complete";
 }
+
+/// Default color space reference values
+const c_csRefDefaults = [
+	645,
+	525,
+	440,
+	5000  //< Center white point
+];
+
+/// Default color temperature reference values
+const c_ctRefDefaults = [
+	
+];

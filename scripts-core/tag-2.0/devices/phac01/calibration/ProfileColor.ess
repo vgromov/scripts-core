@@ -1,2 +1,242 @@
 /// Color calibration profile object
 ///
+
+/// Color profile node object.
+///
+object PHAC01_ColorProfileNode
+{
+  var m_ref,        ///< Reference value. Either basic monochrome color, nm
+                    ///  or color temperature in K
+      m_refIsColor, ///< True, if this node is using Color as reference, Color Temperature otherwise
+      m_cieQuad,    ///< CIE quad   [X', X", Y, Z]
+      m_rgbc;       ///< RGB+Clear  [r, g, b, clear]
+      
+  /// Internal service - null value check.
+  /// We may not assign null values to the node fields|collection members
+  ///
+  function nullCheck( val, name )
+  {
+    if( val#isEmpty() )
+      throw EsStr::format("Empty value may not be assigned to %s", name#asString());
+  }
+        
+  /// Internal services - (re-) initialize default quads collections
+	function quadsDefaultInit()
+	{    
+    m_cieQuad = [0, 0, 0, 0];
+    m_rgbc = [0, 0, 0, 0];
+	}
+        
+  /// Default constructor
+  new(isColor)
+  {
+    m_ref = 0;
+    
+    nullCheck(isColor, "isColor");
+    m_refIsColor = isColor#asBool();
+    
+    quadsDefaultInit();
+  }    
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.propertiesWrite( this );
+    stream.valueWrite("isColor", m_refIsColor);
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    quadsDefaultInit();
+    stream.propertiesRead( this );
+    m_refIsColor = stream.valueRead("isColor", true);
+  }  
+  
+  /// Properties
+  ///
+  
+  /// Return true if node is of color type, color temeperature otherwise
+  property isColor;
+  read: { return m_refIsColor#asBool(); }
+  
+  /// Access reference value
+  property ref;
+  @persistent;
+  read: { return m_ref#asDouble(); }
+  write:
+  {
+    nullCheck(__value, "ref");
+    m_ref = __value#asDouble(); 
+  }
+  
+  /// Get reference value string
+  property refStr;
+  read: { return EsStr::format( $isColor ? I"%d nm" : I"%d K", m_ref); }
+  
+  /// Access CIE quad X1 member
+  property X1;
+  @persistent;
+  read: { return m_cieQuad[0]; }
+  write: 
+  { 
+    nullCheck(__value, "X1");
+    m_cieQuad[0] = __value#asDouble(); 
+  }
+  
+  /// Access CIE quad X2 member
+  property X2;
+  @persistent;
+  read: { return m_cieQuad[1]; }
+  write: 
+  { 
+    nullCheck(__value, "X2");
+    m_cieQuad[1] = __value#asDouble(); 
+  }
+  
+  /// Access CIE quad Y member
+  property Y;
+  @persistent;
+  read: { return m_cieQuad[2]; }
+  write: 
+  { 
+    nullCheck(__value, "Y");
+    m_cieQuad[2] = __value#asDouble(); 
+  }
+  
+  /// Access CIE quad Z member
+  property Z;
+  @persistent;
+  read: { return m_cieQuad[3]; }
+  write: 
+  { 
+    nullCheck(__value, "Z");
+    m_cieQuad[3] = __value#asDouble(); 
+  }
+  
+  /// Access RGB+Clear Red member
+  property red;
+  @persistent;
+  read: { return m_rgbc[0]; }
+  write: 
+  {
+    nullCheck(__value, "red");
+    m_rgbc[0] = __value#asDouble(); 
+  }
+  
+  /// Access RGB+Clear Green member
+  property green;
+  @persistent;
+  read: { return m_rgbc[1]; }
+  write: 
+  {
+    nullCheck(__value, "green");
+    m_rgbc[1] = __value#asDouble(); 
+  }
+  
+  /// Access RGB+Clear Blue member
+  property blue;
+  @persistent;
+  read: { return m_rgbc[2]; }
+  write: 
+  {
+    nullCheck(__value, "blue");
+    m_rgbc[2] = __value#asDouble(); 
+  }
+  
+  /// Access RGB+Clear Clear member
+  property clear;
+  @persistent;
+  read: { return m_rgbc[3]; }
+  write: 
+  {
+    nullCheck(__value, "clear");
+    m_rgbc[3] = __value#asDouble(); 
+  }
+}
+
+/// Color calibration profile
+object PHAC01_ColorProfile
+{
+  var m_name,         // Profile name
+    m_colorSpace,     // Color space calibration nodes
+    m_colorTemp,      // Color temperature calibration nodes
+    m_linkedSettings; // Optional linked settings object, to allow automatic
+                      // calibration update on node values change  
+                      
+  /// Create and populate default color profile nodes
+  function defaultNodesCreate(type)
+  var idx, node, result = [];
+  {
+    if( type in [PHAC01_CalibrationType$$ColorSpace .. PHAC01_CalibrationType$$ColorTemp] )
+    {
+			for( idx = 0; idx < 4; ++idx )
+		  {    
+				node = new PHAC01_ColorProfileNode(PHAC01_CalibrationType$$ColorSpace == type && 3 != idx);
+				node$ref = (PHAC01_CalibrationType$$ColorSpace == type) ? 
+					c_csRefDefaults[idx] :
+					c_ctRefDefaults[idx];
+				
+        result += node;
+      }
+    }
+    
+    return result;
+  }
+  
+  /// Update all correlation matrixes in linked settings (if any),
+  /// using reference nodes from profiles
+  ///
+  function cmUpdateAll()
+  {
+    
+    
+  }
+  
+  /// Create new profile, all node collections got created with
+  /// default contents, optional profile name is set as specified
+  ///
+  new(name)
+  {
+    m_name = name#asString();
+    m_colorSpace = defaultNodesCreate(PHAC01_CalibrationType$$ColorSpace);
+    m_colorTemp = defaultNodesCreate(PHAC01_CalibrationType$$ColorTemp);
+  }
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {    
+    stream.valueWrite("name", m_name);
+    stream.valueWrite("colorSpace", m_colorSpace);
+    stream.valueWrite("colorTemperature", m_colorTemp);
+  }
+  
+	/// Custom stream reader
+  function streamRead(stream)
+  {
+    m_name = stream.valueRead("name", "Profile");
+    m_colorSpace = stream.valueRead("colorSpace", defaultNodesCreate(PHAC01_CalibrationType$$ColorSpace));
+    m_colorTemp = stream.valueRead("colorTemperature", defaultNodesCreate(PHAC01_CalibrationType$$ColorTemperature));
+   } 
+   
+	/// Properties
+	///
+  
+  /// Access profile name
+  property name;
+  read: { return m_name; }
+  write: { m_name = __value#asString(); }
+  
+  /// Get color space reference nodes
+	property colorSpace;
+	read: { return m_colorSpace; } 
+  
+  /// Get color temperature reference nodes
+	property colorTemp;
+	read: { return m_colorTemp; } 
+  
+  /// Access linked colour settings
+  property linkedSettings;
+  read: { return m_linkedSettings; }
+  write: { m_linkedSettings = __value; cmUpdateAll(); }   
+}
