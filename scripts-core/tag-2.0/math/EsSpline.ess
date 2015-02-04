@@ -125,7 +125,7 @@ object EsSpline
   function maxLenCheck(len)
   {
     if( len > m_maxLen )
-      throw EsStr::format(I"Spline length must not exceed %u", m_maxLen);
+      throw EsStr::format(I"Spline length must not exceed %u, requested %u", m_maxLen, len);
   }
   
   /// Check node object is valid, does not have the same x as an existing one
