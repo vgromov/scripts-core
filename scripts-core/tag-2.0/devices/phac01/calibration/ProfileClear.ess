@@ -239,7 +239,7 @@ object PHAC01_ClearCalibrationProfile
   {
     if( nodes#countGet() >= 2 )
     {
-      fit = new EsMathSplineFit();
+      fit = new EsMathSpline();
 	    
 	    foreach(node in nodes)
 	    {
@@ -260,21 +260,8 @@ object PHAC01_ClearCalibrationProfile
 	    pfit.buildConstrained(x, y, 1, fitc);
 	    coeffs = pfit$coefficients;
 	    
-	    // Get raw value estimate for maximum known reference
-	    constraint = [];
-	    constraint += x[0];
-	    constraint += coeffs[1];
-	    constraint += EsMathFitConstraintKind$$FirstDerivative;
-	    fitc#append(constraint);
-	    
-	    constraint = [];
-	    constraint += x[nodes#countGet()-1];
-	    constraint += coeffs[1];
-	    constraint += EsMathFitConstraintKind$$FirstDerivative;
-      fitc#append(constraint);
-			    
 	    // Build fitting with constraints
-	    fit.buildConstrained(x, y, nodes#countGet() > 6 ? 8 : nodes#countGet()+2, fitc );
+	    fit.akimaBuild(x, y);
 	    
 	    if( fit$isOk )
 	    {

@@ -43,11 +43,13 @@ object PHAC01_CalibrationSession
   /// to use, and how to interpret input values
   ///
   function calibrationSimulationGet(rawData, type)
-  var splineClear, splineColor, result;
+  var splineClear, splineColor, result = [null, null], 
+      raw, simulated;
   {
     // Clear calibration simulation
     phac01ClearCalibrationTypeCheck(type);
-    result = [null, null];
+    raw = [null, null];
+    simulated = [null, null];
     if( PHAC01_CalibrationType$$Illuminance == type )
     {
       splineClear = m_cur$calClear$calIlluminance;
@@ -64,21 +66,27 @@ object PHAC01_CalibrationSession
     if( !splineClear#isEmpty() && splineClear$valid )
     {
       if( PHAC01_CalibrationType$$Pulsation == type )
-        result[0] = splineClear.calculate( rawData$kpi );
+        raw[0] = rawData$kpi;
       else
-        result[0] = splineClear.calculate( rawData$val );
+        raw[0] = rawData$val;
+      
+      simulated[0] = splineClear.calculate( raw[0] );
         
-      if( result[0] < 0 )
-        result[0] = 0;
+      if( simulated[0] < 0 )
+        simulated[0] = 0;
     }
 
     if( !splineColor#isEmpty() && splineColor$valid )
     {
-      result[1] = splineColor.calculate( rawData$white );
+      raw[1] = rawData$white;
+      simulated[1] = splineColor.calculate( raw[1] );
       
-      if( result[1] < 0 )
-        result[1] = 0;
+      if( simulated[1] < 0 )
+        simulated[1] = 0;
     }
+    
+    result[0] = raw;
+    result[1] = simulated;
     
     // TODO: color XYZ|CCT simulation
     
