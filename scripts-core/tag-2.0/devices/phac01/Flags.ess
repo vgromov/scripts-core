@@ -155,7 +155,10 @@ object PHAC01_DataFlags
   read: { return f_flags & 0xF00; }
   /// Return data state string representation
   property dataStateStr;
-  read: { return dsAsString(); } 
+  read: { return dsAsString(); }
+  /// Separately output low light condition
+  property isLowLight;
+  read: { return PHAC01_DataState$$LowSignal == ($dataState & PHAC01_DataState$$LowSignal); }
   
   /// Return data validity flags
   ///

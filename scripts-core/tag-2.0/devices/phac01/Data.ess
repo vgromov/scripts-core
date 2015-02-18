@@ -42,6 +42,9 @@ object PHAC01_Data
 	property flags;
 	read: { return f_flags; }
 	
+	property isLowLight;
+	read: { return f_flags$isLowLight; }
+	
   /// Value
   property val;
   read: { return f_val$value; }
@@ -310,5 +313,8 @@ object PHAC01_RawData
   read: { return f_att$value; }
   /// How many input points were used to calculate color node          
   property cntColor;
-  read: { return f_cntColor$value; }       
+  read: { return f_cntColor$value; } 
+  /// Low light checking
+  property isLowLight;
+  read: { return f_c < 2000 || f_val < 10; }        
 }
