@@ -38,7 +38,7 @@ object EsFirmwareVersion
 
 // device f_serial number
 object EsDeviceSerial
-  @help = "Hardware serial number";
+@help = "Hardware serial number";
 {
   esU16 f_year;
   esU16 f_order;
@@ -128,10 +128,10 @@ object EsDeviceUID
   {
     return EsStr::fromByteString(f_id$buffer);
   }
-	
-	/// Try to set f_uid from string representation
+  
+  /// Try to set f_uid from string representation
   function uidFromString(uidStr)
-	var ch, str = EsStr::toUpper(uidStr#asString());
+  var ch, str = EsStr::toUpper(uidStr#asString());
   { 
     if( 32 != str#countGet() )
       throw "UID string length must be 32 symbols";
@@ -139,7 +139,7 @@ object EsDeviceUID
       if( !EsStr::isHexChar(ch) )
         throw "UID string must contain only HEX symbols";
     f_id$buffer = EsStr::toByteString(str);
-  }	
+  }  
   
   new()
   var idx = 0;
@@ -147,21 +147,22 @@ object EsDeviceUID
     while(idx < 32)
       f_id[idx++] = B'0';
   }
-	
-	/// Custom stream writer
-	function streamWrite(stream)
-	{
-		stream.valueWrite(asString());
-	}
-	
-	/// Custom stream reader
-	function streamRead(stream)
-	{
-		uidFromString(stream.valueRead());
-	}
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite(asString());
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    uidFromString(stream.valueRead());
+  }
   
   // value property, to allow UID reading|writing as string
-  property value;	@persistent;
+  property value;
+  @persistent;
   read: { return asString(); }
   write: { uidFromString(__value); }
 }
@@ -331,21 +332,33 @@ object EsFirmwareId
   //
   function asString(flags)
   @help = "Return string representation of the hardware id depending on formatting flags";
-  var result;
+  var result = "";
   {
     if( flags & EsFirmwareIdFmtFlag$$DescrLong )
-      result = deviceDescriptionLongGet(f_devType);
+      result += deviceDescriptionLongGet(f_devType);
     else
-      result = deviceDescriptionShortGet(f_devType);
+      result += deviceDescriptionShortGet(f_devType);
     
     if( flags & EsFirmwareIdFmtFlag$$Serial )
-      result += "; " + f_serial.asString();
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += f_serial.asString();
+    }
     
     if( flags & EsFirmwareIdFmtFlag$$Version )
-      result += "; " + f_fwVer.asString();
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += f_fwVer.asString();
+    }
 
     if( (flags & EsFirmwareIdFmtFlag$$UID) && hasField("f_uid") )
-      result += "; " + fieldGet("f_uid").asString();
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += fieldGet("f_uid").asString();
+    }
 
     return result;
   }
@@ -370,9 +383,9 @@ object EsFirmwareId
     
     if( hasField("f_uid") )
       result += ",U:" + fieldGet("f_uid").asString();
-		    
-		if( hasField("f_funcMask") )
-			result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
+        
+    if( hasField("f_funcMask") )
+      result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
     
     return result;
   }
@@ -424,19 +437,19 @@ var fwId, rpcResult;
 {
   if( procedureType in [EsRpcStdId$$FWID_GET, EsRpcStdId$$FWID_MODERN_GET] )
   {
-		try
-		{
-			rpcResult = rpcMaster.esBA_Call(procedureType);
-			if( !rpcResult#isEmpty() )
-			{
-				fwId = new EsFirmwareId();
-				fwId$buffer = rpcResult#asBinBuffer();
-			}
-		}
-		catch
-		{
-		}
-	
+    try
+    {
+      rpcResult = rpcMaster.esBA_Call(procedureType);
+      if( !rpcResult#isEmpty() )
+      {
+        fwId = new EsFirmwareId();
+        fwId$buffer = rpcResult#asBinBuffer();
+      }
+    }
+    catch
+    {
+    }
+  
     return fwId;
   }
 }
@@ -444,13 +457,13 @@ var fwId, rpcResult;
 /// Try to read and return legacy device firmware id object (compatibility shortcut)
 function deviceFwIdRead(rpcMaster)
 {
-	return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_GET);
+  return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_GET);
 }
 
 /// Try to read and return modern device firmware id object
 function deviceFwIdModernRead(rpcMaster)
 {
-	return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
+  return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
 }
 
 /// Try to read UID from the device. If device is HUB, request returns its 16 byte Unique ID
@@ -459,18 +472,18 @@ function deviceFwIdModernRead(rpcMaster)
 function deviceHwUidRead(rpcMaster)
 var hwUid, rpcResult;
 {
-	try
-	{
-		rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$HW_UID_GET);
-		if( !rpcResult#isEmpty() )
-		{
-			hwUid = new EsDeviceUID();
-			hwUid$buffer = rpcResult#asBinBuffer();
-		}
-	}
-	catch
-	{}
-	
+  try
+  {
+    rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$HW_UID_GET);
+    if( !rpcResult#isEmpty() )
+    {
+      hwUid = new EsDeviceUID();
+      hwUid$buffer = rpcResult#asBinBuffer();
+    }
+  }
+  catch
+  {}
+  
   return hwUid;
 }
 // --------------------------- end device identification

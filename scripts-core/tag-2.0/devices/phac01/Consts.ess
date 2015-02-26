@@ -95,9 +95,10 @@ enum PHAC01_OpMode
 /// PHA Color operation modifiers
 enum PHAC01_OpModeModifier
 {
-  None         = 0, "Normal";                       //< Null modifier, normal operation, just for readability        
+  None         = 0,    "Normal";                    //< Null modifier, normal operation, just for readability        
   BgndTrim     = 0x10, "Background trimming";       //< Bgnd trimming mode is on (0x1 << 4)
   Autonomous   = 0x20, "Autonomous";                //< Autonomous operation - write measured data into internal storage memory (0x2 << 4)
+  Legacy       = 0x40, "Legacy";                    //< Legacu operations are in process
 }
 
 /// PHA Color data state flags
