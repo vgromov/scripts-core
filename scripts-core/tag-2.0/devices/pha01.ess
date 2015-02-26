@@ -42,6 +42,23 @@ object PHA01 extends EsDeviceBase
     m_fwId.f_fwVer.f_major = 1;
     m_fwId.f_fwVer.f_minor = 7;
   }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + PHA01_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_EXEC;
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$FACTORY_RESET;
+    result += EsRpcStdId$$SHUTDOWN;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    result += EsRpcStdId$$FINDME;
+    result += EsRpcStdId$$SW_INFO_GET;
+    
+    return result;
+  }  
 
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
   var result = null;

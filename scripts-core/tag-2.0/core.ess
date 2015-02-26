@@ -31,6 +31,7 @@ enum EsRpcStdId
   HW_UID_GET         = 19,  "esBA_Call|Retrieve hardware unique ID (128bit, in text form, i.e. char[32])";
   FINDME             = 20,  "VOID_Call|Perform some kind of visual|audio device identification";
   SW_INFO_GET        = 21,  "esBA_Call|Query software identification block";
+  FWID_MODERN_GET    = 22,  "esBA_Call|Query firmware identification block of modern devices which support dual ID feature";
 }
 
 ##require("coreDevicesDb.ess");

@@ -53,6 +53,7 @@ var batchItem;
 /// -function rpcSigGetById(rpcId)
 /// -function fwIdAssert(fwId)
 /// -function fwIdDefaultSet()
+/// -function defaultCapsGet()
 /// -function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
 /// Optionally overridden may be:
 /// -function evtHandle(m_ioMaster, evtId, payload)
@@ -194,6 +195,17 @@ object EsDeviceBase
   function fwIdDefaultSet()
   {}
   
+/// Return default RPC capabilities supported for the device
+/// Only the bare minimum of standard ones is returned (these must be implemented in any device, anyway)
+	function defaultCapsGet()
+	var result = [];	
+	{
+    result += EsRpcStdId$$CAPS_GET;
+    result += EsRpcStdId$$FWID_GET;
+
+    return result;    
+	}
+  
 /// Address check
   function addrAssert(addr)
   {
@@ -232,26 +244,34 @@ object EsDeviceBase
   }
   
 /// Common initializer
-  function internalInit()
+  function internalInit(fwId)
   {
-    m_tmpFwIdStr = "";
-    m_tmpFwIdStrEssential = "";
-    ioStateReset();
+		if( isRoot() ) 
+		{   
+      m_fwInitialized = false;
+    	    
+	    m_tmpFwIdStr = "";
+	    m_tmpFwIdStrEssential = "";
+	    ioStateReset();
+			    
+			if( fwId#isEmpty() )    
+	      fwIdDefaultSet();
+	    else
+	      fwIdSet(fwId);
+	    
+	    m_caps = defaultCapsGet();
+	  }
   }
   
 /// Constructor
   new()
   {
-    m_fwInitialized = false;
-    internalInit();
-    fwIdDefaultSet();
+    internalInit(null);
   }
   
   new( fwId )
   {
-    m_fwInitialized = false;    
-    internalInit();
-    fwIdSet(fwId);
+    internalInit(fwId);
   }  
   
 /// rpcCall result handler. Base functionality - handles the most basic
@@ -266,7 +286,7 @@ object EsDeviceBase
       // handle standard data requests
       // NB! health info query response, included here, should normally be overridden in derived devices
       // to return helth info object instead.
-      if( EsRpcStdId$$FWID_GET == rpcId )
+      if( EsRpcStdId$$FWID_GET == rpcId || EsRpcStdId$$FWID_MODERN_GET == rpcId )
 			{
 				handlingResult = new EsFirmwareId();
 				handlingResult$buffer = rpcResult;
@@ -532,7 +552,10 @@ object EsDeviceBase
 /// in device (network, p2p) maintenance task(s)
 	function fwIdQuery()
 	{
-		return rpcCall(EsRpcStdId$$FWID_GET, null);
+    if( EsRpcStdId$$FWID_MODERN_GET in m_caps ) 
+      return rpcCall(EsRpcStdId$$FWID_MODERN_GET, null);
+    else
+			return rpcCall(EsRpcStdId$$FWID_GET, null);
 	}
 
 /// Internal fsresult substitution helper. Must not be used directly
@@ -711,14 +734,15 @@ object EsDeviceBase
 	}
 	
 	function streamRead(stream)
-	var id;
+	var id, defCaps = defaultCapsGet();;
 	{
-	  m_fwInitialized = false;    
-    internalInit();
-    
 		id = stream.valueRead("id", null);
-		fwIdSet(id);
-		m_caps = stream.valueRead("caps", []);
+    internalInit(id);
+
+		m_caps = stream.valueRead("caps", defCaps);
+		// If canabilities is somehow read empty|null, re-assign defaults to them
+		if( m_caps#isEmpty() || 0 == m_caps#countGet() )
+			m_caps = defCaps;
 	}
   
 /// Properties:
@@ -742,12 +766,17 @@ object EsDeviceBase
     tmp.copyFrom(m_fwId);
     return tmp;
   }
+  
+  /// Return true if device standard capabilities support modern FW ID request
+  /// i.e. device has dual - ID feature
+	property supportsDualId;
+	read: { return EsRpcStdId$$FWID_MODERN_GET in m_caps; }
 	
 /// Incapsulated device type
 	property devType;
 	read: { return m_fwId$devType; }
   
-/// Read-only access to actual (downloaded from physical device itself) capabilities
+/// Read-only access to default or actual (downloaded from physical device itself) capabilities
   property caps;
   read: { return m_caps; }
   

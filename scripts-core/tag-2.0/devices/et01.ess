@@ -41,6 +41,15 @@ object ET01 extends EsDeviceBase
     m_fwId.f_fwVer.f_major = 1;
     m_fwId.f_fwVer.f_minor = 46;
   }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + ET01_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+		result += EsRpcStdId$$SHUTDOWN;
+    
+    return result;
+  }
 
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
   var result = null;

@@ -64,6 +64,17 @@ object P3_80E extends EsDeviceBase
     m_fwId.f_fwVer.f_minor = 0;
   }
 
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + P3XX_Rpid$values;
+  {
+    result += EsRpcStdId$$HW_INFO_GET;
+		result += EsRpcStdId$$HEALTH_INFO_GET; 
+		result += EsRpcStdId$$SHUTDOWN;
+		result += EsRpcStdId$$POWER_STATUS_GET;
+    
+    return result;
+  }
+  
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
   var result = null, duration;
   {

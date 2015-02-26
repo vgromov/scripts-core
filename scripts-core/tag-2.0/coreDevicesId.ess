@@ -416,26 +416,46 @@ object EsFirmwareId
   read: { return f_serial.f_order; }
 }
 
-/// Try to read and return device firmware id object
-function deviceFwIdRead(rpcMaster)
+/// Try to read and return device firmware id object,
+/// using either standard (legacy) method, or the modern one
+///
+function deviceFwIdRead(rpcMaster, procedureType)
 var fwId, rpcResult;
 {
-	try
-	{
-		rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$FWID_GET);
-		if( !rpcResult#isEmpty() )
+  if( procedureType in [EsRpcStdId$$FWID_GET, EsRpcStdId$$FWID_MODERN_GET] )
+  {
+		try
 		{
-			fwId = new EsFirmwareId();
-			fwId$buffer = rpcResult#asBinBuffer();
+			rpcResult = rpcMaster.esBA_Call(procedureType);
+			if( !rpcResult#isEmpty() )
+			{
+				fwId = new EsFirmwareId();
+				fwId$buffer = rpcResult#asBinBuffer();
+			}
 		}
-	}
-	catch
-	{
-	}
+		catch
+		{
+		}
 	
-  return fwId;
+    return fwId;
+  }
 }
 
+/// Try to read and return legacy device firmware id object (compatibility shortcut)
+function deviceFwIdRead(rpcMaster)
+{
+	return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_GET);
+}
+
+/// Try to read and return modern device firmware id object
+function deviceFwIdModernRead(rpcMaster)
+{
+	return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
+}
+
+/// Try to read UID from the device. If device is HUB, request returns its 16 byte Unique ID
+/// otherwise, null is returned.
+///
 function deviceHwUidRead(rpcMaster)
 var hwUid, rpcResult;
 {

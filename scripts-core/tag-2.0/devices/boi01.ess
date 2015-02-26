@@ -78,6 +78,25 @@ object BOI01 extends EsDeviceBase
     m_fwId.f_fwVer.f_minor = 16;
   }
   
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + BOI01_Rpid$values;
+  {
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    result += EsRpcStdId$$DIR_LIST_START;
+    result += EsRpcStdId$$DIR_LIST_NEXT_GET;
+    result += EsRpcStdId$$DIR_DELETE;
+    result += EsRpcStdId$$FILE_DELETE;
+    result += EsRpcStdId$$FS_FREESPACE_GET;
+    result += EsRpcStdId$$FILE_READ_START;
+    result += EsRpcStdId$$FILE_READ_NEXT;
+    result += EsRpcStdId$$HW_UID_GET;
+    
+    return result;
+  }
+  
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
   var result = null;
   {
