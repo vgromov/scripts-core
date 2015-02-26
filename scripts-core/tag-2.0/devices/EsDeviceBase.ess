@@ -95,24 +95,24 @@ object EsDeviceBase
       
     __scriptHost.eventPost(cat, id, payload);
   }
-	
+  
 /// Push request to the dispatcher
   function evtRequestPost(requestId, request)
-	{
-		if( requestId in [EsDeviceEvtId$$rpcRequest, EsDeviceEvtId$$rpcRequestBatch, EsDeviceEvtId$$customRequest] )
-			evtPost("toDevice", requestId, request);
- 	}
-	  
+  {
+    if( requestId in [EsDeviceEvtId$$rpcRequest, EsDeviceEvtId$$rpcRequestBatch, EsDeviceEvtId$$customRequest] )
+      evtPost("toDevice", requestId, request);
+   }
+    
 /// Push response to the dispatcher queue
   function evtResponsePost(responseId, request, response)
   var responseData = [];
   {
     if( responseId in [EsDeviceEvtId$$idChanged, EsDeviceEvtId$$rpcResponse, EsDeviceEvtId$$rpcResponseBatch, EsDeviceEvtId$$customResponse] )
-		{
-			responseData#append(request);
-			responseData#append(response);
-			evtPost("fromDevice", responseId, responseData);
-		}
+    {
+      responseData#append(request);
+      responseData#append(response);
+      evtPost("fromDevice", responseId, responseData);
+    }
   }
   
 /// Return user-friendly RPC name string, or 'Unknown RPC with <id>'.
@@ -144,13 +144,13 @@ object EsDeviceBase
     m_ioAddr = 255;
     m_ioErrorLog = [];
   }
-	
+  
 /// Reset all io related stuff (reset assigned io master as well)
-	function ioReset()
-	{
-		ioStateReset();
-		m_ioMaster = null;
-	}
+  function ioReset()
+  {
+    ioStateReset();
+    m_ioMaster = null;
+  }
   
 /// fwId assertion. Base implementation just checks for null and properly typed argument, 
 /// must be overridden in derived objects
@@ -197,14 +197,14 @@ object EsDeviceBase
   
 /// Return default RPC capabilities supported for the device
 /// Only the bare minimum of standard ones is returned (these must be implemented in any device, anyway)
-	function defaultCapsGet()
-	var result = [];	
-	{
+  function defaultCapsGet()
+  var result = [];
+  {
     result += EsRpcStdId$$CAPS_GET;
     result += EsRpcStdId$$FWID_GET;
 
     return result;    
-	}
+  }
   
 /// Address check
   function addrAssert(addr)
@@ -246,21 +246,21 @@ object EsDeviceBase
 /// Common initializer
   function internalInit(fwId)
   {
-		if( isRoot() ) 
-		{   
+    if( isRoot() ) 
+    {   
       m_fwInitialized = false;
-    	    
-	    m_tmpFwIdStr = "";
-	    m_tmpFwIdStrEssential = "";
-	    ioStateReset();
-			    
-			if( fwId#isEmpty() )    
-	      fwIdDefaultSet();
-	    else
-	      fwIdSet(fwId);
-	    
-	    m_caps = defaultCapsGet();
-	  }
+          
+      m_tmpFwIdStr = "";
+      m_tmpFwIdStrEssential = "";
+      ioStateReset();
+          
+      if( fwId#isEmpty() )    
+        fwIdDefaultSet();
+      else
+        fwIdSet(fwId);
+      
+      m_caps = defaultCapsGet();
+    }
   }
   
 /// Constructor
@@ -287,11 +287,11 @@ object EsDeviceBase
       // NB! health info query response, included here, should normally be overridden in derived devices
       // to return helth info object instead.
       if( EsRpcStdId$$FWID_GET == rpcId || EsRpcStdId$$FWID_MODERN_GET == rpcId )
-			{
-				handlingResult = new EsFirmwareId();
-				handlingResult$buffer = rpcResult;
-			}
-			else if(EsRpcStdId$$HW_UID_GET == rpcId)
+      {
+        handlingResult = new EsFirmwareId();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$HW_UID_GET == rpcId)
       {
         handlingResult = new EsDeviceUID();
         handlingResult$buffer = rpcResult;
@@ -492,27 +492,27 @@ object EsDeviceBase
   }
   
 /// Queue rpc request to ourselves - async request call
-	function rpcCallQueue(rpcId, rpcArgs)
-	var data = [];
-	{
-		data += rpcId; data#append(rpcArgs);
-		evtRequestPost(EsDeviceEvtId$$rpcRequest, data);
-	}
-	
+  function rpcCallQueue(rpcId, rpcArgs)
+  var data = [];
+  {
+    data += rpcId; data#append(rpcArgs);
+    evtRequestPost(EsDeviceEvtId$$rpcRequest, data);
+  }
+  
 /// Queue batch rpc request to ourselves - async request call
-	function rpcBatchCallQueue(batch)
-	{
-		evtRequestPost(EsDeviceEvtId$$rpcRequestBatch, batch);
-	}
+  function rpcBatchCallQueue(batch)
+  {
+    evtRequestPost(EsDeviceEvtId$$rpcRequestBatch, batch);
+  }
 
 /// Queue custom request to ourselves - async request call
-	function customCallQueue(name, args)
-	var data = [];
-	{
-		data += name; data#append(args);
-		evtRequestPost(EsDeviceEvtId$$customRequest, data);
-	}
-	
+  function customCallQueue(name, args)
+  var data = [];
+  {
+    data += name; data#append(args);
+    evtRequestPost(EsDeviceEvtId$$customRequest, data);
+  }
+  
 /// Handle -to device event. Default implementation handles
 /// single, batch, and custom requests
   function evtDestAssert(devIdStr)
@@ -525,7 +525,7 @@ object EsDeviceBase
   var result, request, devIdStr = evtPayload[0];
   {
     evtDestAssert(devIdStr);
-			
+      
     if( EsDeviceEvtId$$rpcRequest == evtId )
     {
       request = evtPayload[1];
@@ -534,7 +534,7 @@ object EsDeviceBase
     }
     else if( EsDeviceEvtId$$rpcRequestBatch == evtId )
     {
-			request = evtPayload[1];
+      request = evtPayload[1];
       result = rpcBatchCall(request);
       evtResponsePost(EsDeviceEvtId$$rpcResponseBatch, request, result);
     }
@@ -550,13 +550,13 @@ object EsDeviceBase
 ///
 /// Query firmware id information at the currently set device address. Mainly, it's used as helper wrapper
 /// in device (network, p2p) maintenance task(s)
-	function fwIdQuery()
-	{
+  function fwIdQuery()
+  {
     if( EsRpcStdId$$FWID_MODERN_GET in m_caps ) 
       return rpcCall(EsRpcStdId$$FWID_MODERN_GET, null);
     else
-			return rpcCall(EsRpcStdId$$FWID_GET, null);
-	}
+      return rpcCall(EsRpcStdId$$FWID_GET, null);
+  }
 
 /// Internal fsresult substitution helper. Must not be used directly
   function checkFsResultOnSuccess( result, fsItemName )
@@ -565,8 +565,8 @@ object EsDeviceBase
     {
       result[0] = false;
       result[1] = fsResultStringGet(result[1]);
-			if( !fsItemName#isEmpty() )
-				result[1] += ": '" + fsItemName + "'";
+      if( !fsItemName#isEmpty() )
+        result[1] += ": '" + fsItemName + "'";
     }
     
     return result;
@@ -677,25 +677,25 @@ object EsDeviceBase
     if( result[0] )
     {
       // notify file read start action
-			task.attachTo(__scriptHost$progressMonitor);
-			task$text = EsStr::format(I"Downloading: '%s'", fileAbsPath);
+      task.attachTo(__scriptHost$progressMonitor);
+      task$text = EsStr::format(I"Downloading: '%s'", fileAbsPath);
       fsResult = result[1];
       if( !fsResult$isOk )
       {
         result[0] = false;
         result[1] = fsResultStringGet(fsResult$result);
         if( !fileAbsPath#isEmpty() )
-					result[1] += ": '" + fileAbsPath + "'";
+          result[1] += ": '" + fileAbsPath + "'";
         // notify action end with error
-				task.end( result[1] );
+        task.end( result[1] );
       }
       else
       {
         chunks = fsResult$chunks;
         chunk = 0;
         // re-notify file read start action with known range now
-				task$range = chunks;
-				task$position = chunk;
+        task$range = chunks;
+        task$position = chunk;
         while( result[0] && chunk < chunks )
         {
           result = rpcCall(EsRpcStdId$$FILE_READ_NEXT, null);
@@ -703,7 +703,7 @@ object EsDeviceBase
           {
             f += result[1];
             // notify action progress
-						task$position = chunk;
+            task$position = chunk;
           }
           ++chunk;
         }
@@ -711,13 +711,13 @@ object EsDeviceBase
         if( result[0] )
         {
           // notify file read action end OK
-					task.end( EsStr::format(I"Downloaded: '%s'", fileAbsPath) );
+          task.end( EsStr::format(I"Downloaded: '%s'", fileAbsPath) );
           result[1] = f;
         }
         else
         {
           // notify file read action end with error
-					task.end( EsStr::format(I"Error downloading: '%s'", fileAbsPath) );
+          task.end( EsStr::format(I"Error downloading: '%s'", fileAbsPath) );
           result[1] = null;
         }
       }
@@ -725,25 +725,25 @@ object EsDeviceBase
     
     return result;
   }
-	
+  
 /// Custom serialization
-	function streamWrite(stream)
-	{
-		stream.valueWrite("id", m_fwId);
-		stream.valueWrite("caps", m_caps);
-	}
-	
-	function streamRead(stream)
-	var id, defCaps = defaultCapsGet();;
-	{
-		id = stream.valueRead("id", null);
+  function streamWrite(stream)
+  {
+    stream.valueWrite("id", m_fwId);
+    stream.valueWrite("caps", m_caps);
+  }
+  
+  function streamRead(stream)
+  var id, defCaps = defaultCapsGet();
+  {
+    id = stream.valueRead("id", null);
     internalInit(id);
 
-		m_caps = stream.valueRead("caps", defCaps);
-		// If canabilities is somehow read empty|null, re-assign defaults to them
-		if( m_caps#isEmpty() || 0 == m_caps#countGet() )
-			m_caps = defCaps;
-	}
+    m_caps = stream.valueRead("caps", defCaps);
+    // If canabilities is somehow read empty|null, re-assign defaults to them
+    if( m_caps#isEmpty() || 0 == m_caps#countGet() )
+      m_caps = defCaps;
+  }
   
 /// Properties:
 ///   
@@ -769,12 +769,12 @@ object EsDeviceBase
   
   /// Return true if device standard capabilities support modern FW ID request
   /// i.e. device has dual - ID feature
-	property supportsDualId;
-	read: { return EsRpcStdId$$FWID_MODERN_GET in m_caps; }
-	
+  property supportsDualId;
+  read: { return EsRpcStdId$$FWID_MODERN_GET in m_caps; }
+  
 /// Incapsulated device type
-	property devType;
-	read: { return m_fwId$devType; }
+  property devType;
+  read: { return m_fwId$devType; }
   
 /// Read-only access to default or actual (downloaded from physical device itself) capabilities
   property caps;
@@ -795,7 +795,7 @@ object EsDeviceBase
 /// Read current io address
   property ioAddr;
   read: { return m_ioAddr.asULong(); }
-	write: { addrSet(__value); }
+  write: { addrSet(__value); }
   
 /// Return error log collection, if any
   property ioErrorLog;
