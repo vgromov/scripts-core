@@ -162,12 +162,14 @@ object P3_81_1_2 extends EsDeviceBase
   new()
   {
     m_opMode = P3XX_OpMode$$None;
-		measurementsReset();		
+    internalInit(null);
+		measurementsReset();	
   }
   
   new(fwId)
   {
     m_opMode = P3XX_OpMode$$None;
+    internalInit(fwId);
 		measurementsReset();
   }
 

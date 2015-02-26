@@ -75,11 +75,13 @@ object ET01 extends EsDeviceBase
   new()
   {
     m_opMode = ET01_OpMode$$Idle;
+    internalInit(null);
   }
   
   new(fwId)
   {
     m_opMode = ET01_OpMode$$Idle;
+    internalInit(fwId);
   }
   
 /// Properties

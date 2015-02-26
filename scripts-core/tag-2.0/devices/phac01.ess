@@ -60,6 +60,7 @@ object PHAC01 extends EsDeviceBase
 		result += EsRpcStdId$$POWER_STATUS_GET;
 		result += EsRpcStdId$$FINDME;
 		result += EsRpcStdId$$SW_INFO_GET;
+		result += EsRpcStdId$$FWID_MODERN_GET;
 		
     return result;
   }

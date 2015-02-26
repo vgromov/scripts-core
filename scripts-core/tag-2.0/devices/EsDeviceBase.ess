@@ -246,32 +246,31 @@ object EsDeviceBase
 /// Common initializer
   function internalInit(fwId)
   {
-    if( isRoot() ) 
-    {   
-      m_fwInitialized = false;
+    m_fwInitialized = false;
           
-      m_tmpFwIdStr = "";
-      m_tmpFwIdStrEssential = "";
-      ioStateReset();
+    m_tmpFwIdStr = "";
+    m_tmpFwIdStrEssential = "";
+    ioStateReset();
           
-      if( fwId#isEmpty() )    
-        fwIdDefaultSet();
-      else
-        fwIdSet(fwId);
+    if( fwId#isEmpty() )    
+      fwIdDefaultSet();
+    else
+      fwIdSet(fwId);
       
-      m_caps = defaultCapsGet();
-    }
+    m_caps = defaultCapsGet();
   }
   
 /// Constructor
   new()
   {
-    internalInit(null);
+    if( isRoot() ) 
+	    internalInit(null);
   }
   
   new( fwId )
   {
-    internalInit(fwId);
+    if( isRoot() ) 
+      internalInit(fwId);
   }  
   
 /// rpcCall result handler. Base functionality - handles the most basic
@@ -552,6 +551,12 @@ object EsDeviceBase
 /// in device (network, p2p) maintenance task(s)
   function fwIdQuery()
   {
+    //EsScriptDebug::log("fwIdQuery:");
+    //EsScriptDebug::log(m_tmpFwIdStr);
+    //EsScriptDebug::log(m_caps);
+    //EsScriptDebug::log("ModernFwId is in caps?");
+    //EsScriptDebug::log(EsRpcStdId$$FWID_MODERN_GET in m_caps);
+    
     if( EsRpcStdId$$FWID_MODERN_GET in m_caps ) 
       return rpcCall(EsRpcStdId$$FWID_MODERN_GET, null);
     else

@@ -301,4 +301,14 @@ object BOI01 extends EsDeviceBase
     
     return result;
   }
+  
+  new()
+  {
+    internalInit(null);
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+  }
 }
