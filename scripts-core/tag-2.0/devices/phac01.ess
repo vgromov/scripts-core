@@ -50,18 +50,18 @@ object PHAC01 extends EsDeviceBase
   function defaultCapsGet()
   var result = EsDeviceBase::defaultCapsGet() + PHAC01_Rpid$values;
   {
- 	  result += EsRpcStdId$$HEALTH_EXEC;
-		result += EsRpcStdId$$HEALTH_INFO_GET;
-		result += EsRpcStdId$$DATETIME_GET;
-		result += EsRpcStdId$$DATETIME_SET;
-		result += EsRpcStdId$$FACTORY_RESET;
-		result += EsRpcStdId$$SHUTDOWN;
-		result += EsRpcStdId$$ENTER_BOOT;
-		result += EsRpcStdId$$POWER_STATUS_GET;
-		result += EsRpcStdId$$FINDME;
-		result += EsRpcStdId$$SW_INFO_GET;
-		result += EsRpcStdId$$FWID_MODERN_GET;
-		
+     result += EsRpcStdId$$HEALTH_EXEC;
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$FACTORY_RESET;
+    result += EsRpcStdId$$SHUTDOWN;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    result += EsRpcStdId$$FINDME;
+    result += EsRpcStdId$$SW_INFO_GET;
+    result += EsRpcStdId$$FWID_MODERN_GET;
+    
     return result;
   }
   
@@ -129,6 +129,11 @@ object PHAC01 extends EsDeviceBase
       result = new PHAC01_LegacyData();
       result$buffer = rpcResult#asBinBuffer();
     }
+    else if( PHAC01_Rpid$$LegacyCalibrationGet == rpcId )
+    {
+      result = new PHAC01_LegacyCalibrationData();
+      result$buffer = rpcResult#asBinBuffer();
+    }
     else 
       result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
     
@@ -138,7 +143,7 @@ object PHAC01 extends EsDeviceBase
   /// Constructors
   new()
   {
-		internalInit(null);    
+    internalInit(null);    
     m_opMode = PHAC01_OpMode$$None;
   }
   
@@ -239,7 +244,7 @@ object PHAC01 extends EsDeviceBase
     }
     batch = [];
     batch#append(batchItem);
-		
+    
     return batch;
   }
   

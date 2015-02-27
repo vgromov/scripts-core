@@ -11,21 +11,22 @@ enum PHAC01_Rpid
 {
   // Legacy-mode handlers. PHA-01 ids preserved
   //
-	LegacyAutosaveIntervalSet = 2048, "VOID_Call_esU8|";
-	LegacyAutosaveIntervalGet = 2049, "esU8_Call|";
-	LegacyOperationModeSet    = 2056, "VOID_Call_esU8|";
-	LegacyOperationModeGet    = 2057, "esU8_Call|";
-	LegacyLiveDataGet         = 2058, "esBA_Call|";
-	LegacyDataAtIdxGet        = 2060, "esBA_Call_esU16|";
-	LegacyDataClear           = 2061, "esBL_Call|";
-	LegacyLiveWithBgndStart   = 2073, "VOID_Call_esU16|";
-	LegacyBgndPeriodLeftGet   = 2074, "esU16_Call|";
+  LegacyAutosaveIntervalSet = 2048, "VOID_Call_esU8|";
+  LegacyAutosaveIntervalGet = 2049, "esU8_Call|";
+  LegacyCalibrationGet      = 2051, "esBA_Call|";
+  LegacyOperationModeSet    = 2056, "VOID_Call_esU8|";
+  LegacyOperationModeGet    = 2057, "esU8_Call|";
+  LegacyLiveDataGet         = 2058, "esBA_Call|";
+  LegacyDataAtIdxGet        = 2060, "esBA_Call_esU16|";
+  LegacyDataClear           = 2061, "esBL_Call|";
+  LegacyLiveWithBgndStart   = 2073, "VOID_Call_esU16|";
+  LegacyBgndPeriodLeftGet   = 2074, "esU16_Call|";
 
   // Native handlers
   // 
   // Following handlers are used both, in legacy and native modes
   DataCountGet              = 2059, "esU16_Call|Return count of data saved in autonomous mode";
-	AllowChargingSet          = 2067, "VOID_Call_esBL|";
+  AllowChargingSet          = 2067, "VOID_Call_esBL|";
 
   // Pure native handlers
   //

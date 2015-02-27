@@ -12,42 +12,42 @@ object PHAC01_LegacyData
   esI8   f_temp;
   
   /// Properties
-	///
-	/// Timestamp
-	property ts;
-	read: { return f_ts$value; }
-	/// Timestamp string
-	property tsStr;
-	read: { return f_ts.asString(); }	
-	
+  ///
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }
+  
   /// illuminosity
   property lux;
   read: { return f_lux$value; }
-	/// illuminosity string components property
-	property luxStrMulti;
-	read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, true); }
-	/// illuminosity value string
-	property luxStr;
-	read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
-	
+  /// illuminosity string components property
+  property luxStrMulti;
+  read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, true); }
+  /// illuminosity value string
+  property luxStr;
+  read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
+  
   /// Luminosity
   property cdm;
   read: { return f_cdm$value; }
-	/// Luminosity string components
-	property cdmStrMulti;
-	read: { return PHAC01_strMultiGet( $cdm, c_phac01_unitL, true); }
-	/// Luminosity value string
+  /// Luminosity string components
+  property cdmStrMulti;
+  read: { return PHAC01_strMultiGet( $cdm, c_phac01_unitL, true); }
+  /// Luminosity value string
   property cdmStr;
   read: { return PHAC01_fromStrMulti( $cdmStrMulti ); }
-	
+  
   /// pulsation coefficient, in %
   property kp;
   read: { return f_kp / 10.; }
-	/// pulsation string components
-	property kpStrMulti;
-	read: {	return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, true); }
-	/// pulsation string
-	property kpStr;
+  /// pulsation string components
+  property kpStrMulti;
+  read: {  return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, true); }
+  /// pulsation string
+  property kpStr;
   read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }
 }
 
@@ -64,71 +64,90 @@ object PHAC01_LegacyDataWoBgnd
   esU16   f_bgndETA;        /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
  
   /// Properties
-	///
-	/// Timestamp
-	property ts;
-	read: { return f_ts$value; }
-	/// Timestamp string
-	property tsStr;
-	read: { return f_ts.asString(); }	
+  ///
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
  
- 	/// Data validity check
-	property valid;
-	read: { return 0 == f_bgndETA; }
+   /// Data validity check
+  property valid;
+  read: { return 0 == f_bgndETA; }
  
   /// original illuminosity
   property luxOrg;
   read: { return f_luxOrg$value; }
-	/// original illuminosity string components
-	property luxOrgStrMulti;
-	read: { return PHAC01_strMultiGet( $luxOrg, c_phac01_unitE, $valid); }
-	/// original illuminosity string
-	property luxOrgStr;
-	read: { return PHAC01_fromStrMulti( $luxOrgStrMulti ); }	
+  /// original illuminosity string components
+  property luxOrgStrMulti;
+  read: { return PHAC01_strMultiGet( $luxOrg, c_phac01_unitE, $valid); }
+  /// original illuminosity string
+  property luxOrgStr;
+  read: { return PHAC01_fromStrMulti( $luxOrgStrMulti ); }  
 
   /// background illuminosity
   property luxBgnd;
   read: { return f_luxBgnd$value; }
-  /// background illuminosity	string components
-	property luxBgndStrMulti;
-	read: { return PHAC01_strMultiGet( $luxBgnd, c_phac01_unitE, $valid); }
-  /// background illuminosity	string
-	property luxBgndStr;
-	read: { return PHAC01_fromStrMulti( $luxBgndStrMulti ); }	
+  /// background illuminosity  string components
+  property luxBgndStrMulti;
+  read: { return PHAC01_strMultiGet( $luxBgnd, c_phac01_unitE, $valid); }
+  /// background illuminosity  string
+  property luxBgndStr;
+  read: { return PHAC01_fromStrMulti( $luxBgndStrMulti ); }  
 
   /// illuminosity W|O background
   property lux;
   read: { return f_lux$value; }
   /// illuminosity W|O background, string components
-	property luxStrMulti;
-	read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, $valid); }
+  property luxStrMulti;
+  read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, $valid); }
   /// illuminosity W|O background, string
-	property luxStr;
-	read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
+  property luxStr;
+  read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
 
   /// original pulsation coefficient, %
   property kpOrg;
   read: { return f_kpOrg / 10.; }
-	property kpOrgStrMulti;
-	read: { return PHAC01_strMultiNoMulPartGet( $kpOrg, c_phac01_unitP, $valid ); }
-	property kpOrgStr;
+  property kpOrgStrMulti;
+  read: { return PHAC01_strMultiNoMulPartGet( $kpOrg, c_phac01_unitP, $valid ); }
+  property kpOrgStr;
   read: { return PHAC01_fromStrMultiNoMulPart( $kpOrgStrMulti ); }
 
   /// resulting pulsation coefficient, %
   property kp;
   read: { return f_kp / 10.; }
-	/// pulsation multi string
-	property kpStrMulti;
-	read: { return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, $valid ); }
-	/// pulsation string
-	property kpStr;
+  /// pulsation multi string
+  property kpStrMulti;
+  read: { return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, $valid ); }
+  /// pulsation string
+  property kpStr;
   read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }
-	
-	/// Background exposure duration in seconds
-	property bgndExp;
-	read: { return f_bgndDuration$value; }
-	
-	/// Bgnd ETA read access
-	property eta;
-	read: { return f_bgndETA$value; }
+  
+  /// Background exposure duration in seconds
+  property bgndExp;
+  read: { return f_bgndDuration$value; }
+  
+  /// Bgnd ETA read access
+  property eta;
+  read: { return f_bgndETA$value; }
+}
+
+// Legacy calibration data. For compatibility only!
+// NB!!!! No real calibration data is received on response to this request
+// from PHAC01, just identity calibration stubs got passed in response.
+//
+/// Calibration node
+object PHAC01_LegacyCalibrationNode
+{
+  esF f_1;
+  esF f_2;
+}
+
+/// All calibration info
+object PHAC01_LegacyCalibrationData
+{
+  PHAC01_LegacyCalibrationNode f_lux[4];
+  PHAC01_LegacyCalibrationNode f_cdm[4];
+  PHAC01_LegacyCalibrationNode f_kp[2];
 }
