@@ -257,7 +257,7 @@ var spath = sessionPathGet(pathActive, idStr);
     }
   }
   
-  // create new session in specific mode mode
+  // create new session in specific mode newMode
   // read current settings from device, and save them in session
   response = device.settingsDownload();
   if( response[0] )
