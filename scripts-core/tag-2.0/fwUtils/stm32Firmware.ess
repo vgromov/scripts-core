@@ -1,0 +1,104 @@
+##require("../core.ess");
+
+// create io channel && rpc master
+var chnl = EsChannelIoFactory::channelCreate("EsChannelIoEkonnect");
+
+// configure channel, assign to master
+chnl$device = "60001-00005-12";
+chnl$baud = 9600;
+
+// power config stuff
+function configurePowerOn(chnl)
+{
+  // EsScriptDebug::log("configurePowerOn");
+  chnl.devicePowerSet(true);
+  EsThreadWorker::sleep(100);
+}
+
+function configurePowerOff(chnl)
+{
+  // EsScriptDebug::log("configurePowerOff");
+  chnl.devicePowerSet(false);
+  EsThreadWorker::sleep(100);
+}
+      
+function configureBoot(chnl)
+{
+  // EsScriptDebug::log("configureBoot");
+  chnl.deviceProgrammingModeSet(true);
+  EsThreadWorker::sleep(100);   
+}
+
+function configureNormal(chnl)
+{
+  // EsScriptDebug::log("configureBoot");
+  chnl.deviceProgrammingModeSet(false);
+  EsThreadWorker::sleep(200);   
+}
+
+configurePowerOff(chnl);
+configureNormal(chnl);
+configurePowerOn(chnl);
+
+var supportedRpcs, rpcMaster = new EsRpcMaster();
+rpcMaster$channel = chnl;
+rpcMaster$packetRetries = 1;
+
+// activate io
+rpcMaster.activate();
+if( rpcMaster.ping() )
+{
+  supportedRpcs = rpcMaster.getImplementedRPCs();
+  EsScriptDebug::log("Supported RPCs:");
+  EsScriptDebug::log( supportedRpcs );
+}
+else
+  EsScriptDebug::log("No PING response...");
+
+if( EsRpcStdId$$SHUTDOWN in supportedRpcs )
+{
+  EsScriptDebug::log("Sending shutdown command...");
+  rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+  configurePowerOff(chnl);
+  configureBoot(chnl);
+}
+// Wait until device detects power off, and shuts down OK
+EsThreadWorker::sleep(1000);
+configurePowerOn(chnl);
+
+// Configure channel for STM32 BL protocol
+chnl.close();
+chnl$baud = 115200;
+chnl$parity = EsEkonnectIoParityEnum$$parityEven;
+chnl.open();
+
+// BL Query byte
+var cnt, request, response;
+
+cnt = 0;
+request = B"\0x7F";
+while( cnt < 1000 )
+{
+  chnl.bytesPut(request, 10);
+  response = chnl.bytesGet(1, 10);
+  
+  if( response.countGet() &&
+      0x79 == response[0] )
+    break;
+  
+  ++cnt;
+}
+
+if( response.countGet() &&
+    0x79 == response[0] )
+{
+  EsScriptDebug::log("ACK received, bootloader entered, autobaud complete");
+}
+else
+{
+  EsScriptDebug::log("Bootloader not entered");
+}
+
+configurePowerOff(chnl);
+configureNormal(chnl);
+configurePowerOn(chnl);
