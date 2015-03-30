@@ -1,10 +1,13 @@
 ##require("../core.ess");
 
 // create io channel && rpc master
-var chnl = EsChannelIoFactory::channelCreate("EsChannelIoEkonnect");
+var chnl =
+ EsChannelIoFactory::channelCreate("EsChannelIoUart");
+ //EsChannelIoFactory::channelCreate("EsChannelIoEkonnect");
 
 // configure channel, assign to master
-chnl$device = "60001-00005-12";
+//chnl$device = "60001-00005-12";
+chnl$port = "\\\\?\\COM4";
 chnl$baud = 9600;
 
 // power config stuff
@@ -36,68 +39,200 @@ function configureNormal(chnl)
   EsThreadWorker::sleep(200);   
 }
 
-configurePowerOff(chnl);
-configureNormal(chnl);
-configurePowerOn(chnl);
+//configurePowerOff(chnl);
+//configureNormal(chnl);
+//configurePowerOn(chnl);
 
 var supportedRpcs, rpcMaster = new EsRpcMaster();
 rpcMaster$channel = chnl;
 rpcMaster$packetRetries = 1;
 
 // activate io
-rpcMaster.activate();
-if( rpcMaster.ping() )
-{
-  supportedRpcs = rpcMaster.getImplementedRPCs();
-  EsScriptDebug::log("Supported RPCs:");
-  EsScriptDebug::log( supportedRpcs );
-}
-else
-  EsScriptDebug::log("No PING response...");
+//rpcMaster.activate();
+//if( rpcMaster.ping() )
+//  supportedRpcs = rpcMaster.getImplementedRPCs();
+//else
+//  EsScriptDebug::log("No PING m_response...");
 
-if( EsRpcStdId$$SHUTDOWN in supportedRpcs )
-{
-  EsScriptDebug::log("Sending shutdown command...");
-  rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-  configurePowerOff(chnl);
-  configureBoot(chnl);
-}
+//if( EsRpcStdId$$SHUTDOWN in supportedRpcs )
+//{
+//  EsScriptDebug::log("Sending shutdown command...");
+//  rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+//  configurePowerOff(chnl);
+//  configureBoot(chnl);
+//}
 // Wait until device detects power off, and shuts down OK
-EsThreadWorker::sleep(1000);
-configurePowerOn(chnl);
+//EsThreadWorker::sleep(2000);
+//configurePowerOn(chnl);
 
 // Configure channel for STM32 BL protocol
+EsScriptDebug::log("Configuring channel for BL");
 chnl.close();
 chnl$baud = 115200;
-chnl$parity = EsEkonnectIoParityEnum$$parityEven;
+chnl$parity = 
+ EsUartIoParityEnum$$parityEven;
+ //EsEkonnectIoParityEnum$$parityEven;
 chnl.open();
 
 // BL Query byte
-var cnt, request, response;
+var m_chipId, m_bootVer, m_cmdsAvail, m_request, m_response, m_ack = 0x79, m_nack = 0x1F, booted = false;
 
-cnt = 0;
-request = B"\0x7F";
-while( cnt < 1000 )
+// ACK | NACK response types
+enum EsStm32response
 {
-  chnl.bytesPut(request, 10);
-  response = chnl.bytesGet(1, 10);
-  
-  if( response.countGet() &&
-      0x79 == response[0] )
-    break;
-  
-  ++cnt;
+  None    = -1;
+  Unknown = 0;
+  ACK     = 1;
+  NACK    = 2;
 }
 
-if( response.countGet() &&
-    0x79 == response[0] )
+function ackOrNackRead(chnl, tmo, dblNack)
 {
-  EsScriptDebug::log("ACK received, bootloader entered, autobaud complete");
+  m_response = chnl.bytesGet(1, tmo);
+  if( m_response.countGet() )
+  {
+    EsScriptDebug::log("CMD response: %X", m_response[0]);    
+
+    if( m_ack == m_response[0] )
+      return EsStm32response$$ACK;
+    else if( m_nack == m_response[0] )
+    {
+      if( dblNack )
+        chnl.bytesGet(1, 10);
+        
+      return EsStm32response$$NACK;
+    }
+    else
+      return EsStm32response$$Unknown;
+  }
+  
+  return EsStm32response$$None;
+}
+
+function syncWithBootloader(chnl, syncRetries, doThrow)
+var cnt = 0;
+{
+  m_request = B"\x7F";
+
+  while( cnt < syncRetries )
+  {
+    if( 1 == chnl.bytesPut(m_request, 10) &&
+        EsStm32response$$ACK == ackOrNackRead(chnl, 10, false) )
+    {
+      // Skip any extra IN bytes which device may send after entering BL
+      while( chnl.bytesGet(m_request, 500) );
+
+      return true;
+    }
+  
+    ++cnt;
+  }
+
+  if( doThrow )
+    throw "Could not synchronize with bootloader";
+
+  return false;
+}
+
+function xorBuff(buff, cnt)
+var idx = 0, result = 0xFF;
+{
+  while(idx < cnt)
+    result ^= buff[idx++];   
+
+  return result;
+}
+
+function cmdWrite(chnl, cmd, tmo)
+var result = EsStm32response$$None;
+{
+  m_request.countSet(2);
+  m_request[0] = cmd;
+  m_request[1] = xorBuff(m_request, 1);
+
+  EsScriptDebug::log("CMD request:"); EsScriptDebug::log(m_request);
+  if( 2 == chnl.bytesPut(m_request, tmo) )
+    result = ackOrNackRead(chnl, tmo, false);
+
+  return result;
+}
+
+function bootcodeVerAndCmdsRead(chnl, tmo)
+var cnt;
+{
+  if( EsStm32response$$ACK == cmdWrite(chnl, 0x00, tmo) )
+  {
+    m_response = chnl.bytesGet(1, tmo);
+    if( m_response.countGet() )
+    {
+      cnt = m_response[0]+1;  
+      m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
+      if( cnt == m_response.countGet() )
+      {
+        m_bootVer = m_response[0];
+        m_cmdsAvail = m_response#sliceGet(1, cnt-1);
+        
+        return ackOrNackRead(chnl, tmo, false);
+      }
+    }
+  }
+  
+  return EsStm32response$$None;
+}
+
+function bootcodeVerAndProtRead(chnl, tmo)
+{
+  if( EsStm32response$$ACK == cmdWrite(chnl, 0x01, tmo) )
+  {
+    m_response = chnl.bytesGet(3, tmo + chnl.txTimeEstimateGet(3));
+    if( 3 == m_response.countGet() )
+    {
+      m_bootVer = m_response[0];
+      return ackOrNackRead(chnl, tmo, false);
+    }
+  }
+  
+  return EsStm32response$$None;  
+}
+
+function chipIdRead(chnl, tmo)
+var cnt;
+{
+  if( EsStm32response$$ACK == cmdWrite(chnl, 0x02, tmo) )
+  {
+    m_response = chnl.bytesGet(1, tmo);
+    if( m_response.countGet() )
+    {
+      cnt = m_response[0]+1;    
+      m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
+      if( cnt == m_response.countGet() )
+      {
+        m_chipId = m_response#asULong();
+        
+        return ackOrNackRead(chnl, tmo, false);
+      }
+    }
+  }
+  
+  return EsStm32response$$None;  
+}
+
+booted = syncWithBootloader(chnl, 1000, false);
+if( booted )
+{
+  EsScriptDebug::log("Bootloader entered");
+  if( EsStm32response$$ACK == bootcodeVerAndCmdsRead(chnl, 1000) )
+  {
+    EsScriptDebug::log("Bootcode ver: %X", m_bootVer);
+    EsScriptDebug::log("Supported commands:");
+    EsScriptDebug::log(m_cmdsAvail);
+  }
+    
+  if( EsStm32response$$ACK == chipIdRead(chnl, 1000) )
+    EsScriptDebug::log("Chip ID: %X", m_chipId);
 }
 else
-{
   EsScriptDebug::log("Bootloader not entered");
-}
 
 configurePowerOff(chnl);
 configureNormal(chnl);
