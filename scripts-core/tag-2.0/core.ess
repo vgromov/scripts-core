@@ -57,7 +57,7 @@ function rpcMasterAssert(rpcMaster)
 function rpcSigGet(rpcIdLabel)
 var pos = rpcIdLabel#findFirstOf('|');
 {
-  if( 0 < pos )
+  if( !pos#isEmpty() )
     return rpcIdLabel#sliceGet(0, pos);
   else
     throw EsStr::format("Could not find RPC signature string in '%s'", rpcIdLabel#asString());

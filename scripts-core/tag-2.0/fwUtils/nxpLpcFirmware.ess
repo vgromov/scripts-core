@@ -364,7 +364,12 @@ object EsMcuprogLpc
   var lastQuestionpos;
   {
     lastQuestionpos = response#findLastOf('?');
-    return response#sliceGet(++lastQuestionpos, response#countGet());
+    if( lastQuestionpos#isEmpty() )
+      lastQuestionpos = 0;
+    else
+      ++lastQuestionpos;
+      
+    return response#sliceGet(lastQuestionpos, response#countGet());
   }
   
   function syncWithBootloader(chnl, syncRetries, doThrow)
