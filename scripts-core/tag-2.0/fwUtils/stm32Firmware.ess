@@ -111,6 +111,12 @@ enum EsStm32cmd
   ReadProtClear   = 10,"Clear flash sector(s) read protection";
 }
 
+enum EsStm32Flag
+{
+  UseWriteProt    = 0x01, "Set write protection";
+  UseReadProt     = 0x02, "Set read protection";
+}
+
 object EsMcuprogStm32
 {
 	var m_flags,
@@ -118,6 +124,7 @@ object EsMcuprogStm32
 			m_chipId, 
 	    m_bootVer,
 	    m_bootId,
+	    m_memConfig,
 	    m_cmdsAvail, 
 	    m_ack, 
 	    m_nack,
@@ -136,6 +143,7 @@ object EsMcuprogStm32
 		m_chipId = null; 
     m_bootVer = null;
     m_bootId = null;
+    m_memConfig = null;
     m_ack = null; 
     m_nack = null; 
     m_recentCmd = null;
@@ -169,11 +177,10 @@ object EsMcuprogStm32
         m_cmdsAvail.countGet() > EsStm32cmd$$MemWrite &&
         !m_recentCmd#isEmpty() &&
         ( m_recentCmd == m_cmdsAvail[EsStm32cmd$$MemWrite] || 
-          m_recentCmd == m_cmdsAvail[EsStm32cmd$$MemWrite] 
+          m_recentCmd == m_cmdsAvail[EsStm32cmd$$MemRead] 
         ) )
     {
-      
-      
+      return true;      
     }    
     
     return false;
@@ -420,19 +427,103 @@ object EsMcuprogStm32
 	
 	/// Request memory deletion
 	function memErase(chnl, data, tmo)
+	var cnt, tmp, pg;
 	{
 	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemErase], tmo) )
 	  {
 	    // Handle data depending on erase command flavour
 	    if( haveExtendedErase() )
 	    {
+        if( data in [0xFFFD .. 0xFFFF] )
+        {
+          m_request = data#asBinBuffer();
+          m_request#countSet(2);
+          m_request += xorBuff(0, m_request, 2);
+        }
+        else
+        {
+          cnt = data.countGet()-1;
+          tmp = cnt#asBinBuffer();
+          tmp.countSet(2);
+          tmp.reverse();
+          m_request = tmp;
+          foreach( pg in data )
+          {
+	          tmp = pg#asULong()#asBinBuffer();
+	          tmp.countSet(2);
+	          tmp.reverse();
+            m_request += tmp;
+          }
+          m_request += xorBuff(0, m_request, m_request.countGet());
+        }
 	    }
 	    else
 	    {
+        if( 0xFF == data )
+        {
+          m_request.countSet(2);
+          m_request[0] = 0xFF;
+          m_request[1] = 0;
+        }
+        else
+        {
+          m_request.countSet(1);
+          m_request[0] = data.countGet()-1;
+          m_request += data;
+          m_request += xorBuff(0, m_request, m_request.countGet());
+        }
 	    }
+	    
+	    cnt = m_request.countGet();
+	    if( cnt == chnl.bytesPut(m_request, tmo+chnl.txTimeEstimateGet(cnt)) )
+	      return ackOrNackRead(chnl, tmo);
 	  }
 	
 	  return EsStm32response$$None;
+	}
+	
+	/// Write protect request
+	function writeProtect(chnl, data, tmo)
+	{
+    
+  	return EsStm32response$$None;
+	}
+	
+	/// Write unprotect request
+	function writeUnprotect(chnl, tmo)
+	{
+    
+		return EsStm32response$$None;
+	}
+	
+	/// Read protect request
+	function readProtect(chnl, tmo)
+	{
+    
+	  return EsStm32response$$None;    
+	}
+	
+	/// Read unprotect request
+	function readUnprotect(chnl, tmo)
+	{
+    
+	  return EsStm32response$$None;    
+	}
+	
+	/// High-level flash programmer methods
+	///
+	
+	/// (Re-) synch with bootloader and identify chip, BL version, && memory configuration
+	function bootConnectAndIdentify(chnl, tmo)
+	{
+    
+	  return EsStm32response$$None;    
+	}
+	
+	/// Program firmware into chip
+	function program(chnl)
+	{
+    
 	}
 }
 
