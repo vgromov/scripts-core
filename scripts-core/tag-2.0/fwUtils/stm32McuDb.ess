@@ -1,3 +1,36 @@
+/// Named indexes into database collections
+enum EsStm32Info
+{
+  // Top level entries
+  Identification    = 0; //< Device identification entries
+  FlashInfo         = 1; //< Flash info entries
+  DeviceName        = 2; //< Device name string
+  
+  // Identification keys
+  ChipId            = 0; //< Chip ID value
+  BootloaderIdAddr  = 1; //< Address of bootloader ID register
+  BootloaderIds     = 2; //< Known bootloader IDs for this device ID
+  FlashSizeAddr     = 3; //< Address of flash size register
+  
+  // Flash information keys
+  FlashSizeKb       = 0; //< Size of flash in Kb
+  FlashPgPerSector  = 1; //< Flash pages per sector
+  FlashStartAddr    = 2; //< Flash start address
+  FlashPgInfos      = 3; //< Flash pages information entries
+  FlashOptByteInfo  = 4; //< Option byte information (address, size) 
+  FlashDataPgInfos  = 5; //< Optional flash data pages information entries
+  FlashMassEraseTmo = 6; //< Flash mass erase timeout in seconds
+  
+  // Flash page information entry
+  FlashPgStartIdx   = 0; //< Pages starting index
+  FlashPgEndIdx     = 1; //< Pages ending index
+  FlashPgSize       = 2; //< Pages size in bytes
+  
+  // Option byte information block
+  OptBytesAddr      = 0; //< Option bytes block address
+  OptBytesSize      = 1; //< Option bytes block size
+}
+
 /// Known STM32 device info database
 const c_stm32Devices   = [
 // [[[PID, BIDADDR, BID, ADDFLASH_SIZE], ..[]],
@@ -7,17 +40,17 @@ const c_stm32Devices   = [
 // pages = [startAddr, [pageRange0..pageRangeN]]
 // pageRangeN = [idxStart, idxEnd, size]
 // optBytes = [addr, size]
-
+//
 // F0 line 
   [
     [
       [0x0440, 0x1FFFF7A6, [0x21], 0x1FFFF7CC]
     ],
     [
-      [16,    4, [0x08000000, [0, 15,   1024]], [0x1FFFF800, 12], null, 5],
-      [32,    4, [0x08000000, [0, 31,   1024]], [0x1FFFF800, 12], null, 5],
-      [64,    4, [0x08000000, [0, 63,   1024]], [0x1FFFF800, 12], null, 5],
-      [256,   2, [0x08000000, [0, 127,  2048]], [0x1FFFF800, 12], null, 10]
+      [16,    4, 0x08000000, [[0, 15,   1024]], [0x1FFFF800, 12], null, 5],
+      [32,    4, 0x08000000, [[0, 31,   1024]], [0x1FFFF800, 12], null, 5],
+      [64,    4, 0x08000000, [[0, 63,   1024]], [0x1FFFF800, 12], null, 5],
+      [256,   2, 0x08000000, [[0, 127,  2048]], [0x1FFFF800, 12], null, 10]
     ],
     "STM32F051xx/STM32F030x8"
   ],
@@ -26,8 +59,8 @@ const c_stm32Devices   = [
       [0x0444, 0x1FFFF7A6, [0x10], 0x1FFFF7CC]
     ],
     [
-      [16,    4, [0x08000000, [0, 15,   1024]], [0x1FFFF800, 12], null, 5],
-      [32,    4, [0x08000000, [0, 31,   1024]], [0x1FFFF800, 12], null, 5]
+      [16,    4, 0x08000000, [[0, 15,   1024]], [0x1FFFF800, 12], null, 5],
+      [32,    4, 0x08000000, [[0, 31,   1024]], [0x1FFFF800, 12], null, 5]
     ],
     "STM32F03xxx"
   ],
@@ -36,8 +69,8 @@ const c_stm32Devices   = [
       [0x0445, 0x1FFFF6A6, [0xA0], 0x1FFFF7CC]
     ],
     [
-      [16,    4, [0x08000000, [0, 15,   1024]], [0x1FFFF800, 12], null, 5],
-      [32,    4, [0x08000000, [0, 31,   1024]], [0x1FFFF800, 12], null, 5]
+      [16,    4, 0x08000000, [[0, 15,   1024]], [0x1FFFF800, 12], null, 5],
+      [32,    4, 0x08000000, [[0, 31,   1024]], [0x1FFFF800, 12], null, 5]
     ],
     "STM32F042xx"
 	],
@@ -46,8 +79,8 @@ const c_stm32Devices   = [
       [0x0448, 0x1FFFF6A6, [0xA1], 0x1FFFF7CC]
     ],
     [
-      [64,    2, [0x08000000, [0, 31,   2048]], [0x1FFFF800, 16], null, 5],
-      [128,   2, [0x08000000, [0, 63,   2048]], [0x1FFFF800, 16], null, 10]
+      [64,    2, 0x08000000, [[0, 31,   2048]], [0x1FFFF800, 16], null, 5],
+      [128,   2, 0x08000000, [[0, 63,   2048]], [0x1FFFF800, 16], null, 10]
     ],
     "STM32F07xxx"
   ], 
@@ -56,8 +89,8 @@ const c_stm32Devices   = [
       [0x0442, 0x1FFFF6A6, [0xA1], 0x1FFFF7CC]
     ],
     [
-      [128,   2, [0x08000000, [0, 63,   2048]], [0x1FFFF800, 16]], null, 10],
-      [256,   2, [0x08000000, [0, 127,  2048]], [0x1FFFF800, 16]], null, 10]
+      [128,   2, 0x08000000, [[0, 63,   2048]], [0x1FFFF800, 16]], null, 10],
+      [256,   2, 0x08000000, [[0, 127,  2048]], [0x1FFFF800, 16]], null, 10]
     ],
     "STM32F09xxx"
   ], 
@@ -67,8 +100,8 @@ const c_stm32Devices   = [
       [0x0412, null, null, 0x1FFFF7E0]
     ],
     [
-      [16,    4, [0x08000000, [0, 15,   1024]], null, null, 5],
-      [32,    4, [0x08000000, [0, 31,   1024]], null, null, 5]
+      [16,    4, 0x08000000, [[0, 15,   1024]], null, null, 5],
+      [32,    4, 0x08000000, [[0, 31,   1024]], null, null, 5]
     ],
     "STM32F10xxx Low density"
 	],
@@ -77,8 +110,8 @@ const c_stm32Devices   = [
       [0x0410, null, null, 0x1FFFF7E0]
     ],
     [
-      [64,    4, [0x08000000, [0, 63,   1024]], null, null, 5],
-      [128,   4, [0x08000000, [0, 127,  1024]], null, null, 10]
+      [64,    4, 0x08000000, [[0, 63,   1024]], null, null, 5],
+      [128,   4, 0x08000000, [[0, 127,  1024]], null, null, 10]
     ],
     "STM32F10xxx Medium density"
 	],
@@ -87,9 +120,9 @@ const c_stm32Devices   = [
       [0x0414, null, null, 0x1FFFF7E0]
     ],
     [
-      [256,   2, [0x08000000, [0, 127,  2048]], null, null, 10],
-      [384,   2, [0x08000000, [0, 191,  2048]], null, null, 10],
-      [512,   2, [0x08000000, [0, 255,  2048]], null, null, 20]
+      [256,   2, 0x08000000, [[0, 127,  2048]], null, null, 10],
+      [384,   2, 0x08000000, [[0, 191,  2048]], null, null, 10],
+      [512,   2, 0x08000000, [[0, 255,  2048]], null, null, 20]
     ],
     "STM32F10xxx High density"
   ],
@@ -98,8 +131,8 @@ const c_stm32Devices   = [
       [0x0420, 0x1FFFF7D6, [0x10], 0x1FFFF7E0]
     ],
     [
-      [64,    4, [0x08000000, [0, 63,   1024]], null, null, 5],
-      [128,   4, [0x08000000, [0, 127,  1024]], null, null, 10]      
+      [64,    4, 0x08000000, [[0, 63,   1024]], null, null, 5],
+      [128,   4, 0x08000000, [[0, 127,  1024]], null, null, 10]      
     ],
     "STM32F10xxx Medium density, value line"
 	],
@@ -108,9 +141,9 @@ const c_stm32Devices   = [
       [0x0428, 0x1FFFF7D6, [0x10], 0x1FFFF7E0]
     ],
     [
-      [256,   2, [0x08000000, [0, 127,  2048]], null, null, 10],
-      [384,   2, [0x08000000, [0, 191,  2048]], null, null, 15],
-      [512,   2, [0x08000000, [0, 255,  2048]], null, null, 15]   
+      [256,   2, 0x08000000, [[0, 127,  2048]], null, null, 10],
+      [384,   2, 0x08000000, [[0, 191,  2048]], null, null, 15],
+      [512,   2, 0x08000000, [[0, 255,  2048]], null, null, 15]   
     ],
     "STM32F10xxx High density, value line"
 	],
@@ -119,9 +152,9 @@ const c_stm32Devices   = [
       [0x0418, null, null, 0x1FFFF7E0]
     ],
     [
-      [64,    2, [0x08000000, [0, 31,   2048]], null, null, 5],
-      [128,   2, [0x08000000, [0, 63,   2048]], null, null, 10],
-      [256,   2, [0x08000000, [0, 127,  2048]], null, null, 10]
+      [64,    2, 0x08000000, [[0, 31,   2048]], null, null, 5],
+      [128,   2, 0x08000000, [[0, 63,   2048]], null, null, 10],
+      [256,   2, 0x08000000, [[0, 127,  2048]], null, null, 10]
     ],
     "STM32F105xx/107xx Connectivity line"
   ],
@@ -130,8 +163,8 @@ const c_stm32Devices   = [
       [0x0430, 0x1FFFF7D6, [0x21], 0x1FFFF7E0]
     ],
     [
-      [768,   2, [0x08000000, [0, 767,  1024]], null, null, 15],
-      [1024,  2, [0x08000000, [0, 511,  2048]], null, null, 20]
+      [768,   2, 0x08000000, [[0, 767,  1024]], null, null, 15],
+      [1024,  2, 0x08000000, [[0, 511,  2048]], null, null, 20]
     ],
     "STM32F10xxx XL density"
   ],
@@ -141,10 +174,10 @@ const c_stm32Devices   = [
       [0x0411, 0x1FFF77DE, [0x20,0x33], 0x1FFF7A22],
     ],
     [
-      [128,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536]], null, null, 10],
-      [256,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 5,  131072]], null, null, 10],
-      [512,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 7,  131072]], null, null, 15],
-      [1024,  1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 11, 131072]], null, null, 20]
+      [128,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536]], null, null, 10],
+      [256,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 5,  131072]], null, null, 10],
+      [512,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 7,  131072]], null, null, 15],
+      [1024,  1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 11, 131072]], null, null, 20]
     ],
     "STM32F2xxxx"
 	], 
@@ -154,9 +187,9 @@ const c_stm32Devices   = [
 			[0x0432, 0x1FFFF7A6, [0x41], 0x1FFFF7CC]
 		],
 		[
-			[64,    2, [0x08000000, [0, 31,  2048]], [0x1FFFF800, 16], null, 5],
-			[128,   2, [0x08000000, [0, 63,  2048]], [0x1FFFF800, 16], null, 10],
-			[256,   2, [0x08000000, [0, 127, 2048]], [0x1FFFF800, 16], null, 10]
+			[64,    2, 0x08000000, [[0, 31,  2048]], [0x1FFFF800, 16], null, 5],
+			[128,   2, 0x08000000, [[0, 63,  2048]], [0x1FFFF800, 16], null, 10],
+			[256,   2, 0x08000000, [[0, 127, 2048]], [0x1FFFF800, 16], null, 10]
 		],
 		"STM32F373xx"
 	],
@@ -165,7 +198,7 @@ const c_stm32Devices   = [
 			[0x0432, 0x1FFFF7A6, [0x50], 0x1FFFF7CC]
 		],
 		[
-			[256,   2, [0x08000000, [0, 127, 2048]], [0x1FFFF800, 16], null, 10]
+			[256,   2, 0x08000000, [[0, 127, 2048]], [0x1FFFF800, 16], null, 10]
 		],
 		"STM32F378xx"
 	],
@@ -174,8 +207,8 @@ const c_stm32Devices   = [
 			[0x0422, 0x1FFFF796, [0x41], 0x1FFFF7CC]
 		],
 		[
-			[128,   2, [0x08000000, [0, 63,  2048]], [0x1FFFF800, 16], null, 10],
-			[256,   2, [0x08000000, [0, 127, 2048]], [0x1FFFF800, 16], null, 10]		
+			[128,   2, 0x08000000, [[0, 63,  2048]], [0x1FFFF800, 16], null, 10],
+			[256,   2, 0x08000000, [[0, 127, 2048]], [0x1FFFF800, 16], null, 10]		
 		],
 		"STM32F302xB(C)/303xB(C)"
 	],
@@ -184,7 +217,7 @@ const c_stm32Devices   = [
 			[0x0422, 0x1FFFF796, [0x50], 0x1FFFF7CC]
 		],
 		[
-			[256,   2, [0x08000000, [0, 127, 2048]], [0x1FFFF800, 16], null, 10]		
+			[256,   2, 0x08000000, [[0, 127, 2048]], [0x1FFFF800, 16], null, 10]		
 		],
 		"STM32F358xx"
 	],
@@ -193,8 +226,8 @@ const c_stm32Devices   = [
 			[0x0439, 0x1FFFF796, [0x40], 0x1FFFF7CC]
 		],
 		[
-			[32,    2, [0x08000000, [0, 16,  2048]], [0x1FFFF800, 16], null, 5],
-			[64,    2, [0x08000000, [0, 31,  2048]], [0x1FFFF800, 16], null, 5]
+			[32,    2, 0x08000000, [[0, 16,  2048]], [0x1FFFF800, 16], null, 5],
+			[64,    2, 0x08000000, [[0, 31,  2048]], [0x1FFFF800, 16], null, 5]
 		],
 		"STM32F301xx/302x4(6/8)"
 	],
@@ -203,7 +236,7 @@ const c_stm32Devices   = [
 			[0x0439, 0x1FFFF796, [0x50], 0x1FFFF7CC]
 		],
 		[
-			[64,    2, [0x08000000, [0, 31,  2048]], [0x1FFFF800, 16], null, 5]		
+			[64,    2, 0x08000000, [[0, 31,  2048]], [0x1FFFF800, 16], null, 5]		
 		], 
 		"STM32F318xx"
 	],
@@ -212,9 +245,9 @@ const c_stm32Devices   = [
 			[0x0438, 0x1FFFF796, [0x50], 0x1FFFF7CC]
 		],
 		[
-			[16,    2, [0x08000000, [0, 8,   2048]], [0x1FFFF800, 16], null, 5],
-			[32,    2, [0x08000000, [0, 16,  2048]], [0x1FFFF800, 16], null, 5],
-			[64,    2, [0x08000000, [0, 31,  2048]], [0x1FFFF800, 16], null, 5]		
+			[16,    2, 0x08000000, [[0, 8,   2048]], [0x1FFFF800, 16], null, 5],
+			[32,    2, 0x08000000, [[0, 16,  2048]], [0x1FFFF800, 16], null, 5],
+			[64,    2, 0x08000000, [[0, 31,  2048]], [0x1FFFF800, 16], null, 5]		
 		],
 		"STM32F303x4(6/8)/334xx/328xx"
 	],
@@ -224,8 +257,8 @@ const c_stm32Devices   = [
 			[0x0413, 0x1FFF77DE, [0x31,0x90], 0x1FFF7A22],
 		],
 		[
-			[512,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15],
-			[1024,  1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 11,  131072]], null, null, 20]
+			[512,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15],
+			[1024,  1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 11,  131072]], null, null, 20]
 		],
 		"STM32F40xx/41xxx"
 	],
@@ -234,9 +267,9 @@ const c_stm32Devices   = [
 			[0x0419, 0x1FFF76DE, [0x70,0x90], 0x1FFF7A22],
 		],
 		[
-			[512,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15],
-			[1024,  1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 11,  131072]], null, null, 20],
-			[2048,  1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 19,  131072]], null, null, 30]
+			[512,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15],
+			[1024,  1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 11,  131072]], null, null, 20],
+			[2048,  1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 19,  131072]], null, null, 30]
 		],
 		"STM32F429xx/439xx"
 	],
@@ -245,8 +278,8 @@ const c_stm32Devices   = [
 			[0x0423, 0x1FFF76DE, [0xD1], 0x1FFF7A22]
 		],
 		[
-			[128,   1, [0x08000000, [0, 3,  16384], [4, 4,    65536]], null, null, 10],
-			[256,   1, [0x08000000, [0, 3,  16384], [4, 4,    65536], [5, 5,   131072]], null, null, 10]		
+			[128,   1, 0x08000000, [[0, 3,  16384], [4, 4,    65536]], null, null, 10],
+			[256,   1, 0x08000000, [[0, 3,  16384], [4, 4,    65536], [5, 5,   131072]], null, null, 10]		
 		],
 		"STM32F401xB(C)"
 	],
@@ -255,8 +288,8 @@ const c_stm32Devices   = [
 			[0x0433, 0x1FFF76DE, [0xD1], 0x1FFF7A22]
 		],
 		[
-      [384,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 6,   131072]], null, null, 15],		
-      [512,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15]			
+      [384,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 6,   131072]], null, null, 15],		
+      [512,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15]			
 		],
 		"STM32F401xD(E)"
 	],
@@ -265,8 +298,8 @@ const c_stm32Devices   = [
 			[0x0431, 0x1FFF76DE, [0xD0], 0x1FFF7A22]
 		],
 		[
-			[256,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 5,   131072]], null, null, 10],			
-      [512,   1, [0x08000000, [0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15]			
+			[256,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 5,   131072]], null, null, 10],			
+      [512,   1, 0x08000000, [[0, 3,   16384], [4, 4,   65536], [5, 7,   131072]], null, null, 15]			
 		],
 		"STM32F411xD(E)"
 	],
@@ -276,8 +309,8 @@ const c_stm32Devices   = [
 			[0x0417, 0x1FF00FFE, [0xC0], 0x1FF8004C]
 		],
 		[
-			[32,  16, [0x08000000, [0, 127,  256]], [0x1FF80000, 16], null, 5],
-			[64,  16, [0x08000000, [0, 255,  256]], [0x1FF80000, 16], null, 5]
+			[32,  16, 0x08000000, [[0, 127,  256]], [0x1FF80000, 16], null, 5],
+			[64,  16, 0x08000000, [[0, 255,  256]], [0x1FF80000, 16], null, 5]
 		],
 		"STM32L05xxx/06xxx"
 	],
@@ -288,9 +321,9 @@ const c_stm32Devices   = [
 			[0x0429, 0x1FF00FFE, [0x20], 0x1FF8004C]
 		],
 		[
-			[32,  16, [0x08000000, [0, 127,  256]], [0x1FF80000, 16], null, 5],
-			[64,  16, [0x08000000, [0, 256,  256]], [0x1FF80000, 16], null, 5],
-			[128, 16, [0x08000000, [0, 512,  256]], [0x1FF80000, 16], null, 10]
+			[32,  16, 0x08000000, [[0, 127,  256]], [0x1FF80000, 16], null, 5],
+			[64,  16, 0x08000000, [[0, 256,  256]], [0x1FF80000, 16], null, 5],
+			[128, 16, 0x08000000, [[0, 512,  256]], [0x1FF80000, 16], null, 10]
 		],
 		"STM32L1xxx6(8/B/A)"
 	],
@@ -299,7 +332,7 @@ const c_stm32Devices   = [
 			[0x0427, 0x1FF00FFE, [0x40], 0x1FF8004C]
 		],
 		[
-			[256, 16, [0x08000000, [0, 1023,  256]], [1FF80080, 32], null, 10]
+			[256, 16, 0x08000000, [[0, 1023,  256]], [1FF80080, 32], null, 10]
 		],
 		"STM32L1xxxC"
 	],
@@ -308,7 +341,7 @@ const c_stm32Devices   = [
 			[0x0436, 0x1FF00FFE, [0x45], 0x1FF8004C]
 		],
 		[
-			[384, 16, [0x08000000, [0, 1535,  256]], [1FF80080, 32], null, 15]
+			[384, 16, 0x08000000, [[0, 1535,  256]], [1FF80080, 32], null, 15]
 		],
 		"STM32L1xxxD"
 	],
@@ -317,8 +350,36 @@ const c_stm32Devices   = [
 			[0x0437, 0x1FF00FFE, [0x40], 0x1FF8004C]
 		],
 		[
-			[512, 16, [0x08000000, [0, 2047,  256]], [1FF80080, 32], null, 15]
+			[512, 16, 0x08000000, [[0, 2047,  256]], [1FF80080, 32], null, 15]
 		],
 		"STM32L1xxxE"
 	]
 ];
+
+function stm32McuDbFlashSizeGet(pgInfos)
+var pgInfo, size = 0;
+{
+	foreach(pgInfo in pgInfos)
+	{
+    size += (pgInfo[EsStm32Info$$FlashPgEndIdx]-pgInfo[EsStm32Info$$FlashPgStartIdx]+1) * 
+      pgInfo[EsStm32Info$$FlashPgSize];
+  }
+  
+  return size;
+}
+
+function stm32McuDbFlashPageSizeGet(idx, pgInfos)
+var pgInfo, size;
+{
+	foreach(pgInfo in pgInfos)
+	{
+    if( idx >= pgInfo[EsStm32Info$$FlashPgStartIdx] && 
+        idx <= pgInfo[EsStm32Info$$FlashPgEndIdx] )
+    {
+      size = pgInfo[EsStm32Info$$FlashPgSize];
+      break;
+    }
+	}
+	
+	return size;
+}

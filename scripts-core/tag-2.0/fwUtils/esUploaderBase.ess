@@ -1,4 +1,4 @@
-// base uploader object implementation
+// Base uploader object implementation
 //
 object EsUploaderBase
 {
@@ -89,12 +89,13 @@ object EsUploaderBase
 			try
 			{
 				// EsScriptDebug::log("Shutting down device via RPC command");
-				configurePowerOff(chnl);
-				configureBoot(chnl);
-				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
 				progressTask.pulse("Shutting down device...");
-				EsThreadWorker::sleep(1000);
-				configurePowerOn(chnl);
+				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+		    configurePowerOff(chnl);
+		    configureBoot(chnl);
+			  // Wait until device detects power off, and shuts down OK
+			  EsThreadWorker::sleep(2000);
+			  configurePowerOn(chnl);
 				result = true;
 			}
 			catch
