@@ -6,31 +6,29 @@ object EsUploaderBase
 			m_defaultBaud,
 			m_preferredUploadBaud,
 			m_savedBaud;
-
+     
+  // Common channel power manipulators, t augmen entering boot mode
+  //
 	function configurePowerOn(chnl)
 	{
-		// EsScriptDebug::log("configurePowerOn");
 		chnl.devicePowerSet(true);
 		EsThreadWorker::sleep(200);
 	}
 
 	function configurePowerOff(chnl)
 	{
-		// EsScriptDebug::log("configurePowerOff");
 		chnl.devicePowerSet(false);
 		EsThreadWorker::sleep(200);
 	}
 			
 	function configureBoot(chnl)
 	{
-		// EsScriptDebug::log("configureBoot");
 		chnl.deviceProgrammingModeSet(true);
 		EsThreadWorker::sleep(200);		
 	}
 	
 	function configureNormal(chnl)
 	{
-		// EsScriptDebug::log("configureNormal");
 		chnl.deviceProgrammingModeSet(false);
 		EsThreadWorker::sleep(200);	
 	}
@@ -40,7 +38,6 @@ object EsUploaderBase
 		chnl.open();
 		if( chnl.hasMethod("devicePowerSet", 1) )
 		{
-			// EsScriptDebug::log("setDevicePowerOnInNormalMode");
 			configurePowerOff(chnl);
 			configureNormal(chnl);
 			configurePowerOn(chnl);
@@ -49,17 +46,25 @@ object EsUploaderBase
 	
 	function enterBootmodeWithPowerCtl(chnl)
 	{
-		// EsScriptDebug::log("enterBootmodeWithPowerCtl");
 		configurePowerOff(chnl);
 		configureBoot(chnl);
 		configurePowerOn(chnl);
 	}
+	
+	/// Overridable FW programmer object creation. To be implemented in 
+	/// derived objects
+	///
+	function programmerCreate()
+	{
+    return null;    
+	}
 
+  /// Method to be called upon firmware upload completion
+  ///
 	function completeUpload(chnl)
 	var supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
 	{
-		// EsScriptDebug::log("completeUpload");
-		// restore baud
+		// Restore baud
 		chnl.close();
 		chnl$baud = m_savedBaud;
 		// resore power
@@ -72,80 +77,16 @@ object EsUploaderBase
 			chnl.close();
 		}
 	}
-
+	
+  // Configure and ebnter boot mode, before programming device with ISP
 	function configureForBoot(rpcMaster, supportedRpcs)
-	var chnl = rpcMaster$channel, 
-		result = false, tmo = 40, 
-		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
-		progressTask = new EsProgressMonitorTask("configureForBoot");
-	{
-		// EsScriptDebug::log("configureForBoot");
-		progressTask.attachTo(__scriptHost$progressMonitor);
-		
-		if( supportsPowerCtl && 
-				!chnl$useRS232 &&
-				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
-		{
-			try
-			{
-				// EsScriptDebug::log("Shutting down device via RPC command");
-				progressTask.pulse("Shutting down device...");
-				rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-		    configurePowerOff(chnl);
-		    configureBoot(chnl);
-			  // Wait until device detects power off, and shuts down OK
-			  EsThreadWorker::sleep(2000);
-			  configurePowerOn(chnl);
-				result = true;
-			}
-			catch
-			{}
-		}
-		
-		if( !result && (EsRpcStdId$$ENTER_BOOT in supportedRpcs) ) // add extra ms to the upload time estimate, just in case
-		{
-			try
-			{
-				// EsScriptDebug::log("Performing Warm boot");
-				rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
-				progressTask.pulse("Performing Warm Boot...");
-				EsThreadWorker::sleep(1500);
-				result = true;
-				
-				if( result && supportsPowerCtl && !chnl$useRS232 )
-					enterBootmodeWithPowerCtl(chnl);
-			}
-			catch
-			{}
-		}
-		
-		if( !result && supportsPowerCtl && !chnl$useRS232 )
-		{
-			configurePowerOff(chnl);		
-			configureBoot(chnl);
-			progressTask.initialize("Waiting for device to power down...", tmo, tmo);
-			
-			// wait for 40 seconds - standard poweroff timeout
-			while( tmo-- )
-			{
-				EsThreadWorker::sleep(1000);
-				progressTask$position = tmo;
-			}
-			
-			configurePowerOn(chnl);
-			result = true;
-		}
-		
-		return result;
+	{	
+		return false;
 	}
 	
+	// Upload firmware 
 	function upload(rpcMaster)
-	var loader = new EsMcuprogLpc(
-		EsMcuprogLpcFirmwareFlag$$WIPE|
-		EsMcuprogLpcFirmwareFlag$$NO_ECHO|
-		EsMcuprogLpcFirmwareFlag$$VERIFY, 
-		50, // maximum retries for uploader operations
-		m_moniker);
+	var programmer = programmerCreate();
 	var chnl = rpcMaster$channel, swInfo,
 		supportedRpcs, deviceIsInBootMode = false, isAlreadySynched = false;
 	{	
@@ -155,7 +96,7 @@ object EsUploaderBase
 		// power device normally
 		setDevicePowerOnInNormalMode(chnl);
 		// check if we're in bootloader mode, trying to sync with bootloader at once
-		deviceIsInBootMode = loader.syncWithBootloader(chnl, 20, false);
+		deviceIsInBootMode = programmer.syncWithBootloader(chnl, 20, false);
 		// EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
 		if( !deviceIsInBootMode )
 		{
@@ -197,7 +138,7 @@ object EsUploaderBase
 		chnl.open();
 		try
 		{
-			loader.program(chnl, isAlreadySynched);
+			programmer.program(chnl, isAlreadySynched);
 			completeUpload(chnl);
 		}
 		catch

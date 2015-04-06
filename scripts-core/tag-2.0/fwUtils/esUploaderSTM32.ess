@@ -1,0 +1,29 @@
+// @file: esNxpUploaderBase.ess
+// STM32-specific extension of FW uploader object
+//
+##require("esUploaderBase.ess");
+##require("stm32Firmware.ess");
+
+object EsUploaderSTM32 extends EsUploaderBase
+{
+  /// Base class overrides
+  ///
+	function enterBootWithShutdown(progressTask, rpcMaster)
+	{
+		progressTask.pulse("Shutting down device...");
+		configurePowerOff(chnl);
+		configureBoot(chnl);
+		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+		EsThreadWorker::sleep(1000);
+		configurePowerOn(chnl);    
+    
+		progressTask.pulse("Shutting down device...");
+		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    configurePowerOff(rpcMaster$channel);
+    configureBoot(rpcMaster$channel);
+	  // Wait until device detects power off, and shuts down OK
+	  EsThreadWorker::sleep(2000);
+	  configurePowerOn(rpcMaster$channel);
+	}
+  
+}

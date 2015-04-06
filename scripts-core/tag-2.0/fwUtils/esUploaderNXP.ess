@@ -1,0 +1,99 @@
+// @file: esNxpUploaderBase.ess
+// NXP-specific extension of FW uploader object
+//
+##require("esUploaderBase.ess");
+##require("nxpLpcFirmware.ess");
+
+object EsUploaderNXP extends EsUploaderBase
+{
+	function enterBootWithShutdown(progressTask, rpcMaster)
+	{
+		progressTask.pulse("Shutting down device...");
+		configurePowerOff(chnl);
+		configureBoot(chnl);
+		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+		EsThreadWorker::sleep(1000);
+		configurePowerOn(chnl);    
+	}
+	
+	function enterBootWithWarmBoot(progressTask, rpcMaster)
+	{
+		rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+		progressTask.pulse("Performing Warm Boot...");
+		EsThreadWorker::sleep(1500);
+		
+		if( rpcMaster$channel.hasMethod("devicePowerSet", 1) && !rpcMaster$channel$useRS232 )
+			enterBootmodeWithPowerCtl(rpcMaster$channel);
+	}
+	
+	function enterBootWithNaturalPowerOff(progressTask, rpcMaster)
+	var tmo = 40, chnl = rpcMaster$channel;
+	{
+		configurePowerOff(chnl);		
+		configureBoot(chnl);
+		progressTask.initialize("Waiting for device to power down...", tmo, tmo);
+			
+		// wait for 40 seconds - standard poweroff timeout
+		while( tmo-- )
+		{
+			EsThreadWorker::sleep(1000);
+			progressTask$position = tmo;
+		}
+			
+		configurePowerOn(chnl);
+	}
+	
+  /// Base class overrides
+  ///
+  function programmerCreate()
+	{
+		return new EsMcuprogLpc(
+			EsMcuprogLpcFirmwareFlag$$WIPE|
+			EsMcuprogLpcFirmwareFlag$$NO_ECHO|
+			EsMcuprogLpcFirmwareFlag$$VERIFY, 
+			50, // maximum retries for uploader operations
+			m_moniker
+		);
+  }
+  
+  // Configure and ebnter boot mode, before programming device with ISP
+	function configureForBoot(rpcMaster, supportedRpcs)
+	var chnl = rpcMaster$channel, 
+		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+		progressTask = new EsProgressMonitorTask("configureForBoot");
+	{
+		progressTask.attachTo(__scriptHost$progressMonitor);
+		
+		if( supportsPowerCtl && 
+				!chnl$useRS232 &&
+				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+		{
+			try
+			{
+				enterBootWithShutdown(progressTask, rpcMaster);
+				return true;
+			}
+			catch
+			{}
+		}
+		
+		if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
+		{
+			try
+			{
+				enterBootWithWarmBoot(progressTask, rpcMaster);
+				return true;
+			}
+			catch
+			{}
+		}
+		
+		if( supportsPowerCtl && !chnl$useRS232 )
+		{
+			enterBootWithNaturalPowerOff(progressTask, rpcMaster);
+			return true;
+		}
+		
+		return false;
+	}  
+}
