@@ -11,7 +11,7 @@ object EsFwMonikerBase
       m_creationDateTime,
       m_tmpId,
       m_tmpFw;
-      
+  
   if( deviceIsHubFull(m_fwTypesExpected[0]) )
   {
     property UID;
@@ -23,6 +23,11 @@ object EsFwMonikerBase
     write: { m_tmpId[0]$functionality = __value; }
   }      
 
+  function addrAdjust(addr)
+  {
+    return addr-m_binary.m_startAddr;
+  }
+  
   function fwIdExtract()
   var idx, id, buff;
   {
@@ -58,12 +63,17 @@ object EsFwMonikerBase
   }
   
   function init(fwTypes, fwIdOffs, binary, descr, creationDateTime)
+  var idx;
   {
     m_fwTypesExpected = fwTypes;
     m_binary = binary;
     m_tmpFw = m_binary$fw;
     m_tmpId = []; m_tmpId#countSet( m_fwTypesExpected#countGet() );
+    
     m_fwIdOffs = fwIdOffs;
+    for(idx = 0; idx < m_fwIdOffs#countGet(); ++idx)
+      m_fwIdOffs[idx] = addrAdjust(m_fwIdOffs[idx]);
+
     m_descr = descr#asString();
     m_creationDateTime = creationDateTime#asString();    
     
