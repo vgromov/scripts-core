@@ -4,197 +4,197 @@
 //
 object EsFwMonikerBase
 {
-	var m_fwTypesExpected,
-			m_fwIdOffs,	
-			m_binary,
-			m_descr,
-			m_creationDateTime,
-			m_tmpId,
-			m_tmpFw;
-			
-	if( deviceIsHubFull(m_fwTypesExpected[0]) )
-	{
-		property UID;
-		read: { return m_tmpId[0]$UID; }
-		write: { m_tmpId[0].f_uid = __value; }
+  var m_fwTypesExpected,
+      m_fwIdOffs,  
+      m_binary,
+      m_descr,
+      m_creationDateTime,
+      m_tmpId,
+      m_tmpFw;
+      
+  if( deviceIsHubFull(m_fwTypesExpected[0]) )
+  {
+    property UID;
+    read: { return m_tmpId[0]$UID; }
+    write: { m_tmpId[0].f_uid = __value; }
 
-		property functionality;
-		read: { return m_tmpId[0]$functionality; }
-		write: { m_tmpId[0]$functionality = __value; }
-	}			
+    property functionality;
+    read: { return m_tmpId[0]$functionality; }
+    write: { m_tmpId[0]$functionality = __value; }
+  }      
 
-	function fwIdExtract()
-	var idx, id, buff;
-	{
-		m_binary.emptyCheck();
-		
-		for( idx = 0; idx < m_fwTypesExpected#countGet(); ++idx )
-		{
-			id = new EsFirmwareId(m_fwTypesExpected[idx]);
-			m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], id$size);		
-			buff = m_binary.m_fw#sliceGet(m_fwIdOffs[idx], m_fwIdOffs[idx]+id$size);
-			id$buffer = buff;
-			fwIdValidate(id, m_fwTypesExpected[idx], $type);
-			m_tmpId[idx] = id;
-		}
-	}
+  function fwIdExtract()
+  var idx, id, buff;
+  {
+    m_binary.emptyCheck();
+    
+    for( idx = 0; idx < m_fwTypesExpected#countGet(); ++idx )
+    {
+      id = new EsFirmwareId(m_fwTypesExpected[idx]);
+      m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], id$size);    
+      buff = m_binary.m_fw#sliceGet(m_fwIdOffs[idx], m_fwIdOffs[idx]+id$size);
+      id$buffer = buff;
+      fwIdValidate(id, m_fwTypesExpected[idx], $type);
+      m_tmpId[idx] = id;
+    }
+  }
 
-	function fwIdApply()
-	var idx;
-	{
-		m_binary.emptyCheck();
-		
-		for( idx = 0; idx < m_fwTypesExpected#countGet(); ++idx )
-		{
-			if( m_tmpId[idx].isKindOf("EsFirmwareId") )
-			{
-				m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], m_tmpId[idx]$size);
-				fwIdValidate(m_tmpId[idx], m_fwTypesExpected[idx], $type);
-				m_tmpFw#replace(m_tmpId[idx]$buffer, m_fwIdOffs[idx]);
-			}
-			else
-				throw EsStr::format("Wrong argument type in 'fwIdSet', expected 'EsFirmwareId', got '%s'", m_tmpId[idx]$type);\
-		}
-	}
-	
-	function init(fwTypes, fwIdOffs, binary, descr, creationDateTime)
-	{
-		m_fwTypesExpected = fwTypes;
-		m_binary = binary;
-		m_tmpFw = m_binary$fw;
+  function fwIdApply()
+  var idx;
+  {
+    m_binary.emptyCheck();
+    
+    for( idx = 0; idx < m_fwTypesExpected#countGet(); ++idx )
+    {
+      if( m_tmpId[idx].isKindOf("EsFirmwareId") )
+      {
+        m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], m_tmpId[idx]$size);
+        fwIdValidate(m_tmpId[idx], m_fwTypesExpected[idx], $type);
+        m_tmpFw#replace(m_tmpId[idx]$buffer, m_fwIdOffs[idx]);
+      }
+      else
+        throw EsStr::format("Wrong argument type in 'fwIdSet', expected 'EsFirmwareId', got '%s'", m_tmpId[idx]$type);\
+    }
+  }
+  
+  function init(fwTypes, fwIdOffs, binary, descr, creationDateTime)
+  {
+    m_fwTypesExpected = fwTypes;
+    m_binary = binary;
+    m_tmpFw = m_binary$fw;
     m_tmpId = []; m_tmpId#countSet( m_fwTypesExpected#countGet() );
-	  m_fwIdOffs = fwIdOffs;
-		m_descr = descr#asString();
-		m_creationDateTime = creationDateTime#asString();    
-		
-		fwIdExtract();
-	}
-	
-	// Overridable tmp FW updater
-	function tmpFwUpdate()
-	{
-		fwIdApply();
-	}
-	
-	// properties for fw uploader && patch manipulator
-	property description;
-	read: { return m_descr; }
+    m_fwIdOffs = fwIdOffs;
+    m_descr = descr#asString();
+    m_creationDateTime = creationDateTime#asString();    
+    
+    fwIdExtract();
+  }
+  
+  // Overridable tmp FW updater
+  function tmpFwUpdate()
+  {
+    fwIdApply();
+  }
+  
+  // properties for fw uploader && patch manipulator
+  property description;
+  read: { return m_descr; }
 
-	property creationDateTime;
-	read: { return m_creationDateTime; }
-	
-	// Compatibility properties, to support legacy single-id cases
-	//
-	property devType;
-	read: {	return m_fwTypesExpected[0]; }
+  property creationDateTime;
+  read: { return m_creationDateTime; }
+  
+  // Compatibility properties, to support legacy single-id cases
+  //
+  property devType;
+  read: {  return m_fwTypesExpected[0]; }
 
-	property devTypeName;
-	read: { return m_tmpId[0]$devTypeName; }
-	
-	property verMajor;
-	read: { return m_tmpId[0]$verMajor; }
-	
-	property verMinor;
-	read: { return m_tmpId[0]$verMinor; }
+  property devTypeName;
+  read: { return m_tmpId[0]$devTypeName; }
+  
+  property verMajor;
+  read: { return m_tmpId[0]$verMajor; }
+  
+  property verMinor;
+  read: { return m_tmpId[0]$verMinor; }
 
-	property ver;
-	read: {	return m_tmpId[0]$ver; }
-	
-	property year;
-	read: { return m_tmpId[0]$year; }
-	write: { m_tmpId[0].f_serial.f_year = __value; }
+  property ver;
+  read: {  return m_tmpId[0]$ver; }
+  
+  property year;
+  read: { return m_tmpId[0]$year; }
+  write: { m_tmpId[0].f_serial.f_year = __value; }
 
-	property order;
-	read: { return m_tmpId[0]$order; }
-	write: { m_tmpId[0].f_serial.f_order = __value; }
-	
-	// Firmware binary access
-	property binaryFw;
-	read: 
-	{ 
-		tmpFwUpdate();
-		return m_tmpFw;
-	}
-	
-	property binaryStartAddr;
-	read: { return m_binary.m_startAddr; }
-	
-	property binaryOffs;
-	read: { return m_binary.m_offs; }
-	
-	property binaryByteSize;
-	read: { return m_binary$fw#countGet(); }
-	
-	// Return firmware formatted string ready for file naming
-	property safeFileName;
-	read:
-	var result;
-	{
-		result = EsStr::fromString(deviceCodeNameGet(m_tmpId[0].f_devType), EsStrFlag$$None);
-		result += EsStr::format("_%03d%03d_%05d%02d", m_tmpId[0].f_fwVer.f_major, m_tmpId[0].f_fwVer.f_minor, m_tmpId[0].f_serial.f_order, m_tmpId[0].f_serial.f_year%100);
-		if( m_tmpId[0].hasField("f_uid") )
-			result += "_" + m_tmpId[0].fieldGet("f_uid").asString();
-		
-		return result;
-	}	
+  property order;
+  read: { return m_tmpId[0]$order; }
+  write: { m_tmpId[0].f_serial.f_order = __value; }
+  
+  // Firmware binary access
+  property binaryFw;
+  read: 
+  { 
+    tmpFwUpdate();
+    return m_tmpFw;
+  }
+  
+  property binaryStartAddr;
+  read: { return m_binary.m_startAddr; }
+  
+  property binaryOffs;
+  read: { return m_binary.m_offs; }
+  
+  property binaryByteSize;
+  read: { return m_binary$fw#countGet(); }
+  
+  // Return firmware formatted string ready for file naming
+  property safeFileName;
+  read:
+  var result;
+  {
+    result = EsStr::fromString(deviceCodeNameGet(m_tmpId[0].f_devType), EsStrFlag$$None);
+    result += EsStr::format("_%03d%03d_%05d%02d", m_tmpId[0].f_fwVer.f_major, m_tmpId[0].f_fwVer.f_minor, m_tmpId[0].f_serial.f_order, m_tmpId[0].f_serial.f_year%100);
+    if( m_tmpId[0].hasField("f_uid") )
+      result += "_" + m_tmpId[0].fieldGet("f_uid").asString();
+    
+    return result;
+  }  
 
-	// New multi-id - aware properties
-	//
-	property devTypes;
-	read: {	return m_fwTypesExpected; }
+  // New multi-id - aware properties
+  //
+  property devTypes;
+  read: {  return m_fwTypesExpected; }
 
-	property devTypeNames;
-	read: 
-	var tmpId, names = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			names += tmpId$devTypeName;
-		return names; 
-	}
-	
-	property verMajors;
-	read:
-	var tmpId, vers = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			vers += tmpId$verMajor;
-		return vers; 
-	}
-	
-	property verMinors;
-	read:
-	var tmpId, vers = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			vers += tmpId$verMinor;
-		return vers; 
-	}
+  property devTypeNames;
+  read: 
+  var tmpId, names = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      names += tmpId$devTypeName;
+    return names; 
+  }
+  
+  property verMajors;
+  read:
+  var tmpId, vers = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      vers += tmpId$verMajor;
+    return vers; 
+  }
+  
+  property verMinors;
+  read:
+  var tmpId, vers = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      vers += tmpId$verMinor;
+    return vers; 
+  }
 
-	property vers;
-	read:
-	var tmpId, vv = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			vv += tmpId$ver;
-			
-		return vv; 
-	}
-	
-	property years;
-	read:
-	var tmpId, yy = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			yy += tmpId.f_serial.f_year;
-		return yy; 
-	}
+  property vers;
+  read:
+  var tmpId, vv = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      vv += tmpId$ver;
+      
+    return vv; 
+  }
+  
+  property years;
+  read:
+  var tmpId, yy = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      yy += tmpId.f_serial.f_year;
+    return yy; 
+  }
 
-	property orders;
-	read: 
-	var tmpId, oo = [];
-	{ 
-		foreach(tmpId in m_tmpId)
-			oo += tmpId.f_serial.f_order;
-		return oo; 
-	}
+  property orders;
+  read: 
+  var tmpId, oo = [];
+  { 
+    foreach(tmpId in m_tmpId)
+      oo += tmpId.f_serial.f_order;
+    return oo; 
+  }
 }

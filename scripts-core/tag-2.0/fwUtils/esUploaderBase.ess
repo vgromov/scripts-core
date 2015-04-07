@@ -2,152 +2,152 @@
 //
 object EsUploaderBase
 {
-	var m_moniker, 
-			m_defaultBaud,
-			m_preferredUploadBaud,
-			m_savedBaud;
+  var m_moniker, 
+      m_defaultBaud,
+      m_preferredUploadBaud,
+      m_savedBaud;
      
   // Common channel power manipulators, t augmen entering boot mode
   //
-	function configurePowerOn(chnl)
-	{
-		chnl.devicePowerSet(true);
-		EsThreadWorker::sleep(200);
-	}
+  function configurePowerOn(chnl)
+  {
+    chnl.devicePowerSet(true);
+    EsThreadWorker::sleep(200);
+  }
 
-	function configurePowerOff(chnl)
-	{
-		chnl.devicePowerSet(false);
-		EsThreadWorker::sleep(200);
-	}
-			
-	function configureBoot(chnl)
-	{
-		chnl.deviceProgrammingModeSet(true);
-		EsThreadWorker::sleep(200);		
-	}
-	
-	function configureNormal(chnl)
-	{
-		chnl.deviceProgrammingModeSet(false);
-		EsThreadWorker::sleep(200);	
-	}
-	
-	function setDevicePowerOnInNormalMode(chnl)
-	{
-		chnl.open();
-		if( chnl.hasMethod("devicePowerSet", 1) )
-		{
-			configurePowerOff(chnl);
-			configureNormal(chnl);
-			configurePowerOn(chnl);
-		}
-	}
-	
-	function enterBootmodeWithPowerCtl(chnl)
-	{
-		configurePowerOff(chnl);
-		configureBoot(chnl);
-		configurePowerOn(chnl);
-	}
-	
-	/// Overridable FW programmer object creation. To be implemented in 
-	/// derived objects
-	///
-	function programmerCreate()
-	{
+  function configurePowerOff(chnl)
+  {
+    chnl.devicePowerSet(false);
+    EsThreadWorker::sleep(200);
+  }
+      
+  function configureBoot(chnl)
+  {
+    chnl.deviceProgrammingModeSet(true);
+    EsThreadWorker::sleep(200);    
+  }
+  
+  function configureNormal(chnl)
+  {
+    chnl.deviceProgrammingModeSet(false);
+    EsThreadWorker::sleep(200);  
+  }
+  
+  function setDevicePowerOnInNormalMode(chnl)
+  {
+    chnl.open();
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {
+      configurePowerOff(chnl);
+      configureNormal(chnl);
+      configurePowerOn(chnl);
+    }
+  }
+  
+  function enterBootmodeWithPowerCtl(chnl)
+  {
+    configurePowerOff(chnl);
+    configureBoot(chnl);
+    configurePowerOn(chnl);
+  }
+  
+  /// Overridable FW programmer object creation. To be implemented in 
+  /// derived objects
+  ///
+  function programmerCreate()
+  {
     return null;    
-	}
+  }
 
   /// Method to be called upon firmware upload completion
   ///
-	function completeUpload(chnl)
-	var supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
-	{
-		// Restore baud
-		chnl.close();
-		chnl$baud = m_savedBaud;
-		// resore power
-		if( supportsPowerCtl && !chnl$useRS232 )
-		{
-			chnl.open();
-			configurePowerOff(chnl);
-			configureNormal(chnl);
-			configurePowerOn(chnl);
-			chnl.close();
-		}
-	}
-	
+  function completeUpload(chnl)
+  var supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
+  {
+    // Restore baud
+    chnl.close();
+    chnl$baud = m_savedBaud;
+    // resore power
+    if( supportsPowerCtl && !chnl$useRS232 )
+    {
+      chnl.open();
+      configurePowerOff(chnl);
+      configureNormal(chnl);
+      configurePowerOn(chnl);
+      chnl.close();
+    }
+  }
+  
   // Configure and ebnter boot mode, before programming device with ISP
-	function configureForBoot(rpcMaster, supportedRpcs)
-	{	
-		return false;
-	}
-	
-	// Upload firmware 
-	function upload(rpcMaster)
-	var programmer = programmerCreate();
-	var chnl = rpcMaster$channel, swInfo,
-		supportedRpcs, deviceIsInBootMode = false, isAlreadySynched = false;
-	{	
-		rpcMaster.deactivate();
-		m_savedBaud = chnl$baud;
-		chnl$baud = m_preferredUploadBaud;
-		// power device normally
-		setDevicePowerOnInNormalMode(chnl);
-		// check if we're in bootloader mode, trying to sync with bootloader at once
-		deviceIsInBootMode = programmer.syncWithBootloader(chnl, 20, false);
-		// EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
-		if( !deviceIsInBootMode )
-		{
-			rpcMaster.deactivate();
-			chnl$baud = m_defaultBaud;
-			rpcMaster.activate();
-			try
-			{
-				// EsScriptDebug::log("Getting implemented RPCs");
-				supportedRpcs = rpcMaster.getImplementedRPCs();
-				// if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
-				if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
-						m_moniker.hasProperty("fwPrevCrc") )
-				{
-					swInfo = new EsSoftwareInfo();
-					swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
-					m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
-				}
-			}
-			catch
-			{
-				// error ocurred during the most basic device query
-				// device may be already in boot mode
-				deviceIsInBootMode = true;
-			}
-		}
-		else
-			isAlreadySynched = true;
-			
-		if( !deviceIsInBootMode )
-		{
-			deviceIsInBootMode = configureForBoot(rpcMaster, supportedRpcs);
-			if( !deviceIsInBootMode )
-				throw "Could not enter device programming mode";
-		}
-			
-		chnl.close();
-		chnl$baud = m_preferredUploadBaud;
-		chnl.open();
-		try
-		{
-			programmer.program(chnl, isAlreadySynched);
-			completeUpload(chnl);
-		}
-		catch
-		{
-			completeUpload(chnl);
-			rethrow;
-		}
-	}
-	
-	property moniker;
-	read: { return m_moniker; }	
+  function configureForBoot(rpcMaster, supportedRpcs)
+  {  
+    return false;
+  }
+  
+  // Upload firmware 
+  function upload(rpcMaster)
+  var programmer = programmerCreate();
+  var chnl = rpcMaster$channel, swInfo,
+    supportedRpcs, deviceIsInBootMode = false, isAlreadySynched = false;
+  {  
+    rpcMaster.deactivate();
+    m_savedBaud = chnl$baud;
+    chnl$baud = m_preferredUploadBaud;
+    // power device normally
+    setDevicePowerOnInNormalMode(chnl);
+    // check if we're in bootloader mode, trying to sync with bootloader at once
+    deviceIsInBootMode = programmer.syncWithBootloader(chnl, 20, false);
+    // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
+    if( !deviceIsInBootMode )
+    {
+      rpcMaster.deactivate();
+      chnl$baud = m_defaultBaud;
+      rpcMaster.activate();
+      try
+      {
+        // EsScriptDebug::log("Getting implemented RPCs");
+        supportedRpcs = rpcMaster.getImplementedRPCs();
+        // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
+        if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
+            m_moniker.hasProperty("fwPrevCrc") )
+        {
+          swInfo = new EsSoftwareInfo();
+          swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
+          m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
+        }
+      }
+      catch
+      {
+        // error ocurred during the most basic device query
+        // device may be already in boot mode
+        deviceIsInBootMode = true;
+      }
+    }
+    else
+      isAlreadySynched = true;
+      
+    if( !deviceIsInBootMode )
+    {
+      deviceIsInBootMode = configureForBoot(rpcMaster, supportedRpcs);
+      if( !deviceIsInBootMode )
+        throw "Could not enter device programming mode";
+    }
+      
+    chnl.close();
+    chnl$baud = m_preferredUploadBaud;
+    chnl.open();
+    try
+    {
+      programmer.program(chnl, isAlreadySynched);
+      completeUpload(chnl);
+    }
+    catch
+    {
+      completeUpload(chnl);
+      rethrow;
+    }
+  }
+  
+  property moniker;
+  read: { return m_moniker; }  
 }

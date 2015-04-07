@@ -8,22 +8,22 @@ object EsUploaderSTM32 extends EsUploaderBase
 {
   /// Base class overrides
   ///
-	function enterBootWithShutdown(progressTask, rpcMaster)
-	{
-		progressTask.pulse("Shutting down device...");
-		configurePowerOff(chnl);
-		configureBoot(chnl);
-		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-		EsThreadWorker::sleep(1000);
-		configurePowerOn(chnl);    
+  function enterBootWithShutdown(progressTask, rpcMaster)
+  {
+    progressTask.pulse("Shutting down device...");
+    configurePowerOff(chnl);
+    configureBoot(chnl);
+    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    EsThreadWorker::sleep(1000);
+    configurePowerOn(chnl);    
     
-		progressTask.pulse("Shutting down device...");
-		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    progressTask.pulse("Shutting down device...");
+    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
     configurePowerOff(rpcMaster$channel);
     configureBoot(rpcMaster$channel);
-	  // Wait until device detects power off, and shuts down OK
-	  EsThreadWorker::sleep(2000);
-	  configurePowerOn(rpcMaster$channel);
-	}
+    // Wait until device detects power off, and shuts down OK
+    EsThreadWorker::sleep(2000);
+    configurePowerOn(rpcMaster$channel);
+  }
   
 }

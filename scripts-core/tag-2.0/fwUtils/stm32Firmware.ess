@@ -1,8 +1,8 @@
+##require(stm32McuDb.ess);
+
 /// Known STM32 ACKs and NACKs
 const c_stm32ACKs     = [0x75, 0x79];
 const c_stm32NACKs    = [0x3F, 0x1F];
-
-##require(stm32McuDb.ess);
 
 // ACK | NACK response types
 enum EsStm32response
@@ -37,29 +37,29 @@ enum EsStm32Flag
 
 object EsMcuprogStm32
 {
-	var m_flags,
-			m_synched,
-			m_chipId, 
-	    m_bootVer,
-	    m_bootId,
-	    m_memConfig,
-	    m_devName,
-	    m_cmdsAvail, 
-	    m_ack, 
-	    m_nack,
-	    m_recentCmd, 
-			m_rprotOff,
-			m_rprotOn,    
-	    m_request, 
-	    m_response,
-	    m_moniker;
+  var m_flags,
+      m_synched,
+      m_chipId, 
+      m_bootVer,
+      m_bootId,
+      m_memConfig,
+      m_devName,
+      m_cmdsAvail, 
+      m_ack, 
+      m_nack,
+      m_recentCmd, 
+      m_rprotOff,
+      m_rprotOn,    
+      m_request, 
+      m_response,
+      m_moniker;
 
   /// Reset some fields to initial values, as if bootloader was never contacted
   function reset()
   {
-		m_synched = false;
+    m_synched = false;
     m_cmdsAvail = B"\0\1\2"; // At least, GET commands should always be there
-		m_chipId = null; 
+    m_chipId = null; 
     m_bootVer = null;
     m_bootId = null;
     m_memConfig = null;
@@ -76,23 +76,23 @@ object EsMcuprogStm32
   /// Default constructor    
   new(flags, moniker)
   {
-		m_flags = flags#asULong();
-		m_moniker = moniker;
-		reset();
+    m_flags = flags#asULong();
+    m_moniker = moniker;
+    reset();
   }    
       
   /// Return true if commands available were read,
   /// and available memory erase command is standard, or an extended one
   ///
-	function haveExtendedErase()
-	{
-	  return m_cmdsAvail.countGet() > EsStm32cmd$$MemErase &&
-	    0x44 == m_cmdsAvail[EsStm32cmd$$MemErase];
-	}
-	
-	/// Return true if the second NACK may be expected for the recent command
-	function expectSecondNack()
-	{
+  function haveExtendedErase()
+  {
+    return m_cmdsAvail.countGet() > EsStm32cmd$$MemErase &&
+      0x44 == m_cmdsAvail[EsStm32cmd$$MemErase];
+  }
+  
+  /// Return true if the second NACK may be expected for the recent command
+  function expectSecondNack()
+  {
     if( m_synched && 
         !m_chipId#isEmpty() &&
         !m_bootVer#isEmpty() &&
@@ -106,14 +106,14 @@ object EsMcuprogStm32
     }    
     
     return false;
-	}
-	
-	/// Read ACK or NACK from comm channel
-	function ackOrNackRead(chnl, tmo)
-	{
-	  m_response = chnl.bytesGet(1, tmo);
-	  if( m_response.countGet() )
-	  {
+  }
+  
+  /// Read ACK or NACK from comm channel
+  function ackOrNackRead(chnl, tmo)
+  {
+    m_response = chnl.bytesGet(1, tmo);
+    if( m_response.countGet() )
+    {
       // EsScriptDebug::log("ACK or NACK response: %0X", m_response[0]);  
       // Define ACK and NACK values to be used in BL, the first time known ACK is read
       if( m_ack#isEmpty() && 
@@ -124,240 +124,240 @@ object EsMcuprogStm32
           m_nack = c_stm32NACKs[0];
         else
           m_nack = c_stm32NACKs[1];
-			}
-			        
-	    if( !m_ack#isEmpty() && m_ack == m_response[0] )
-	      return EsStm32response$$ACK;
-	    else if( !m_nack#isEmpty() && m_nack == m_response[0] )
-	    {
-	      if( expectSecondNack() )
-	        chnl.bytesGet(1, tmo);
-	        
-	      return EsStm32response$$NACK;
-	    }
-	    else
-	      return EsStm32response$$Unknown;
-	  }
-	  
-	  return EsStm32response$$None;
-	}
-	
-	/// Synchronize with bootloader
-	function syncWithBootloader(chnl, syncRetries, doThrow)
-	var cnt = 0;
-	{
-	  if( !m_booted )
-	  {
-	    m_request = B"\x7F";
-	  
-	    while( cnt < syncRetries )
-	    {
+      }
+              
+      if( !m_ack#isEmpty() && m_ack == m_response[0] )
+        return EsStm32response$$ACK;
+      else if( !m_nack#isEmpty() && m_nack == m_response[0] )
+      {
+        if( expectSecondNack() )
+          chnl.bytesGet(1, tmo);
+          
+        return EsStm32response$$NACK;
+      }
+      else
+        return EsStm32response$$Unknown;
+    }
+    
+    return EsStm32response$$None;
+  }
+  
+  /// Synchronize with bootloader
+  function syncWithBootloader(chnl, syncRetries, doThrow)
+  var cnt = 0;
+  {
+    if( !m_booted )
+    {
+      m_request = B"\x7F";
+    
+      while( cnt < syncRetries )
+      {
         chnl.reset();
         
-	      if( 1 == chnl.bytesPut(m_request, 100) &&
-	          EsStm32response$$ACK == ackOrNackRead(chnl, 1000) )
-	      {
-	        // Skip any extra IN bytes which device may send after entering BL
-	        while( chnl.bytesGet(m_request, 500) );
-	        m_booted = true;
-	        break;
-	      }
-	    
-	      ++cnt;
-	    }
-	  
-	    if( !m_booted && doThrow )
-	      throw "Could not synchronize with bootloader";
-	  }
-	}
-	
-	/// Helper- calculate XOR checksum for cnt bytes from buff, using init as a starting value
-	function xorBuff(init, buff, cnt)
-	var idx = 0, result = init#asByte();
-	{
-	  while(idx < cnt)
-	    result ^= buff[idx++]#asByte();   
-	
-	  return result#asByte();
-	}
-	
-	/// Helper- send BL command over the channel
-	function cmdWrite(chnl, cmd, tmo)
-	var result = EsStm32response$$None;
-	{
-		m_recentCmd = cmd;
-	  m_request.countSet(2);
-	  m_request[0] = cmd;
-	  m_request[1] = xorBuff(0xFF, m_request, 1);
-		
-	  //EsScriptDebug::log("CMD request:"); EsScriptDebug::log(m_request);
-	  if( 2 == chnl.bytesPut(m_request, tmo) )
-	    result = ackOrNackRead(chnl, tmo);
-	
-	  return result;
-	}
-	
-	/// Read BL code version and available commands
-	function bootcodeVerAndCmdsRead(chnl, tmo)
-	var cnt;
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, 0x00, tmo) )
-	  {
-	    m_response = chnl.bytesGet(1, tmo);
-	    if( m_response.countGet() )
-	    {
-	      cnt = m_response[0]+1;  
-	      m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
-	      if( cnt == m_response.countGet() )
-	      {
-	        m_bootVer = m_response[0];
-	        m_cmdsAvail = m_response#sliceGet(1, cnt-1);
-	        
-	        return ackOrNackRead(chnl, tmo);
-	      }
-	    }
-	  }
-	  
-	  return EsStm32response$$None;
-	}
-	
-	/// Read BL code version and rprot status
-	function bootcodeVerAndProtRead(chnl, tmo)
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, 0x01, tmo) )
-	  {
-	    m_response = chnl.bytesGet(3, tmo + chnl.txTimeEstimateGet(3));
-	    if( 3 == m_response.countGet() )
-	    {
-	      m_bootVer = m_response[0];
-	      m_rprotOff = m_response[1];
-	      m_rprotOn = m_response[2];
-	      return ackOrNackRead(chnl, tmo);
-	    }
-	  }
-	  
-	  return EsStm32response$$None;  
-	}
-	
-	/// Read chip ID
-	function chipIdRead(chnl, tmo)
-	var cnt;
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, 0x02, tmo) )
-	  {
-	    m_response = chnl.bytesGet(1, tmo);
-	    if( m_response.countGet() )
-	    {
-	      cnt = m_response[0]+1;    
-	      m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
-	      if( cnt == m_response.countGet() )
-	      {
-	        m_response#reverse();
-	        m_chipId = m_response#asULong();
-	        
-	        return ackOrNackRead(chnl, tmo);
-	      }
-	    }
-	  }
-	  
-	  return EsStm32response$$None;  
-	}
-	
-	/// Jump to the specified memory address
-	function goTo(chnl, addr, tmo)
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$GoTo], tmo) )
-	  {
-	    // TODO: validate address for specific device
-	    // Send address, MSB to LSB + checksum
-	    m_request = addr#asULong()#asBinBuffer();
-	    m_request#reverse();
-	    m_request += xorBuff(0, m_request, 4);
-	    if( 5 == chnl.bytesPut(m_request, tmo) &&
-	        EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
-	    {
-	      return ackOrNackRead(chnl, tmo);
-	    }
-	  }
-	  
-	  return EsStm32response$$None;
-	}
-	
-	/// Request memory read
-	function memRead(chnl, addr, cnt, tmo)
-	{
-	  if( 0 >= cnt || cnt > 255 )
-	    throw "Could not read more, than 255 bytes per packet";
-	
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemRead], tmo) )
-	  {
-	    // TODO: validate address for specific device
-	    // Send address, MSB to LSB + checksum
-	    m_request = addr#asULong()#asBinBuffer();
-	    m_request#reverse();
-	    m_request += xorBuff(0, m_request, 4);
-	    if( 5 == chnl.bytesPut(m_request, tmo) &&
-	        EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
-	    {
-	      m_request#countSet(2);
-	      m_request[0] = cnt-1;
-	      m_request[1] = xorBuff(0xFF, m_request, 1);
-	      if( 2 == chnl.bytesPut(m_request, tmo) &&
-	          EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
-	      {
-	        m_response = chnl.bytesGet(cnt+1, tmo+chnl.txTimeEstimateGet(cnt+1));
-	        if( cnt == m_response#countGet() )
-	          return EsStm32response$$ACK;
-	      }
-	    }
-	  }
-	  
-	  return EsStm32response$$None;    
-	}
-	
-	/// Request memory write
-	function memWrite(chnl, addr, data, tmo)
-	var cnt = data#countGet();
-	{
-	  if( 0 >= cnt || cnt > 255 )
-	    throw "Could not write more, than 255 bytes per packet";
-	
-	  if( cnt % 4 )
-	    throw "Write packet length must be multiple of 4";
-	
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemWrite], tmo) )
-	  {
-	    // TODO: validate address for specific device
-	    // Send address, MSB to LSB + checksum
-	    m_request = addr#asULong()#asBinBuffer();
-	    m_request#reverse();
-	    m_request += xorBuff(0, m_request, 4);
-	    if( 5 == chnl.bytesPut(m_request, tmo) &&
-	        EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
-	    {
-	      m_request#countSet(1);
-	      m_request[0] = cnt-1;
-	      m_request += data;
-	      m_request += xorBuff(0, m_request, cnt+1);
-	      if( cnt+2 == chnl.bytesPut(m_request, tmo+chnl.txTimeEstimateGet(cnt+2)) )
-	      {
-	        return ackOrNackRead(chnl, tmo);
-	      }
-	    }
-	  }
-	  
-	  return EsStm32response$$None;    
-	}
-	
-	/// Request memory deletion
-	function memErase(chnl, data, tmo)
-	var cnt, tmp, pg;
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemErase], tmo) )
-	  {
-	    // Handle data depending on erase command flavour
-	    if( haveExtendedErase() )
-	    {
+        if( 1 == chnl.bytesPut(m_request, 100) &&
+            EsStm32response$$ACK == ackOrNackRead(chnl, 1000) )
+        {
+          // Skip any extra IN bytes which device may send after entering BL
+          while( chnl.bytesGet(m_request, 500) );
+          m_booted = true;
+          break;
+        }
+      
+        ++cnt;
+      }
+    
+      if( !m_booted && doThrow )
+        throw "Could not synchronize with bootloader";
+    }
+  }
+  
+  /// Helper- calculate XOR checksum for cnt bytes from buff, using init as a starting value
+  function xorBuff(init, buff, cnt)
+  var idx = 0, result = init#asByte();
+  {
+    while(idx < cnt)
+      result ^= buff[idx++]#asByte();   
+  
+    return result#asByte();
+  }
+  
+  /// Helper- send BL command over the channel
+  function cmdWrite(chnl, cmd, tmo)
+  var result = EsStm32response$$None;
+  {
+    m_recentCmd = cmd;
+    m_request.countSet(2);
+    m_request[0] = cmd;
+    m_request[1] = xorBuff(0xFF, m_request, 1);
+    
+    //EsScriptDebug::log("CMD request:"); EsScriptDebug::log(m_request);
+    if( 2 == chnl.bytesPut(m_request, tmo) )
+      result = ackOrNackRead(chnl, tmo);
+  
+    return result;
+  }
+  
+  /// Read BL code version and available commands
+  function bootcodeVerAndCmdsRead(chnl, tmo)
+  var cnt;
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, 0x00, tmo) )
+    {
+      m_response = chnl.bytesGet(1, tmo);
+      if( m_response.countGet() )
+      {
+        cnt = m_response[0]+1;  
+        m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
+        if( cnt == m_response.countGet() )
+        {
+          m_bootVer = m_response[0];
+          m_cmdsAvail = m_response#sliceGet(1, cnt-1);
+          
+          return ackOrNackRead(chnl, tmo);
+        }
+      }
+    }
+    
+    return EsStm32response$$None;
+  }
+  
+  /// Read BL code version and rprot status
+  function bootcodeVerAndProtRead(chnl, tmo)
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, 0x01, tmo) )
+    {
+      m_response = chnl.bytesGet(3, tmo + chnl.txTimeEstimateGet(3));
+      if( 3 == m_response.countGet() )
+      {
+        m_bootVer = m_response[0];
+        m_rprotOff = m_response[1];
+        m_rprotOn = m_response[2];
+        return ackOrNackRead(chnl, tmo);
+      }
+    }
+    
+    return EsStm32response$$None;  
+  }
+  
+  /// Read chip ID
+  function chipIdRead(chnl, tmo)
+  var cnt;
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, 0x02, tmo) )
+    {
+      m_response = chnl.bytesGet(1, tmo);
+      if( m_response.countGet() )
+      {
+        cnt = m_response[0]+1;    
+        m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
+        if( cnt == m_response.countGet() )
+        {
+          m_response#reverse();
+          m_chipId = m_response#asULong();
+          
+          return ackOrNackRead(chnl, tmo);
+        }
+      }
+    }
+    
+    return EsStm32response$$None;  
+  }
+  
+  /// Jump to the specified memory address
+  function goTo(chnl, addr, tmo)
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$GoTo], tmo) )
+    {
+      // TODO: validate address for specific device
+      // Send address, MSB to LSB + checksum
+      m_request = addr#asULong()#asBinBuffer();
+      m_request#reverse();
+      m_request += xorBuff(0, m_request, 4);
+      if( 5 == chnl.bytesPut(m_request, tmo) &&
+          EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
+      {
+        return ackOrNackRead(chnl, tmo);
+      }
+    }
+    
+    return EsStm32response$$None;
+  }
+  
+  /// Request memory read
+  function memRead(chnl, addr, cnt, tmo)
+  {
+    if( 0 >= cnt || cnt > 255 )
+      throw "Could not read more, than 255 bytes per packet";
+  
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemRead], tmo) )
+    {
+      // TODO: validate address for specific device
+      // Send address, MSB to LSB + checksum
+      m_request = addr#asULong()#asBinBuffer();
+      m_request#reverse();
+      m_request += xorBuff(0, m_request, 4);
+      if( 5 == chnl.bytesPut(m_request, tmo) &&
+          EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
+      {
+        m_request#countSet(2);
+        m_request[0] = cnt-1;
+        m_request[1] = xorBuff(0xFF, m_request, 1);
+        if( 2 == chnl.bytesPut(m_request, tmo) &&
+            EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
+        {
+          m_response = chnl.bytesGet(cnt+1, tmo+chnl.txTimeEstimateGet(cnt+1));
+          if( cnt == m_response#countGet() )
+            return EsStm32response$$ACK;
+        }
+      }
+    }
+    
+    return EsStm32response$$None;    
+  }
+  
+  /// Request memory write
+  function memWrite(chnl, addr, data, tmo)
+  var cnt = data#countGet();
+  {
+    if( 0 >= cnt || cnt > 255 )
+      throw "Could not write more, than 255 bytes per packet";
+  
+    if( cnt % 4 )
+      throw "Write packet length must be multiple of 4";
+  
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemWrite], tmo) )
+    {
+      // TODO: validate address for specific device
+      // Send address, MSB to LSB + checksum
+      m_request = addr#asULong()#asBinBuffer();
+      m_request#reverse();
+      m_request += xorBuff(0, m_request, 4);
+      if( 5 == chnl.bytesPut(m_request, tmo) &&
+          EsStm32response$$ACK == ackOrNackRead(chnl, tmo) )
+      {
+        m_request#countSet(1);
+        m_request[0] = cnt-1;
+        m_request += data;
+        m_request += xorBuff(0, m_request, cnt+1);
+        if( cnt+2 == chnl.bytesPut(m_request, tmo+chnl.txTimeEstimateGet(cnt+2)) )
+        {
+          return ackOrNackRead(chnl, tmo);
+        }
+      }
+    }
+    
+    return EsStm32response$$None;    
+  }
+  
+  /// Request memory deletion
+  function memErase(chnl, data, tmo)
+  var cnt, tmp, pg;
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$MemErase], tmo) )
+    {
+      // Handle data depending on erase command flavour
+      if( haveExtendedErase() )
+      {
         if( data in [0xFFFD .. 0xFFFF] )
         {
           m_request = data#asBinBuffer();
@@ -373,16 +373,16 @@ object EsMcuprogStm32
           m_request = tmp;
           foreach( pg in data )
           {
-	          tmp = pg#asULong()#asBinBuffer();
-	          tmp.countSet(2);
-	          tmp.reverse();
+            tmp = pg#asULong()#asBinBuffer();
+            tmp.countSet(2);
+            tmp.reverse();
             m_request += tmp;
           }
           m_request += xorBuff(0, m_request, m_request.countGet());
         }
-	    }
-	    else
-	    {
+      }
+      else
+      {
         if( 0xFF == data )
         {
           m_request.countSet(2);
@@ -396,22 +396,22 @@ object EsMcuprogStm32
           m_request += data;
           m_request += xorBuff(0, m_request, m_request.countGet());
         }
-	    }
-	    
-	    cnt = m_request.countGet();
-	    if( cnt == chnl.bytesPut(m_request, tmo+chnl.txTimeEstimateGet(cnt)) )
-	      return ackOrNackRead(chnl, tmo);
-	  }
-	
-	  return EsStm32response$$None;
-	}
-	
-	/// Write protect request
-	function writeProtect(chnl, sectors, tmo)
-	var sector, cnt;
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$WriteProtSet], tmo) )
-	  {    
+      }
+      
+      cnt = m_request.countGet();
+      if( cnt == chnl.bytesPut(m_request, tmo+chnl.txTimeEstimateGet(cnt)) )
+        return ackOrNackRead(chnl, tmo);
+    }
+  
+    return EsStm32response$$None;
+  }
+  
+  /// Write protect request
+  function writeProtect(chnl, sectors, tmo)
+  var sector, cnt;
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$WriteProtSet], tmo) )
+    {    
       m_request#countSet(1);
       m_request[0] = sectors#countGet()-1;
       foreach( sector in sectors )
@@ -423,75 +423,75 @@ object EsMcuprogStm32
         return ackOrNackRead(chnl, tmo);
     }
     
-  	return EsStm32response$$None;
-	}
-	
-	/// Write unprotect request
-	function writeUnprotect(chnl, tmo)
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$WriteProtClear], tmo) )
+    return EsStm32response$$None;
+  }
+  
+  /// Write unprotect request
+  function writeUnprotect(chnl, tmo)
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$WriteProtClear], tmo) )
       return ackOrNackRead(chnl, tmo);
         
-		return EsStm32response$$None;
-	}
-	
-	/// Read protect request
-	function readProtect(chnl, tmo)
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$ReadProtSet], tmo) )
+    return EsStm32response$$None;
+  }
+  
+  /// Read protect request
+  function readProtect(chnl, tmo)
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$ReadProtSet], tmo) )
       return ackOrNackRead(chnl, tmo);
           
-	  return EsStm32response$$None;    
-	}
-	
-	/// Read unprotect request
-	function readUnprotect(chnl, tmo)
-	{
-	  if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$ReadProtClear], tmo) )
+    return EsStm32response$$None;    
+  }
+  
+  /// Read unprotect request
+  function readUnprotect(chnl, tmo)
+  {
+    if( EsStm32response$$ACK == cmdWrite(chnl, m_cmdsAvail[EsStm32cmd$$ReadProtClear], tmo) )
       return ackOrNackRead(chnl, tmo);
     
-	  return EsStm32response$$None;    
-	}
-	
-	/// High-level flash programmer methods
-	///
-	
-	/// Clear readout protection, possibly waiting for mass erase to complete
-	function unprotect(chnl, tmo)
-	var progressTask = new EsProgressMonitorTask("bootReadoutUnprotect"),
-	{
+    return EsStm32response$$None;    
+  }
+  
+  /// High-level flash programmer methods
+  ///
+  
+  /// Clear readout protection, possibly waiting for mass erase to complete
+  function unprotect(chnl, tmo)
+  var progressTask = new EsProgressMonitorTask("bootReadoutUnprotect"),
+  {
     if( EsStm32response$$ACK == readUnprotect(chnl, tmo) )
     {
       // We have to wait considerable time to allow device to execute mass erase, and perform chip reset
       progressTask.pulse("Performing readout unprotection please wait...");
-	    progressTask.attachTo(__scriptHost$progressMonitor);   
-			// Synch with bootloader, throw an exception if failed
-			syncWithBootloader(chnl, 40, true);
+      progressTask.attachTo(__scriptHost$progressMonitor);   
+      // Synch with bootloader, throw an exception if failed
+      syncWithBootloader(chnl, 40, true);
     }
-	}
-	
-	/// Read BL id, possibly performing readout unprotect
-	function blIdRead(chnl, addr, tmo)
-	var id;
-	{
+  }
+  
+  /// Read BL id, possibly performing readout unprotect
+  function blIdRead(chnl, addr, tmo)
+  var id;
+  {
     if( EsStm32response$$ACK == memRead(chnl, addr, 1, tmo) )
       id = m_response[0];
     else
     {
       // There may be readout protection set, initiate readout unprotect sequence
       unprotect(chnl, tmo);
-	    // Try to read BL id once again
-	    if( EsStm32response$$ACK == memRead(chnl, addr, 1, tmo) )
-	      id = m_response[0];
-	  }  
+      // Try to read BL id once again
+      if( EsStm32response$$ACK == memRead(chnl, addr, 1, tmo) )
+        id = m_response[0];
+    }  
       
     return id;  
-	}
-	
-	/// Read flash size from address, possibly performing readout unprotect
-	function flashSizeRead(chnl, addr, tmo)
-	var size;
-	{
+  }
+  
+  /// Read flash size from address, possibly performing readout unprotect
+  function flashSizeRead(chnl, addr, tmo)
+  var size;
+  {
     if( EsStm32response$$ACK == memRead(chnl, addr, 2, tmo) )
     {
       m_response#reverse();  
@@ -501,25 +501,25 @@ object EsMcuprogStm32
     {
       // There may be readout protection set, initiate readout unprotect sequence
       unprotect(chnl, tmo);
-	    // Try to read BL id once again
-	    if( EsStm32response$$ACK == memRead(chnl, addr, 2, tmo) )
-	    {
-	      m_response#reverse();  
-	      size = m_response#asULong();
-	    }
-	  }  
+      // Try to read BL id once again
+      if( EsStm32response$$ACK == memRead(chnl, addr, 2, tmo) )
+      {
+        m_response#reverse();  
+        size = m_response#asULong();
+      }
+    }  
       
     return size;  
-	}
-		
-	/// Synch with bootloader and identify chip, BL version, && memory configuration
-	/// Channel must be pre-configured for communicating with bootloader beforehand
-	///
-	function bootConnectAndIdentify(chnl, tmo)
-	var progressTask = new EsProgressMonitorTask("bootConnectAndIdentify"),
-		dbRec, idRec, dbRecs = [],
-		blIdAddr, blId, sizeAddr;
-	{
+  }
+    
+  /// Synch with bootloader and identify chip, BL version, && memory configuration
+  /// Channel must be pre-configured for communicating with bootloader beforehand
+  ///
+  function bootConnectAndIdentify(chnl, tmo)
+  var progressTask = new EsProgressMonitorTask("bootConnectAndIdentify"),
+    dbRec, idRec, dbRecs = [],
+    blIdAddr, blId, sizeAddr;
+  {
     // Reset our internal status vars
     reset();
     // Reset channel IO, to get rid off any garbage in IO buffers
@@ -528,15 +528,15 @@ object EsMcuprogStm32
     progressTask.pulse("Synching with bootloader...");
     progressTask.attachTo(__scriptHost$progressMonitor);   
     
-		// Synch with bootloader, throw an exception if failed
-		syncWithBootloader(chnl, 40, true);
-		
-		// Read bootcode version and available commands
-		// Read chip ID
+    // Synch with bootloader, throw an exception if failed
+    syncWithBootloader(chnl, 40, true);
+    
+    // Read bootcode version and available commands
+    // Read chip ID
     progressTask.pulse("Reading chip information...");
-		if( EsStm32response$$ACK == bootcodeVerAndCmdsRead(chnl, tmo) && 
-				EsStm32response$$ACK == chipIdRead(chnl, tmo) )
-		{
+    if( EsStm32response$$ACK == bootcodeVerAndCmdsRead(chnl, tmo) && 
+        EsStm32response$$ACK == chipIdRead(chnl, tmo) )
+    {
       // Find all device entries in DB which match specified chipID
       foreach(dbRec in c_stm32Devices)
       {
@@ -550,26 +550,26 @@ object EsMcuprogStm32
       if( !dbRecs#countGet() )
         throw "Could not identify applicable device";
       
-			// Try to read bootloader version.       
+      // Try to read bootloader version.       
       foreach(dbRec in dbRecs)
       {
         foreach(idRec in dbRec[EsStm32Info$$Identification])
         {
           blIdAddr = idRec[EsStm32Info$$BootloaderIdAddr];
           if( !blIdAddr#isEmpty() )
-					{
+          {
             blId = blIdRead(chnl, blIdAddr, tmo);
             if( blId in idRec[EsStm32Info$$BootloaderIds] )
             {
               sizeAddr = idRec[EsStm32Info$$FlashSizeAddr];
               goto dbrecFound;
             }
-					}
-					else
-					{
-						sizeAddr = idRec[EsStm32Info$$FlashSizeAddr];
+          }
+          else
+          {
+            sizeAddr = idRec[EsStm32Info$$FlashSizeAddr];
             goto dbrecFound;            
-					}	
+          }  
         }
       }
       
@@ -592,18 +592,18 @@ object EsMcuprogStm32
       
       if( m_devName#isEmpty() )
         throw "Could not identify connected hardware";
-		}
-	}
-	
-	/// Program firmware into chip
-	function program(chnl)
-	var progressTask, 
-		fwSize, fwAlignedSize, 
-		addr, pgIdx = 0, pgCnt = 0, 
-		flashSize, pgCountForFw,
-		pgInfos, pgSize,
-		fwOffs = 0, chunk, chunkSze;
-	{
+    }
+  }
+  
+  /// Program firmware into chip
+  function program(chnl)
+  var progressTask, 
+    fwSize, fwAlignedSize, 
+    addr, pgIdx = 0, pgCnt = 0, 
+    flashSize, pgCountForFw,
+    pgInfos, pgSize,
+    fwOffs = 0, chunk, chunkSze;
+  {
     bootConnectAndIdentify(chnl, 1000);
     
     progressTask = new EsProgressMonitorTask("firmwareProgramming");
@@ -663,5 +663,5 @@ object EsMcuprogStm32
       ++pgIdx;
       progressTask$position = pgIdx;
     }
-	}
+  }
 }

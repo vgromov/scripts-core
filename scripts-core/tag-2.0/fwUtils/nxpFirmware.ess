@@ -1,7 +1,7 @@
 // NXP LPC MCU ISP firmware loader
 //
 
-enum EsMcuprogLpcChipVariant
+enum EsMcuprogNxpChipVariant
 {
   LPC2XXX = 0;
   LPC17XX = 1;
@@ -11,14 +11,14 @@ enum EsMcuprogLpcChipVariant
 
 // ram specifics, indexed by chip variants
 //
-enum EsMcuprogLpcRamInfo
+enum EsMcuprogNxpRamInfo
 {
   START = 0, "RAM start address";
   BASE  = 1, "RAM base address";
 }
 
 // ram info data: [start, base]
-const c_mcuprogLpcRamInfoData = [
+const c_mcuprogNxpRamInfoData = [
   [0x40000000, 0x40000200], // LPC2XXX
   [0x10000000, 0x10000200], // LPC17XX
   [0x10000000, 0x10000300], // LPC13XX
@@ -28,7 +28,7 @@ const c_mcuprogLpcRamInfoData = [
 // LPC flash sector database
 //
 // sector table database indexes
-enum EsMcuprogLpcFlashSectorTable
+enum EsMcuprogNxpFlashSectorTable
 {
   _210x   = 0;
   _2103   = 1;
@@ -41,7 +41,7 @@ enum EsMcuprogLpcFlashSectorTable
 
 // sector tables data
 //
-const c_mcuprogLpcSectorTableData = [
+const c_mcuprogNxpSectorTableData = [
   // _210x
   [8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192],
   // _2103
@@ -62,7 +62,7 @@ const c_mcuprogLpcSectorTableData = [
 
 // indexes into MCU device info database
 //
-enum EsMcuprogLpcDeviceInfo
+enum EsMcuprogNxpDeviceInfo
 {
   id             = 0, "NXP LPC Device ID";
   product        = 1, "NXP LPC Product string";
@@ -71,84 +71,84 @@ enum EsMcuprogLpcDeviceInfo
   flashSectors  = 4, "Total number of Flash sectors";
   maxCopySize    = 5, "Maximum size that can be copied to Flash in a single command";
   sectorTable    = 6, "Index to a Flash sector table database";
-  chipVariant    = 7, "One of EsMcuprogLpcChipVariant values";
+  chipVariant    = 7, "One of EsMcuprogNxpChipVariant values";
 }
 
 // device info database itself
 //
-const c_mcuprogLpcMcuInfoData = [
-  [          0,               0,    0,   0,  0,    0, 0,                                       EsMcuprogLpcChipVariant$$LPC2XXX ], // unknown
-  [ 0x041E502B, "1111.../101",   8,  2,  2, 1024, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0416502B, "1111.../201",   8,  4,  2, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x042D502B, "1112.../101",  16,  2,  4, 1024, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0425502B, "1112.../201",  16,  4,  4, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0434502B, "1113.../201",  24,  4,  6, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0434102B, "1113.../301",  24,  8,  6, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0444502B, "1114.../201",  32,  4,  8, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x0444102B, "1114.../301",  32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC11XX ],
-  [ 0x2C42502B, "1311",          8,  4,  2, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC13XX ],
-  [ 0x2C40102B, "1313",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC13XX ],
-  [ 0x3D01402B, "1342",           8,  4,  2, 2048, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC13XX ],
-  [ 0x3D00002B, "1343",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC13XX ],
-  [ 0x25001118, "1751",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x25001121, "1752",          64, 16, 16, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x25011722, "1754",        128, 32, 18, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x25011723, "1756",        256, 32, 22, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x25013F37, "1758",        512, 64, 30, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x25113737, "1759",        512, 64, 30, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26011922, "1764",        128, 32, 18, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26013733, "1765",        256, 64, 22, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26013F33, "1766",        256, 64, 22, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26012837, "1767",        512, 64, 30, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26013F37, "1768",        512, 64, 30, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x26113F37, "1769",        512, 64, 30, 4096, EsMcuprogLpcFlashSectorTable$$_17xx,     EsMcuprogLpcChipVariant$$LPC17XX ],
-  [ 0x0004FF11, "2103",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_2103,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0xFFF0FF12, "2104",        128, 16, 15, 8192, EsMcuprogLpcFlashSectorTable$$_210x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0xFFF0FF22, "2105",        128, 32, 15, 8192, EsMcuprogLpcFlashSectorTable$$_210x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0xFFF0FF32, "2106",        128, 64, 15, 8192, EsMcuprogLpcFlashSectorTable$$_210x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0201FF01, "2109",          64,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_2109,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0101FF12, "2114",        128, 16, 15, 8192, EsMcuprogLpcFlashSectorTable$$_211x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0201FF12, "2119",        128, 16, 15, 8192, EsMcuprogLpcFlashSectorTable$$_211x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0101FF13, "2124",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0201FF13, "2129",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0002FF01, "2131",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0002FF11, "2132",          64, 16,  9, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0002FF12, "2134",        128, 16, 11, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0002FF23, "2136",        256, 32, 15, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0002FF25, "2138",        512, 32, 27, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0402FF01, "2141",          32,  8,  8, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0402FF11, "2142",          64, 16,  9, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0402FF12, "2144",        128, 16, 11, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0402FF23, "2146",        256, 40, 15, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0402FF25, "2148",        512, 40, 27, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0301FF13, "2194",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0301FF12, "2210",          0, 16,  0, 8192, EsMcuprogLpcFlashSectorTable$$_211x,     EsMcuprogLpcChipVariant$$LPC2XXX ], // table is a "don't care"
-  [ 0x0401FF12, "2212",        128, 16, 15, 8192, EsMcuprogLpcFlashSectorTable$$_211x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0601FF13, "2214",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
+const c_mcuprogNxpMcuInfoData = [
+  [          0,               0,    0,   0,  0,    0, 0,                                       EsMcuprogNxpChipVariant$$LPC2XXX ], // unknown
+  [ 0x041E502B, "1111.../101",   8,  2,  2, 1024, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0416502B, "1111.../201",   8,  4,  2, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x042D502B, "1112.../101",  16,  2,  4, 1024, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0425502B, "1112.../201",  16,  4,  4, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0434502B, "1113.../201",  24,  4,  6, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0434102B, "1113.../301",  24,  8,  6, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0444502B, "1114.../201",  32,  4,  8, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x0444102B, "1114.../301",  32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC11XX ],
+  [ 0x2C42502B, "1311",          8,  4,  2, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC13XX ],
+  [ 0x2C40102B, "1313",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC13XX ],
+  [ 0x3D01402B, "1342",           8,  4,  2, 2048, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC13XX ],
+  [ 0x3D00002B, "1343",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC13XX ],
+  [ 0x25001118, "1751",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x25001121, "1752",          64, 16, 16, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x25011722, "1754",        128, 32, 18, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x25011723, "1756",        256, 32, 22, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x25013F37, "1758",        512, 64, 30, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x25113737, "1759",        512, 64, 30, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26011922, "1764",        128, 32, 18, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26013733, "1765",        256, 64, 22, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26013F33, "1766",        256, 64, 22, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26012837, "1767",        512, 64, 30, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26013F37, "1768",        512, 64, 30, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x26113F37, "1769",        512, 64, 30, 4096, EsMcuprogNxpFlashSectorTable$$_17xx,     EsMcuprogNxpChipVariant$$LPC17XX ],
+  [ 0x0004FF11, "2103",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_2103,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0xFFF0FF12, "2104",        128, 16, 15, 8192, EsMcuprogNxpFlashSectorTable$$_210x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0xFFF0FF22, "2105",        128, 32, 15, 8192, EsMcuprogNxpFlashSectorTable$$_210x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0xFFF0FF32, "2106",        128, 64, 15, 8192, EsMcuprogNxpFlashSectorTable$$_210x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0201FF01, "2109",          64,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_2109,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0101FF12, "2114",        128, 16, 15, 8192, EsMcuprogNxpFlashSectorTable$$_211x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0201FF12, "2119",        128, 16, 15, 8192, EsMcuprogNxpFlashSectorTable$$_211x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0101FF13, "2124",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0201FF13, "2129",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0002FF01, "2131",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0002FF11, "2132",          64, 16,  9, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0002FF12, "2134",        128, 16, 11, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0002FF23, "2136",        256, 32, 15, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0002FF25, "2138",        512, 32, 27, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0402FF01, "2141",          32,  8,  8, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0402FF11, "2142",          64, 16,  9, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0402FF12, "2144",        128, 16, 11, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0402FF23, "2146",        256, 40, 15, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0402FF25, "2148",        512, 40, 27, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0301FF13, "2194",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0301FF12, "2210",          0, 16,  0, 8192, EsMcuprogNxpFlashSectorTable$$_211x,     EsMcuprogNxpChipVariant$$LPC2XXX ], // table is a "don't care"
+  [ 0x0401FF12, "2212",        128, 16, 15, 8192, EsMcuprogNxpFlashSectorTable$$_211x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0601FF13, "2214",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
   //            "2290" entry has same id as the LPC2210
-  [ 0x0401FF13, "2292",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x0501FF13, "2294",        256, 16, 17, 8192, EsMcuprogLpcFlashSectorTable$$_212x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x00000000, "2361",        128, 34, 11, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x00000000, "2362",        128, 34, 11, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600F902, "2364",        128, 34, 11, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600E823, "2365",        256, 58, 15, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600F923, "2366",        256, 58, 15, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600E825, "2367",        512, 58, 15, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600F925, "2368",        512, 58, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1700E825, "2377",        512, 58, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1700FD25, "2378",        512, 58, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1800F935, "2387",        512, 98, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1800FF35, "2388",        512, 98, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1500FF35, "2458",        512, 98, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600FF30, "2460",          0, 98,  0, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1600FF35, "2468",        512, 98, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1701FF30, "2470",          0, 98,  0, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ],
-  [ 0x1701FF35, "2478",        512, 98, 28, 4096, EsMcuprogLpcFlashSectorTable$$_213x,     EsMcuprogLpcChipVariant$$LPC2XXX ]
+  [ 0x0401FF13, "2292",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x0501FF13, "2294",        256, 16, 17, 8192, EsMcuprogNxpFlashSectorTable$$_212x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x00000000, "2361",        128, 34, 11, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x00000000, "2362",        128, 34, 11, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600F902, "2364",        128, 34, 11, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600E823, "2365",        256, 58, 15, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600F923, "2366",        256, 58, 15, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600E825, "2367",        512, 58, 15, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600F925, "2368",        512, 58, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1700E825, "2377",        512, 58, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1700FD25, "2378",        512, 58, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1800F935, "2387",        512, 98, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1800FF35, "2388",        512, 98, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1500FF35, "2458",        512, 98, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600FF30, "2460",          0, 98,  0, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1600FF35, "2468",        512, 98, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1701FF30, "2470",          0, 98,  0, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ],
+  [ 0x1701FF35, "2478",        512, 98, 28, 4096, EsMcuprogNxpFlashSectorTable$$_213x,     EsMcuprogNxpChipVariant$$LPC2XXX ]
 ];
 
 // ISP statuses
 //
-enum EsMcuprogLpcIspStatus
+enum EsMcuprogNxpIspStatus
 {
   CMD_SUCCESS           = 0;
   INVALID_COMMAND        = 1, "Invalid command";
@@ -181,7 +181,7 @@ const c_4_45_block      = 180;
 const c_responseLenMax   = 128;
 
 // LPC firmware flags
-enum EsMcuprogLpcFirmwareFlag
+enum EsMcuprogNxpFirmwareFlag
 {
   WIPE         = 0x01, "Wipe device before programming";
   VERIFY      = 0x02, "Verify data written to the device during programming";
@@ -193,7 +193,7 @@ enum EsMcuprogLpcFirmwareFlag
 const c_uuencodeTable = B" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_";
 
 // LPC programmer object
-object EsMcuprogLpc
+object EsMcuprogNxp
 {
   var m_regex,
       m_flags,
@@ -219,23 +219,23 @@ object EsMcuprogLpc
   function ramStartGet()
   {
     mcuIdxCheck();
-    return c_mcuprogLpcRamInfoData[
-      c_mcuprogLpcMcuInfoData[m_mcuInfoIdx][EsMcuprogLpcDeviceInfo$$chipVariant]
+    return c_mcuprogNxpRamInfoData[
+      c_mcuprogNxpMcuInfoData[m_mcuInfoIdx][EsMcuprogNxpDeviceInfo$$chipVariant]
     ][0];
   }
   
   function ramBaseGet()
   {
     mcuIdxCheck();
-    return c_mcuprogLpcRamInfoData[
-      c_mcuprogLpcMcuInfoData[m_mcuInfoIdx][EsMcuprogLpcDeviceInfo$$chipVariant]
+    return c_mcuprogNxpRamInfoData[
+      c_mcuprogNxpMcuInfoData[m_mcuInfoIdx][EsMcuprogNxpDeviceInfo$$chipVariant]
     ][1];
   }  
   
   function ispErrorStringGet(errorCode)
   {
-    if( errorCode in EsMcuprogLpcIspStatus )
-      return EsMcuprogLpcIspStatus.valueLabelGet(errorCode);
+    if( errorCode in EsMcuprogNxpIspStatus )
+      return EsMcuprogNxpIspStatus.valueLabelGet(errorCode);
     else
       return EsStr::format("Unknown error: %d", errorCode);
   }
@@ -315,7 +315,7 @@ object EsMcuprogLpc
         throw EsStr::format(errFmt, "Wrong answer");
       
       errId = m_regex.matchGet(1)#asULong();
-      if( EsMcuprogLpcIspStatus$$CMD_SUCCESS != errId )
+      if( EsMcuprogNxpIspStatus$$CMD_SUCCESS != errId )
         throw EsStr::format(errFmt,  ispErrorStringGet(errId));
     }
     
@@ -330,7 +330,7 @@ object EsMcuprogLpc
     progressTask.pulse("Preparing IVT checksum...");
     progressTask.attachTo(__scriptHost$progressMonitor);
 
-    if( EsMcuprogLpcChipVariant$$LPC2XXX == c_mcuprogLpcMcuInfoData[m_mcuInfoIdx][EsMcuprogLpcDeviceInfo$$chipVariant] )
+    if( EsMcuprogNxpChipVariant$$LPC2XXX == c_mcuprogNxpMcuInfoData[m_mcuInfoIdx][EsMcuprogNxpDeviceInfo$$chipVariant] )
       checksumOffs = 0x14;
     else
       checksumOffs = 0x1C;
@@ -375,7 +375,7 @@ object EsMcuprogLpc
   function syncWithBootloader(chnl, syncRetries, doThrow)
   var requestStr, response, wdSeconds, chars, ticks, tries, synched = false, progressTask;
   {
-    if( EsMcuprogLpcFirmwareFlag$$DONT_SYNC == (m_flags & EsMcuprogLpcFirmwareFlag$$DONT_SYNC) )
+    if( EsMcuprogNxpFirmwareFlag$$DONT_SYNC == (m_flags & EsMcuprogNxpFirmwareFlag$$DONT_SYNC) )
       return true;
     
     progressTask = new EsProgressMonitorTask("syncWithBootloader");
@@ -489,9 +489,9 @@ object EsMcuprogLpc
       throw "No answer on Part ID read command";
 
     id = m_regex.matchGet(1)#asULong();
-    foreach(info in c_mcuprogLpcMcuInfoData)
+    foreach(info in c_mcuprogNxpMcuInfoData)
     {
-      if( id == info[EsMcuprogLpcDeviceInfo$$id] )
+      if( id == info[EsMcuprogNxpDeviceInfo$$id] )
       {
         m_mcuInfoIdx = infoIdx;
         found = true;
@@ -521,10 +521,10 @@ object EsMcuprogLpc
   function flashPrepareAndErase(chnl)
   var endSector = 0;
   {
-    if( m_flags & EsMcuprogLpcFirmwareFlag$$WIPE )
+    if( m_flags & EsMcuprogNxpFirmwareFlag$$WIPE )
     {
       mcuIdxCheck();
-      endSector = c_mcuprogLpcMcuInfoData[m_mcuInfoIdx][EsMcuprogLpcDeviceInfo$$flashSectors]-1;
+      endSector = c_mcuprogNxpMcuInfoData[m_mcuInfoIdx][EsMcuprogNxpDeviceInfo$$flashSectors]-1;
     }
     
     flashPrepare(chnl, 0, endSector);
@@ -645,8 +645,8 @@ object EsMcuprogLpc
       copyLen = 4096;
     else
       copyLen = 8192;
-    if(copyLen > destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize])
-      copyLen = destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize];
+    if(copyLen > destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize])
+      copyLen = destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize];
       
     return copyLen;
   }
@@ -668,7 +668,7 @@ object EsMcuprogLpc
     fwSize = m_fw#countGet();
     binaryCheck();
     
-    // EsScriptDebug::log("Programming, already synched: %s, don't sync flag: %s", isAlreadySynched, (m_flags & EsMcuprogLpcFirmwareFlag$$DONT_SYNC));
+    // EsScriptDebug::log("Programming, already synched: %s, don't sync flag: %s", isAlreadySynched, (m_flags & EsMcuprogNxpFirmwareFlag$$DONT_SYNC));
     if( !isAlreadySynched )
       syncWithBootloader(chnl, m_syncRetries, true);
 
@@ -677,24 +677,24 @@ object EsMcuprogLpc
     bootcodeVerRead(chnl);
     partIdRead(chnl);
 			
-    if( m_flags & EsMcuprogLpcFirmwareFlag$$NO_ECHO )
+    if( m_flags & EsMcuprogNxpFirmwareFlag$$NO_ECHO )
       echoDisable(chnl);
 
-    if( !(m_flags & EsMcuprogLpcFirmwareFlag$$DETECT_ONLY) )
+    if( !(m_flags & EsMcuprogNxpFirmwareFlag$$DETECT_ONLY) )
     {
       binaryIvtChecksumPrepare();
     
-      destInfo = c_mcuprogLpcMcuInfoData[m_mcuInfoIdx];
-      sectorTable = c_mcuprogLpcSectorTableData[destInfo[EsMcuprogLpcDeviceInfo$$sectorTable]];
+      destInfo = c_mcuprogNxpMcuInfoData[m_mcuInfoIdx];
+      sectorTable = c_mcuprogNxpSectorTableData[destInfo[EsMcuprogNxpDeviceInfo$$sectorTable]];
       // In case of a download to RAM, use full RAM for downloading
       // set the flash parameters to full RAM also.
       // This makes sure that all code is downloaded as one big sector
       if( m_moniker$binaryOffs >= ramStartGet() )
       {
-        destInfo[EsMcuprogLpcDeviceInfo$$flashSectors] = 1;
-        destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize] = destInfo[EsMcuprogLpcDeviceInfo$$ramSize]*1024 - (ramBaseGet() - ramStartGet());
+        destInfo[EsMcuprogNxpDeviceInfo$$flashSectors] = 1;
+        destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize] = destInfo[EsMcuprogNxpDeviceInfo$$ramSize]*1024 - (ramBaseGet() - ramStartGet());
         sectorTable = [];
-        sectorTable += destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize];
+        sectorTable += destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize];
       }
       // Start with sector 1 and go upward... sector 0 containing the interrupt vectors
       // will be loaded last, since it contains a checksum and device will re-enter
@@ -717,13 +717,13 @@ object EsMcuprogLpc
       
       while(1)
       {
-        if(sector >= destInfo[EsMcuprogLpcDeviceInfo$$flashSectors])
+        if(sector >= destInfo[EsMcuprogNxpDeviceInfo$$flashSectors])
           throw "Program too large, running out of Flash sectors";
 
         if( m_moniker$binaryOffs < ramStartGet() ) // skip Erase when running from RAM
         {
           flashPrepare(chnl, sector, sector);
-          if( EsMcuprogLpcFirmwareFlag$$WIPE != (m_flags & EsMcuprogLpcFirmwareFlag$$WIPE) && 0 != sector ) // already erased
+          if( EsMcuprogNxpFirmwareFlag$$WIPE != (m_flags & EsMcuprogNxpFirmwareFlag$$WIPE) && 0 != sector ) // already erased
             flashErase(chnl, sector, sector);
         }
 
@@ -739,8 +739,8 @@ object EsMcuprogLpc
           // This is especially needed in the case where a Flash sector is
           // bigger than the amount of SRAM.
           sectorChunk = sectorLen - sectorOffs;
-          if(sectorChunk > destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize])
-            sectorChunk = destInfo[EsMcuprogLpcDeviceInfo$$maxCopySize];
+          if(sectorChunk > destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize])
+            sectorChunk = destInfo[EsMcuprogNxpDeviceInfo$$maxCopySize];
 
           // Write multiple of 45 * 4 Byte blocks to RAM, but copy maximum of on sector to Flash
           // In worst case we transfer up to 180 bytes to RAM
@@ -781,7 +781,7 @@ object EsMcuprogLpc
             copyLen = copyLenAlign(copyLen, sectorLen, destInfo);
             copyCommandSend(chnl, sectorStart + sectorOffs, copyLen);
 
-            if( m_flags & EsMcuprogLpcFirmwareFlag$$VERIFY )
+            if( m_flags & EsMcuprogNxpFirmwareFlag$$VERIFY )
               verifyCommandSend(chnl, sectorStart, sectorOffs, copyLen);
           }
         }
