@@ -58,7 +58,7 @@ object EsFwMonikerBase
         m_tmpFw#replace(m_tmpId[idx]$buffer, m_fwIdOffs[idx]);
       }
       else
-        throw EsStr::format("Wrong argument type in 'fwIdSet', expected 'EsFirmwareId', got '%s'", m_tmpId[idx]$type);\
+        throw EsStr::format("Wrong argument type in 'fwIdSet', expected 'EsFirmwareId', got '%s'", m_tmpId[idx]$type);
     }
   }
   

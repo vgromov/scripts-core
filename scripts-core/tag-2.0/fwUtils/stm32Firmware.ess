@@ -1,4 +1,4 @@
-##require(stm32McuDb.ess);
+##require("stm32McuDb.ess");
 
 /// Known STM32 ACKs and NACKs
 const c_stm32ACKs     = [0x75, 0x79];
@@ -53,7 +53,8 @@ object EsMcuprogStm32
       m_rprotOn,    
       m_request, 
       m_response,
-      m_moniker;
+      m_moniker,
+      m_fw;
 
   /// Reset some fields to initial values, as if bootloader was never contacted
   function reset()
@@ -72,6 +73,7 @@ object EsMcuprogStm32
     m_rprotOn = null;
     m_request = EsVar::as(EsVariantType$$VAR_BIN_BUFFER);
     m_response = EsVar::as(EsVariantType$$VAR_BIN_BUFFER);
+    m_fw = null;
   }
       
   /// Default constructor    
@@ -147,7 +149,7 @@ object EsMcuprogStm32
   function syncWithBootloader(chnl, syncRetries, doThrow)
   var cnt = 0;
   {
-    if( !m_booted )
+    if( !m_synched )
     {
       m_request = B"\x7F";
     
@@ -160,14 +162,14 @@ object EsMcuprogStm32
         {
           // Skip any extra IN bytes which device may send after entering BL
           while( chnl.bytesGet(m_request, 500) );
-          m_booted = true;
+          m_synched = true;
           break;
         }
       
         ++cnt;
       }
     
-      if( !m_booted && doThrow )
+      if( !m_synched && doThrow )
         throw "Could not synchronize with bootloader";
     }
   }
@@ -459,7 +461,7 @@ object EsMcuprogStm32
   
   /// Clear readout protection, possibly waiting for mass erase to complete
   function unprotect(chnl, tmo)
-  var progressTask = new EsProgressMonitorTask("bootReadoutUnprotect"),
+  var progressTask = new EsProgressMonitorTask("bootReadoutUnprotect");
   {
     if( EsStm32response$$ACK == readUnprotect(chnl, tmo) )
     {
@@ -518,8 +520,8 @@ object EsMcuprogStm32
   ///
   function bootConnectAndIdentify(chnl, tmo)
   var progressTask = new EsProgressMonitorTask("bootConnectAndIdentify"),
-    dbRec, idRec, dbRecs = [],
-    blIdAddr, blId, sizeAddr;
+    dbRec, idRec, idRecs, dbRecs = [],
+    blIdAddr, blId, size, sizeAddr;
   {
     // Reset our internal status vars
     reset();
@@ -602,7 +604,7 @@ object EsMcuprogStm32
     fwSize, fwAlignedSize, 
     addr, pgIdx = 0, pgCnt = 0, 
     flashSize, pgCountForFw,
-    pgInfos, pgSize,
+    pgInfos, pgSize, pgWritten,
     fwOffs = 0, chunk, chunkSze;
   {
     bootConnectAndIdentify(chnl, 1000);
