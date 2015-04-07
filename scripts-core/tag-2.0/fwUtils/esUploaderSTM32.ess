@@ -6,17 +6,8 @@
 
 object EsUploaderSTM32 extends EsUploaderBase
 {
-  /// Base class overrides
-  ///
   function enterBootWithShutdown(progressTask, rpcMaster)
   {
-    progressTask.pulse("Shutting down device...");
-    configurePowerOff(chnl);
-    configureBoot(chnl);
-    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-    EsThreadWorker::sleep(1000);
-    configurePowerOn(chnl);    
-    
     progressTask.pulse("Shutting down device...");
     rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
     configurePowerOff(rpcMaster$channel);
@@ -26,4 +17,38 @@ object EsUploaderSTM32 extends EsUploaderBase
     configurePowerOn(rpcMaster$channel);
   }
   
+  /// Base class overrides
+  ///
+  function programmerCreate()
+	{
+		return new EsMcuprogStm32(
+			EsStm32Flag$$UseReadProt |
+      EsStm32Flag$$Verify, 
+			m_moniker
+		);
+  }
+  
+  // Configure and ebnter boot mode, before programming device with ISP
+	function configureForBoot(rpcMaster, supportedRpcs)
+	var chnl = rpcMaster$channel, 
+		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+		progressTask = new EsProgressMonitorTask("configureForBoot");
+	{
+		progressTask.attachTo(__scriptHost$progressMonitor);
+		
+		if( supportsPowerCtl && 
+				!chnl$useRS232 &&
+				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+		{
+			try
+			{
+				enterBootWithShutdown(progressTask, rpcMaster);
+				return true;
+			}
+			catch
+			{}
+		}
+
+		return false;
+	}  
 }

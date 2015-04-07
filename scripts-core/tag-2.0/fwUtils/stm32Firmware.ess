@@ -33,6 +33,7 @@ enum EsStm32Flag
 {
   UseWriteProt    = 0x01, "Set write protection";
   UseReadProt     = 0x02, "Set read protection";
+  Verify          = 0x04, "Verify written data";
 }
 
 object EsMcuprogStm32
