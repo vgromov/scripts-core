@@ -149,12 +149,15 @@ object EsMcuprogStm32
   
   /// Synchronize with bootloader
   function syncWithBootloader(chnl, syncRetries, doThrow)
-  var cnt = 0;
+  var progressTask = new EsProgressMonitorTask("synchingWithBootloader"), cnt = 0;
   {
     if( !m_synched )
     {
       m_request = B"\x7F";
-    
+      
+      progressTask.initialize("Synching with bootloader...", syncRetries, cnt);
+      progressTask.attachTo(__scriptHost$progressMonitor);
+        
       while( cnt < syncRetries )
       {
         chnl.reset();
@@ -163,17 +166,27 @@ object EsMcuprogStm32
             EsStm32response$$ACK == ackOrNackRead(chnl, 1000) )
         {
           // Skip any extra IN bytes which device may send after entering BL
-          while( chnl.bytesGet(m_request, 500) );
+          while( chnl.bytesGet(1, 100) );
           m_synched = true;
           break;
         }
       
         ++cnt;
+        progressTask$position = cnt;        
       }
+    
+      EsScriptDebug::log("Synched: %s", m_synched);  
     
       if( !m_synched && doThrow )
         throw "Could not synchronize with bootloader";
     }
+  }
+  
+  // Try to do a quick check if we're already in boot mode
+  function checkIfInBoot(chnl)
+  {
+    syncWithBootloader(chnl, 2, false);
+    return m_synched;
   }
   
   /// Helper- calculate XOR checksum for cnt bytes from buff, using init as a starting value
@@ -213,10 +226,12 @@ object EsMcuprogStm32
       {
         cnt = m_response[0]+1;  
         m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
-        if( cnt == m_response.countGet() )
+        if( cnt == m_response#countGet() )
         {
           m_bootVer = m_response[0];
           m_cmdsAvail = m_response#sliceGet(1, cnt-1);
+          
+          EsScriptDebug::log("Bootcode ID: %0x0X", m_bootId);
           
           return ackOrNackRead(chnl, tmo);
         }
@@ -232,7 +247,7 @@ object EsMcuprogStm32
     if( EsStm32response$$ACK == cmdWrite(chnl, 0x01, tmo) )
     {
       m_response = chnl.bytesGet(3, tmo + chnl.txTimeEstimateGet(3));
-      if( 3 == m_response.countGet() )
+      if( 3 == m_response#countGet() )
       {
         m_bootVer = m_response[0];
         m_rprotOff = m_response[1];
@@ -251,7 +266,7 @@ object EsMcuprogStm32
     if( EsStm32response$$ACK == cmdWrite(chnl, 0x02, tmo) )
     {
       m_response = chnl.bytesGet(1, tmo);
-      if( m_response.countGet() )
+      if( m_response#countGet() )
       {
         cnt = m_response[0]+1;    
         m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
@@ -259,7 +274,8 @@ object EsMcuprogStm32
         {
           m_response#reverse();
           m_chipId = m_response#asULong();
-          
+          EsScriptDebug::log("ChipID: %0x0X", m_chipId);  
+
           return ackOrNackRead(chnl, tmo);
         }
       }
@@ -517,28 +533,17 @@ object EsMcuprogStm32
     return size;  
   }
     
-  /// Synch with bootloader and identify chip, BL version, && memory configuration
-  /// Channel must be pre-configured for communicating with bootloader beforehand
+  /// Identify chip, BL version, && memory configuration
   ///
-  function bootConnectAndIdentify(chnl, tmo)
-  var progressTask = new EsProgressMonitorTask("bootConnectAndIdentify"),
+  function identify(chnl, tmo)
+  var progressTask = new EsProgressMonitorTask("bootIdentify"),
     dbRec, idRec, idRecs, dbRecs = [],
-    blIdAddr, blId, size, sizeAddr;
+    blIdAddr, blId, size, sizeAddr;  
   {
-    // Reset our internal status vars
-    reset();
-    // Reset channel IO, to get rid off any garbage in IO buffers
-    chnl.reset();
-    
-    progressTask.pulse("Synching with bootloader...");
-    progressTask.attachTo(__scriptHost$progressMonitor);   
-    
-    // Synch with bootloader, throw an exception if failed
-    syncWithBootloader(chnl, 40, true);
-    
     // Read bootcode version and available commands
     // Read chip ID
     progressTask.pulse("Reading chip information...");
+    progressTask.attachTo(__scriptHost$progressMonitor);   
     if( EsStm32response$$ACK == bootcodeVerAndCmdsRead(chnl, tmo) && 
         EsStm32response$$ACK == chipIdRead(chnl, tmo) )
     {
@@ -564,6 +569,8 @@ object EsMcuprogStm32
           if( !blIdAddr#isEmpty() )
           {
             blId = blIdRead(chnl, blIdAddr, tmo);
+            EsScriptDebug::log("BL ID: %0x0X", blId);            
+                        
             if( blId in idRec[EsStm32Info$$BootloaderIds] )
             {
               sizeAddr = idRec[EsStm32Info$$FlashSizeAddr];
@@ -594,10 +601,26 @@ object EsMcuprogStm32
           }
         }
       }
-      
-      if( m_devName#isEmpty() )
-        throw "Could not identify connected hardware";
-    }
+    }  
+
+    if( m_memConfig#isEmpty() || m_devName#isEmpty() )
+      throw "Could not identify connected hardware";
+  }
+ 
+  /// Synch with bootloader and identify chip, BL version, && memory configuration
+  /// Channel must be pre-configured for communicating with bootloader beforehand
+  ///  
+  function bootConnectAndIdentify(chnl, tmo)
+  {
+    // Reset our internal status vars
+    reset();
+    // Reset channel IO, to get rid off any garbage in IO buffers
+    chnl.reset();
+    
+    // Synch with bootloader, throw an exception if failed
+    syncWithBootloader(chnl, 20, true);
+    // Identify chip, BL, memory configuration
+    identify(chnl, tmo);
   }
   
   /// Program firmware into chip
@@ -612,8 +635,11 @@ object EsMcuprogStm32
     if( !isAlreadySynched )
       bootConnectAndIdentify(chnl, 1000);
     else
+    {
       m_synched = isAlreadySynched;
-
+      identify(chnl, 1000);
+    }
+    
     progressTask = new EsProgressMonitorTask("firmwareProgramming");
     progressTask.pulse("Preparing to upload firmware...");
     progressTask.attachTo(__scriptHost$progressMonitor);    
@@ -628,7 +654,7 @@ object EsMcuprogStm32
       m_fw += 0xFF;
       ++fwSize;
     }      
-    
+
     addr = m_memConfig[EsStm32Info$$FlashStartAddr];
     pgInfos = m_memConfig[EsStm32Info$$FlashPgInfos];
     

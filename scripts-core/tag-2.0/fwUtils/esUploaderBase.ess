@@ -96,7 +96,7 @@ object EsUploaderBase
     // power device normally
     setDevicePowerOnInNormalMode(chnl);
     // check if we're in bootloader mode, trying to sync with bootloader at once
-    deviceIsInBootMode = programmer.syncWithBootloader(chnl, 20, false);
+    deviceIsInBootMode = programmer.checkIfInBoot(chnl);
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {

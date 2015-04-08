@@ -443,6 +443,11 @@ object EsMcuprogNxp
     return synched;
   }
   
+  function checkIfInBoot(chnl)
+  {
+    return syncWithBootloader(chnl, 20, false);
+  }
+  
   function oscCommandSend(chnl)
   var requestStr, response;
   {

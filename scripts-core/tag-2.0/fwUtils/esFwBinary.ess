@@ -199,4 +199,12 @@ object EsFwBinary
     
     return m_fw;
   }
+  
+  property length;
+  read:
+  {
+    emptyCheck();
+    
+    return m_fw#countGet();
+  }
 }
