@@ -62,7 +62,7 @@ object EsFwMonikerBase
     }
   }
   
-  function init(fwTypes, fwIdOffs, binary, descr, creationDateTime)
+  new(fwTypes, fwIdOffs, binary, descr, creationDateTime)
   var idx;
   {
     m_fwTypesExpected = fwTypes;
@@ -112,12 +112,24 @@ object EsFwMonikerBase
   
   property year;
   read: { return m_tmpId[0]$year; }
-  write: { m_tmpId[0].f_serial.f_year = __value; }
+  write:
+  var id;
+  { 
+    foreach(id in m_tmpId)
+      id.f_serial.f_year = __value; 
+  }
 
   property order;
   read: { return m_tmpId[0]$order; }
-  write: { m_tmpId[0].f_serial.f_order = __value; }
-  
+  write:
+  var id;
+  { 
+    foreach(id in m_tmpId)
+    { 
+      id.f_serial.f_order = __value; 
+    }
+  }
+
   // Firmware binary access
   property binaryFw;
   read: 
@@ -146,65 +158,5 @@ object EsFwMonikerBase
       result += "_" + m_tmpId[0].fieldGet("f_uid").asString();
     
     return result;
-  }  
-
-  // New multi-id - aware properties
-  //
-  property devTypes;
-  read: {  return m_fwTypesExpected; }
-
-  property devTypeNames;
-  read: 
-  var tmpId, names = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      names += tmpId$devTypeName;
-    return names; 
-  }
-  
-  property verMajors;
-  read:
-  var tmpId, vers = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      vers += tmpId$verMajor;
-    return vers; 
-  }
-  
-  property verMinors;
-  read:
-  var tmpId, vers = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      vers += tmpId$verMinor;
-    return vers; 
-  }
-
-  property vers;
-  read:
-  var tmpId, vv = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      vv += tmpId$ver;
-      
-    return vv; 
-  }
-  
-  property years;
-  read:
-  var tmpId, yy = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      yy += tmpId.f_serial.f_year;
-    return yy; 
-  }
-
-  property orders;
-  read: 
-  var tmpId, oo = [];
-  { 
-    foreach(tmpId in m_tmpId)
-      oo += tmpId.f_serial.f_order;
-    return oo; 
   }
 }

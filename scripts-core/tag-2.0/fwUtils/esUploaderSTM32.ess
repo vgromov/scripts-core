@@ -1,10 +1,10 @@
-// @file: esNxpUploaderBase.ess
+// @file: esUploaderStm32.ess
 // STM32-specific extension of FW uploader object
 //
 ##require("esUploaderBase.ess");
-##require("stm32Firmware.ess");
+##require("esMcuProgrammerStm32.ess");
 
-object EsUploaderSTM32 extends EsUploaderBase
+object EsUploaderStm32 extends EsUploaderBase
 {
   function enterBootWithShutdown(progressTask, rpcMaster)
   {
@@ -20,35 +20,35 @@ object EsUploaderSTM32 extends EsUploaderBase
   /// Base class overrides
   ///
   function programmerCreate()
-	{
-		return new EsMcuprogStm32(
-			EsStm32Flag$$UseReadProt |
+  {
+    return new EsMcuprogStm32(
+      EsStm32Flag$$UseReadProt |
       EsStm32Flag$$Verify, 
-			m_moniker
-		);
+      m_moniker
+    );
   }
   
   // Configure and ebnter boot mode, before programming device with ISP
-	function configureForBoot(rpcMaster, supportedRpcs)
-	var chnl = rpcMaster$channel, 
-		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
-		progressTask = new EsProgressMonitorTask("configureForBoot");
-	{
-		progressTask.attachTo(__scriptHost$progressMonitor);
-		
-		if( supportsPowerCtl && 
-				!chnl$useRS232 &&
-				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
-		{
-			try
-			{
-				enterBootWithShutdown(progressTask, rpcMaster);
-				return true;
-			}
-			catch
-			{}
-		}
+  function configureForBoot(rpcMaster, supportedRpcs)
+  var chnl = rpcMaster$channel, 
+    supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+    progressTask = new EsProgressMonitorTask("configureForBoot");
+  {
+    progressTask.attachTo(__scriptHost$progressMonitor);
+    
+    if( supportsPowerCtl && 
+        !chnl$useRS232 &&
+        (EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+    {
+      try
+      {
+        enterBootWithShutdown(progressTask, rpcMaster);
+        return true;
+      }
+      catch
+      {}
+    }
 
-		return false;
-	}  
+    return false;
+  }  
 }

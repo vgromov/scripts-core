@@ -1,4 +1,4 @@
-##require("stm32McuDb.ess");
+##require("esMcuDbStm32.ess");
 
 /// Known STM32 ACKs and NACKs
 const c_stm32ACKs     = [0x75, 0x79];
@@ -39,6 +39,7 @@ enum EsStm32Flag
 object EsMcuprogStm32
 {
   var m_flags,
+      m_packetSize,
       m_synched,
       m_chipId, 
       m_bootVer,
@@ -60,6 +61,7 @@ object EsMcuprogStm32
   function reset()
   {
     m_synched = false;
+    m_packetSize = 128;
     m_cmdsAvail = B"\0\1\2"; // At least, GET commands should always be there
     m_chipId = null; 
     m_bootVer = null;
@@ -599,7 +601,7 @@ object EsMcuprogStm32
   }
   
   /// Program firmware into chip
-  function program(chnl)
+  function program(chnl, isAlreadySynched)
   var progressTask, 
     fwSize, fwAlignedSize, 
     addr, pgIdx = 0, pgCnt = 0, 
@@ -607,8 +609,11 @@ object EsMcuprogStm32
     pgInfos, pgSize, pgWritten,
     fwOffs = 0, chunk, chunkSze;
   {
-    bootConnectAndIdentify(chnl, 1000);
-    
+    if( !isAlreadySynched )
+      bootConnectAndIdentify(chnl, 1000);
+    else
+      m_synched = isAlreadySynched;
+
     progressTask = new EsProgressMonitorTask("firmwareProgramming");
     progressTask.pulse("Preparing to upload firmware...");
     progressTask.attachTo(__scriptHost$progressMonitor);    
@@ -651,13 +656,13 @@ object EsMcuprogStm32
         chunk = m_fw#sliceGet(fwOffs, m_packetSize);
         chunkSze = chunk#countGet();
         
-        if( EsStm32response$$ACK == memWrite(chnl, addr, chunk, tmo) )
+        if( EsStm32response$$ACK == memWrite(chnl, addr, chunk, 1000) )
         {
           pgWritten += chunkSze;
           fwOffs += chunkSze;
         }  
         else
-          throw "Flash upload failed";
+          throw EsStr::format("Flash upload failed at page '%d'", pgIdx);
           
         if( fwOffs >= fwAlignedSize ) // The last chunk was written
           break;
