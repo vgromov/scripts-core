@@ -12,7 +12,7 @@ object EsFwMonikerBase
       m_tmpId,
       m_tmpFw;
   
-  if( deviceIsHubFull(m_fwTypesExpected[0]) )
+  if( m_fwTypesExpected#isCollection() && deviceIsHubFull(m_fwTypesExpected[0]) )
   {
     property UID;
     read: { return m_tmpId[0]$UID; }
@@ -25,7 +25,7 @@ object EsFwMonikerBase
 
   function addrAdjust(addr)
   {
-    return addr-m_binary.m_startAddr;
+    return addr-m_binary.m_offs;
   }
   
   function fwIdExtract()
@@ -71,6 +71,7 @@ object EsFwMonikerBase
     m_tmpId = []; m_tmpId#countSet( m_fwTypesExpected#countGet() );
     
     m_fwIdOffs = fwIdOffs;
+
     for(idx = 0; idx < m_fwIdOffs#countGet(); ++idx)
       m_fwIdOffs[idx] = addrAdjust(m_fwIdOffs[idx]);
 
