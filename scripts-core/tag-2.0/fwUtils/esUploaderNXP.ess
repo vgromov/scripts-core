@@ -2,7 +2,7 @@
 // NXP-specific extension of FW uploader object
 //
 ##require("esUploaderBase.ess");
-##require("nxpFirmware.ess");
+##require("esMcuProgrammerNXP.ess");
 
 object EsUploaderNXP extends EsUploaderBase
 {
@@ -56,10 +56,10 @@ object EsUploaderNXP extends EsUploaderBase
   ///
   function programmerCreate()
 	{
-		return new EsMcuprogNXP(
-			EsMcuprogLpcFirmwareFlag$$WIPE|
-			EsMcuprogLpcFirmwareFlag$$NO_ECHO|
-			EsMcuprogLpcFirmwareFlag$$VERIFY, 
+		return new EsMcuprogNxp(
+			EsMcuprogNxpFirmwareFlag$$WIPE|
+			EsMcuprogNxpFirmwareFlag$$NO_ECHO|
+			EsMcuprogNxpFirmwareFlag$$VERIFY, 
 			50, // maximum retries for uploader operations
 			m_moniker
 		);

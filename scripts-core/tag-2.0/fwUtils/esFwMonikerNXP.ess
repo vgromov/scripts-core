@@ -1,7 +1,7 @@
 // @file: esFwMonikerNXP.ess
 // Frimware moniker specialization object for NXP-based firmware
 //
-##require(esFwMonikerBase.ess);
+##require("esFwMonikerBase.ess");
 
 object EsFwMonikerNXP extends EsFwMonikerBase
 {
@@ -27,7 +27,7 @@ object EsFwMonikerNXP extends EsFwMonikerBase
 	
 	new(fwType, fwIdOffs, crpOffs, xtal, binary, descr, creationDateTime)
 	{
-		EsFwMonikerBase::new(fwType, fwIdOffs, crpOffs, xtal, binary, descr, creationDateTime);    
+		EsFwMonikerBase::new(fwType, fwIdOffs, binary, descr, creationDateTime);    
 		m_xtalHz = xtal#asULong();
 		m_crpOffs = addrAdjust(crpOffs#asULong());
 		crpCodeExtract();
