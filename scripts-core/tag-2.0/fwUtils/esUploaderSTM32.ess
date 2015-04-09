@@ -7,14 +7,17 @@
 object EsUploaderStm32 extends EsUploaderBase
 {
   function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
   {
     progressTask.pulse("Shutting down device...");
+    rpcMaster.activate();
     rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-    configurePowerOff(rpcMaster$channel);
-    configureBoot(rpcMaster$channel);
+    configurePowerOff(chnl);
+    configureBoot(chnl);
     // Wait until device detects power off, and shuts down OK
     EsThreadWorker::sleep(2000);
-    configurePowerOn(rpcMaster$channel);
+    configurePowerOn(chnl);
+    rpcMaster.deactivate();
   }
   
   /// Base class overrides
@@ -27,6 +30,26 @@ object EsUploaderStm32 extends EsUploaderBase
       m_moniker
     );
   }
+  
+  function chnlPrepareForBootloader(chnl)
+  {
+    EsUploaderBase::chnlPrepareForBootloader(chnl);
+    chnl$parity = EsEkonnectIoParityEnum$$parityEven;  
+  }
+    
+  function chnlPrepareForDefaultNormalComm(chnl)
+  {
+    EsUploaderBase::chnlPrepareForDefaultNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParityEnum$$parityNone;
+  }  
+
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using saved baudrate
+  function chnlPrepareForNormalComm(chnl)
+  {
+    EsUploaderBase::chnlPrepareForNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParityEnum$$parityNone;
+  }  
   
   // Configure and ebnter boot mode, before programming device with ISP
   function configureForBoot(rpcMaster, supportedRpcs)
@@ -46,7 +69,9 @@ object EsUploaderStm32 extends EsUploaderBase
         return true;
       }
       catch
-      {}
+      {
+        rpcMaster.deactivate();
+      }
     }
 
     return false;

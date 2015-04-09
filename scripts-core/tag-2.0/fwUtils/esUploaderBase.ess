@@ -33,42 +33,9 @@ object EsUploaderBase
     EsThreadWorker::sleep(200);  
   }
   
-  function setDevicePowerOnInNormalMode(chnl)
+  function devicePowerOnInNormalMode(chnl)
   {
-    chnl.open();
     if( chnl.hasMethod("devicePowerSet", 1) )
-    {
-      configurePowerOff(chnl);
-      configureNormal(chnl);
-      configurePowerOn(chnl);
-    }
-  }
-  
-  function enterBootmodeWithPowerCtl(chnl)
-  {
-    configurePowerOff(chnl);
-    configureBoot(chnl);
-    configurePowerOn(chnl);
-  }
-  
-  /// Overridable FW programmer object creation. To be implemented in 
-  /// derived objects
-  ///
-  function programmerCreate()
-  {
-    return null;    
-  }
-
-  /// Method to be called upon firmware upload completion
-  ///
-  function completeUpload(chnl)
-  var supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1);
-  {
-    // Restore baud
-    chnl.close();
-    chnl$baud = m_savedBaud;
-    // resore power
-    if( supportsPowerCtl && !chnl$useRS232 )
     {
       chnl.open();
       configurePowerOff(chnl);
@@ -78,12 +45,69 @@ object EsUploaderBase
     }
   }
   
+  function devicePowerOnInBootMode(chnl)
+  {
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      chnl.open();
+      configurePowerOff(chnl);
+      configureBoot(chnl);
+      configurePowerOn(chnl);
+      chnl.close();
+    }
+  }
+  
+  /// Overridable FW programmer object creation. To be implemented in 
+  /// derived objects
+  ///
+  
+  /// In deriver objects, this method must create and return an instance of 
+  /// device-specific programmer object
+  ///
+  function programmerCreate()
+  {
+    return null;    
+  }
+
+  /// This method prepares channel for bootloader communications, if needed.
+  /// Some bootloaders may use non-default parity, byte size, etc.
+  ///
+  function chnlPrepareForBootloader(chnl)
+  {
+    chnl$baud = m_preferredUploadBaud;  
+  }
+    
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using default baudrate
+  function chnlPrepareForDefaultNormalComm(chnl)
+  {
+    chnl$baud = m_defaultBaud;
+  }  
+
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using saved baudrate
+  function chnlPrepareForNormalComm(chnl)
+  {
+    chnl$baud = m_savedBaud;
+  }  
+  
+  /// Method to be called upon firmware upload completion
+  ///
+  function completeUpload(chnl)
+  {
+    // Restore baud
+    chnl.close();
+    chnlPrepareForNormalComm(chnl);
+    // restore normal power
+    devicePowerOnInNormalMode(chnl);
+  }
+  
   // Configure and ebnter boot mode, before programming device with ISP
   function configureForBoot(rpcMaster, supportedRpcs)
   {  
     return false;
   }
-  
+    
   // Upload firmware 
   function upload(rpcMaster)
   var programmer = programmerCreate();
@@ -92,17 +116,27 @@ object EsUploaderBase
   {  
     rpcMaster.deactivate();
     m_savedBaud = chnl$baud;
-    chnl$baud = m_preferredUploadBaud;
+    
+    // Prepare channel for bootloader communication
+    chnlPrepareForBootloader(chnl);
     // power device normally
-    setDevicePowerOnInNormalMode(chnl);
-    // check if we're in bootloader mode, trying to sync with bootloader at once
+    devicePowerOnInNormalMode(chnl);
+    
+    // Check if we're in bootloader mode (empty chip), trying to sync with bootloader at once
+    chnl.open();
     deviceIsInBootMode = programmer.checkIfInBoot(chnl);
+    chnl.close();
+    
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
-      rpcMaster.deactivate();
-      chnl$baud = m_defaultBaud;
+      // Prepare for normal communications
+      chnlPrepareForDefaultNormalComm(chnl);
+      // Power device on in normal mode
+      devicePowerOnInNormalMode(chnl);
+
       rpcMaster.activate();
+      
       try
       {
         // EsScriptDebug::log("Getting implemented RPCs");
@@ -115,12 +149,14 @@ object EsUploaderBase
           swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
           m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
         }
+        rpcMaster.deactivate();
       }
       catch
       {
         // error ocurred during the most basic device query
         // device may be already in boot mode
         deviceIsInBootMode = true;
+        rpcMaster.deactivate();
       }
     }
     else
@@ -134,8 +170,10 @@ object EsUploaderBase
     }
       
     chnl.close();
-    chnl$baud = m_preferredUploadBaud;
+    chnlPrepareForBootloader(chnl);
+    devicePowerOnInBootMode(chnl);    
     chnl.open();
+
     try
     {
       programmer.program(chnl, isAlreadySynched);

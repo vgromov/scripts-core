@@ -7,28 +7,36 @@
 object EsUploaderNXP extends EsUploaderBase
 {
 	function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
 	{
 		progressTask.pulse("Shutting down device...");
+    rpcMaster.activate();
 		configurePowerOff(chnl);
 		configureBoot(chnl);
 		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
 		EsThreadWorker::sleep(1000);
-		configurePowerOn(chnl);    
+		configurePowerOn(chnl);
+    rpcMaster.deactivate();
 	}
 	
 	function enterBootWithWarmBoot(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
 	{
-		rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+    rpcMaster.activate();
+    rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+		rpcMaster.deactivate();
+
 		progressTask.pulse("Performing Warm Boot...");
 		EsThreadWorker::sleep(1500);
-		
-		if( rpcMaster$channel.hasMethod("devicePowerSet", 1) && !rpcMaster$channel$useRS232 )
-			enterBootmodeWithPowerCtl(rpcMaster$channel);
+    
+		if( !chnl$useRS232 )
+			devicePowerOnInBootMode(chnl);
 	}
 	
 	function enterBootWithNaturalPowerOff(progressTask, rpcMaster)
 	var tmo = 40, chnl = rpcMaster$channel;
 	{
+    chnl.open();
 		configurePowerOff(chnl);		
 		configureBoot(chnl);
 		progressTask.initialize("Waiting for device to power down...", tmo, tmo);
@@ -41,6 +49,7 @@ object EsUploaderNXP extends EsUploaderBase
 		}
 			
 		configurePowerOn(chnl);
+    chnl.close();
 	}
 	
   /// Base class overrides
@@ -74,7 +83,9 @@ object EsUploaderNXP extends EsUploaderBase
 				return true;
 			}
 			catch
-			{}
+			{
+        rpcMaster.deactivate();
+      }
 		}
 		
 		if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
@@ -85,7 +96,9 @@ object EsUploaderNXP extends EsUploaderBase
 				return true;
 			}
 			catch
-			{}
+			{
+        rpcMaster.deactivate();
+      }
 		}
 		
 		if( supportsPowerCtl && !chnl$useRS232 )
