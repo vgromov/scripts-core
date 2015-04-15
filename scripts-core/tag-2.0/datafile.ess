@@ -461,7 +461,7 @@ object EsBinDataFileClimaticIndexesEntry
 	/// Heat ratiation density
 	property w;
 	read: { return f_w$value; }
-	property wValid;
+	property wvalid;
 	read: { return !(f_state & ET01_Flag$$No_w); }
 	
 	/// Pressure
