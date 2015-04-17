@@ -110,6 +110,27 @@ object PHAC01_CalibrationSession
     return deviceCheckBatchResultOk(response);    
   }
   
+  /// Load settings from other session file and set it to device
+  function settingsSetFromOther(device, otherPath)
+  var response, other = __scriptHost$script.exec("sessionOpen", otherPath), otherSettings;
+  {
+    if( !other$isComplete )
+      throw EsStr::format("Could not copy settings from incomplete session '%s'", otherPath);
+    
+    otherSettings = other$settingsCur.clone();
+    otherSettings.f_fwId.copyFrom( m_bak.f_fwId );
+    otherSettings.f_swInfo.copyFrom( m_bak.f_swInfo );
+  
+    response = device.settingsUpload( otherSettings );  
+    if( deviceCheckBatchResultOk(response) )
+    {
+      m_cur.copyFrom( otherSettings );
+      return true;
+    }
+    
+    return false;
+  }
+  
   /// Custom stream writer
   function streamWrite(stream)
   {
