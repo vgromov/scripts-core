@@ -760,11 +760,11 @@ object EsMcuprogStm32
         {
           if( m_response != chunk )
           {
-//            EsScriptDebug::log("Chunk at addr: %0X", addr);
-//            EsScriptDebug::log(chunk);
-//            EsScriptDebug::log("Read at addr: %0X", addr);
-//            EsScriptDebug::log(m_response);
- 
+/*          EsScriptDebug::log("Chunk at addr: %0X", addr);
+            EsScriptDebug::log(chunk);
+            EsScriptDebug::log("Read at addr: %0X", addr);
+            EsScriptDebug::log(m_response);
+ */
             throw EsStr::format("Flash verification failed at page '%d', '%0X'", pgIdx, addr);
           }
           
