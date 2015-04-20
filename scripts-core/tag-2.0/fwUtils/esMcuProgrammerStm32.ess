@@ -760,11 +760,11 @@ object EsMcuprogStm32
         {
           if( m_response != chunk )
           {
-/*            EsScriptDebug::log("Chunk at addr: %0X", addr);
-            EsScriptDebug::log(chunk);
-            EsScriptDebug::log("Read at addr: %0X", addr);
-            EsScriptDebug::log(m_response);
-*/
+//            EsScriptDebug::log("Chunk at addr: %0X", addr);
+//            EsScriptDebug::log(chunk);
+//            EsScriptDebug::log("Read at addr: %0X", addr);
+//            EsScriptDebug::log(m_response);
+ 
             throw EsStr::format("Flash verification failed at page '%d', '%0X'", pgIdx, addr);
           }
           
@@ -791,7 +791,8 @@ object EsMcuprogStm32
     fwSize, fwAlignedSize, 
     addr, pgCnt = 0, 
     flashSize, pgCountForFw,
-    pgInfos, sector = 0, sectors = [], sectorCnt;
+    pgInfos, sector = 0, sectors = [], sectorCnt,
+    err;
   {
     if( !isAlreadySynched )
       bootConnectAndIdentify(chnl, 1000);
@@ -835,8 +836,17 @@ object EsMcuprogStm32
     binUpload(chnl, addr, fwAlignedSize, pgCnt, pgInfos, progressTask);
     
     if( m_flags & EsStm32Flag$$Verify )
-      binVerify(chnl, addr, fwAlignedSize, pgCnt, pgInfos, progressTask);
-
+    {
+      try
+      {
+        binVerify(chnl, addr, fwAlignedSize, pgCnt, pgInfos, progressTask);
+      }
+      catch
+      {
+        err = __exception$reason;
+      }
+    }
+    
     if( m_flags & EsStm32Flag$$UseWriteProt )
     {
       sectorCnt = pgCnt / m_memConfig[EsStm32Info$$FlashPgPerSector] + 
@@ -849,5 +859,8 @@ object EsMcuprogStm32
     
     if( m_flags & EsStm32Flag$$UseReadProt )
       rdoProtect(chnl, 1000);
+      
+    if( !err#isEmpty() )
+      throw err;
   }
 }
