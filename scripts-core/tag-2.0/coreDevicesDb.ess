@@ -22,7 +22,7 @@ enum EsDeviceType
 	IRA1    = 7, 			"IRA1    ";
 	LD1V		= 8, 			"LD1V    ";
 	OAA			= 9, 			"OAA     ";
-	EL3     = 10,     "EL3     ";
+	EL3C    = 10,     "EL3C    ";
 }
 
 
@@ -63,7 +63,7 @@ const c_deviceDatabase = [
 	[EsDeviceKind$$Appliance, 	"ИКИ-01",   "Измеритель ИК излучения ИКИ-01"],
 	[EsDeviceKind$$Appliance,		"ЛД-01-В", 	"Головка лазерная дозиметрическая ЛД-01-В"],
 	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"],
-	[EsDeviceKind$$Appliance,		"EL-03",    "Luxmeter eLight-03"]
+	[EsDeviceKind$$Appliance,		"EL-03-C",  "Luxmeter eLight-03-C"]
 ];
 
 const c_octavaDeviceDatabase = [
