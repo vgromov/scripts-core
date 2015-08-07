@@ -1,0 +1,239 @@
+/// @file coreDevicesIdFormatters.ess
+/// Common device ID string formatters
+///
+
+// device firmware id as-string formatting flags
+enum EsFirmwareIdFmtFlag
+{
+  DescrShort  = 0x0001;
+  DescrLong   = 0x0002;
+  Serial      = 0x0004;
+  Version     = 0x0008;
+  Region      = 0x0010;
+  HWinfo      = 0x0020;
+  SerialShort = 0x0040; //< Shortened serial number version OOOOO-YYMMDD  
+  UID         = 0x0080;
+}
+
+function fmtUID(uid)
+var str;
+{
+	coreUtilsCheckParamNotNullOfType(uid, "uid", "EsDeviceUID");
+  str = uid.asString();
+  // Format in 4 groups 8 chars each
+  return str#sliceGet(0, 7) + "-" + 
+    str#sliceGet(8, 11) + "-" + 
+    str#sliceGet(12, 15) + "-" + 
+    str#sliceGet(16, 19) + "-" + 
+    str#sliceGet(20, 31); 
+}
+
+function fmtUIDtoIdString(uid)
+{
+	coreUtilsCheckParamNotNull(uid, "uid");
+  return "U:" + uid#asString();
+}
+
+function fmtFunctionalToIdString(functional)
+{
+	coreUtilsCheckParamNotNull(functional, "functional");
+  return EsStr::format("F:0x%08X", functional);
+}
+
+function fmtVersionToIdString(verMajor, verMinor)
+{
+	coreUtilsCheckParamNotNull(verMajor, "verMajor");
+	coreUtilsCheckParamNotNull(verMinor, "verMinor");
+  
+  return EsStr::format(
+    "V:%d.%d", 
+    verMajor, 
+    verMinor
+  );
+}
+
+/// ECO-E formatting helper
+function fmtEcoE(flags, type, year, order, month, day, functionality, uid, verMajor, verMinor, region, hwStd, hwCustom)
+var result = "";
+{
+	coreUtilsCheckParamNotNull(type, "type");
+
+  if( flags & EsFirmwareIdFmtFlag$$DescrShort )
+    result = getDeviceDescriptionShortGet(type);
+  else if( flags & EsFirmwareIdFmtFlag$$DescrLong )
+    result = getDeviceDescriptionLongGet(type);
+  
+  if( flags & EsFirmwareIdFmtFlag$$Serial )
+  {
+    if( !result#countGet() )
+      result += " ";
+    
+    result += EsStr::format(
+      (!month#isEmpty() && !day#isEmpty()) ? 
+        "%0.5u-%0.4u" : 
+        "%0.5u-%0.2u",
+      order, 
+      (!month#isEmpty() && !day#isEmpty()) ?
+        (unsigned)year : 
+        (unsigned)(year%100)
+    );
+    
+    if( !month#isEmpty() && 
+        !day#isEmpty() 
+    )
+    {
+      result += EsStr::format(
+        "-%0.2u-%0.2u", 
+        month, 
+        day
+      );
+    }
+  }
+  else if( flags & EsFirmwareIdFmtFlag$$SerialShort )
+  {
+    if( !result#countGet() )
+      result += " ";
+    
+    result += EsStr::format(
+      "%0.5u-%0.2u", 
+      order, 
+      year%100
+    );
+    
+    if( !month#isEmpty() && !day#isEmpty() )
+    {
+      result += EsStr::format(
+        "%0.2u%0.2u", 
+        month, 
+        day
+      );
+    }
+  }
+  
+  // Format firmware version
+  if( (flags & EsFirmwareIdFmtFlag$$Version) && 
+      !verMajor#isEmpty() && 
+      !verMinor#isEmpty()
+  )
+  {
+    if( !result#countGet() )
+      result += " ";
+
+    result += fmtVersionToIdString(verMajor, verMinor);
+  }
+  
+  // Format firmware region
+  if( (flags & EsFirmwareIdFmtFlag$$Region) && 
+      !region#isEmpty() 
+  )
+  {
+    // If firmware version was formatted - concat with it
+    if( !result#countGet() )
+    {
+      if( (flags & EsFirmwareIdFmtFlag$$Version) && 
+          !verMajor#isEmpty() && 
+          !verMinor#isEmpty()
+      )
+        result += ".";
+      else  
+        result += " ";
+    }
+
+    result += EsStr::format("%u", region);
+  }
+
+  if( (flags & EsFirmwareIdFmtFlag$$UID) &&
+    !uid#isEmpty()
+  )
+  {
+    if( !result#countGet() )
+      result += " ";
+    
+    result += fmtUID();
+  }
+
+  // Format functionality
+  if( (flags & EsFirmwareIdFmtFlag$$Functionality) &&
+      !functionality#isEmpty()
+  )
+  {
+    if( !result#countGet() )
+      result += " ";
+    
+    result += fmtFunctionalToIdString(functionality);
+  }
+  
+  // Format hardware config
+  if( (flags & EsFirmwareIdFmtFlag$$HWinfo) && 
+    !hwStd#isEmpty() && 
+    !hwCustom#isEmpty() 
+  )
+  {
+    if( !result#countGet() )
+      result += " ";
+    
+    result += EsStr::format("0x%04X%04X", hwStd, hwCustom);
+  }
+  
+  return result;
+}
+
+function fmtUniversal(flags, type, year, order, month, day, uid, functionality, verMajor, verMinor, region, hwStd, hwCustom)
+var result = "";
+{
+  // Always format type
+	coreUtilsCheckParamNotNull(type, "type");
+  result = EsStr::format("T:%u", type);
+  
+  // Format serial
+  if( flags & EsFirmwareIdFmtFlag$$Serial )
+  {
+    // Year
+    coreUtilsCheckParamNotNull(year, "year");
+    result += EsStr::format(",Y:%u", year);
+
+    // Month
+    if( !month#isEmpty() )
+      result += EsStr::format(",M:%u", month);
+    
+    // Day
+    if( !day#isEmpty() )
+      result += EsStr::format(",D:%u", day);
+    
+    // Order
+    coreUtilsCheckParamNotNull(order, "order");
+    result += EsStr::format(",O:%u", order);
+  }
+  
+  // Format firmware version
+  if( (flags & EsFirmwareIdFmtFlag$$Version) && 
+      !verMajor#isEmpty() &&
+      !verMinor#isEmpty()
+  )
+    result += "," + fmtVersionToIdString(verMajor, verMinor);
+  
+  // Format firmware region
+  if( (flags & EsFirmwareIdFmtFlag$$Region) && 
+      !region#isEmpty()
+  )
+    result += EsStr::format(",R:%u", region);
+  
+  // Format hardware config
+  if( (flags & EsFirmwareIdFmtFlag$$HWinfo) && 
+      !hwStd#isEmpty() &&
+      !hwCustom#isEmpty()
+  )
+    result += EsStr::format(",H:0x%04X%04X", hwStd, hwCustom);
+
+  if( (flags & EsFirmwareIdFmtFlag$$UID) &&
+      !uid#isEmpty()
+  )
+    result += "," + fmtUIDtoIdString(uid);
+    
+  if( (flags & EsFirmwareIdFmtFlag$$Functionality) &&
+      !functionality#isEmpty()
+  )
+    result += "," + fmtFunctionalToIdString(functionality);
+    
+  return result;
+}

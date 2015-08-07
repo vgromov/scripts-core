@@ -1,10 +1,10 @@
-// phac01-calibration script
+// el3c-calibration script
 ##require("EsDeviceBase.ess");
-##require("phac01.ess");
-##require("phac01/calibration/Consts.ess");
-##require("phac01/calibration/Helpers.ess");
-##require("phac01/calibration/ProfileClear.ess");
-##require("phac01/calibration/ProfileColor.ess");
+##require("el3c.ess");
+##require("el3c/calibration/Consts.ess");
+##require("el3c/calibration/Helpers.ess");
+##require("el3c/calibration/ProfileClear.ess");
+##require("el3c/calibration/ProfileColor.ess");
 
 /// Calibration|verification session object
 object PHAC01_CalibrationSession
@@ -47,7 +47,7 @@ object PHAC01_CalibrationSession
       raw, simulated;
   {
     // Clear calibration simulation
-    phac01ClearCalibrationTypeCheck(type);
+    el3cClearCalibrationTypeCheck(type);
     raw = [null, null];
     simulated = [null, null];
     if( PHAC01_CalibrationType$$Illuminance == type )

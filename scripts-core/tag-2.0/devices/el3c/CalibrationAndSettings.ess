@@ -1,15 +1,15 @@
-/// PHAC01 Calibration and settings data blocks
+/// EL3C Calibration and settings data blocks
 ///
 ##require("calibration/Consts.ess");
 
-function phac01ClearCalibrationTypeCheck(type)
+function el3cClearCalibrationTypeCheck(type)
 {
-  if( !(type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Pulsation]) )
+  if( !(type in [EL3C_CalibrationType$$Illuminance .. EL3C_CalibrationType$$Pulsation]) )
     throw "Clear calibration type is out of bounds";
 }
 
 /// Clear calibration data
-object PHAC01_CalibrationClear
+object EL3C_CalibrationClear
 {
   EsSpline f_csIllum;    ///< Clear illumination calibration
   EsSpline f_csLum;      ///< Clear luminance calibration
@@ -65,12 +65,12 @@ object PHAC01_CalibrationClear
 }
 
 /// Color calibration data
-object PHAC01_CalibrationColor
+object EL3C_CalibrationColor
 {
   var m_acfCrcInvalid;
   
-  PHAC01_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
-  PHAC01_CorMatrix f_tcm;     ///< Color temperature correlation matrix
+  EL3C_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
+  EL3C_CorMatrix f_tcm;     ///< Color temperature correlation matrix
   EsSpline f_ccIllum;         ///< Clear channel illumination calibration
   EsSpline f_ccLum;           ///< Clear channel luminosity calibration
   esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
@@ -175,26 +175,26 @@ object PHAC01_CalibrationColor
   read: { return f_ccLum; }
 }
 
-/// PHAC01 device settings
-object PHAC01_Settings
+/// EL3C device settings
+object EL3C_Settings
 {
   // settings block
   EsFirmwareId f_fwId;
   EsSoftwareInfo f_swInfo;
   
   esU16 f_autosaveInterval;
-    @default = PHAC01_Defs$$AutoIntervalDef;
-    @restriction = [PHAC01_Defs$$AutoIntervalMin..PHAC01_Defs$$AutoIntervalMax];
+    @default = EL3C_Defs$$AutoIntervalDef;
+    @restriction = [EL3C_Defs$$AutoIntervalMin..EL3C_Defs$$AutoIntervalMax];
   
   esU16 f_bgndExp;
-    @default = PHAC01_Defs$$BgndExposureDef;
-    @restriction = [PHAC01_Defs$$BgndExposureMin..PHAC01_Defs$$BgndExposureMax];
+    @default = EL3C_Defs$$BgndExposureDef;
+    @restriction = [EL3C_Defs$$BgndExposureMin..EL3C_Defs$$BgndExposureMax];
   
   // Clear calibration data
-  PHAC01_CalibrationClear f_calClear;    
+  EL3C_CalibrationClear f_calClear;    
   
   // Color calibration data
-  PHAC01_CalibrationColor f_calColor;    
+  EL3C_CalibrationColor f_calColor;    
   
   /// Constructors
   new()
@@ -206,7 +206,7 @@ object PHAC01_Settings
   
   new(fwId)
   {
-    fwIdValidate(fwId, EsDeviceType$$PHAC1, "PHAC01 settings");
+    fwIdValidate(fwId, EsDeviceType$$PHAC1, "EL3C settings");
     f_fwId.copyFrom(fwId);
     f_calClear.init();
     f_calColor.init();
@@ -215,22 +215,22 @@ object PHAC01_Settings
   // Return clear clibration spline by data type
   function calClearGet(type)
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
       return f_calClear$calIlluminance;
-    else if( PHAC01_CalibrationType$$Luminance == type )  
+    else if( EL3C_CalibrationType$$Luminance == type )  
       return f_calClear$calLuminance;
-    else if( PHAC01_CalibrationType$$Pulsation == type ) 
+    else if( EL3C_CalibrationType$$Pulsation == type ) 
       return f_calClear$calPulsation;
   }
 
   // Return clear calibration splines for color sensor
   function calColorClearGet(type)
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
       return f_calColor$calIlluminance;
-    else if( PHAC01_CalibrationType$$Luminance == type )  
+    else if( EL3C_CalibrationType$$Luminance == type )  
       return f_calColor$calLuminance;
   }
   

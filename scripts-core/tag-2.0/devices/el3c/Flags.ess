@@ -1,8 +1,8 @@
-/// PHAC01 health && flags parser objects
+/// EL3C health && flags parser objects
 ///
 
-/// PHAC01 Health state object
-object PHAC01_Health
+/// EL3C Health state object
+object EL3C_Health
 {
   esU32 f_errors;
   /// Constructor
@@ -14,22 +14,22 @@ object PHAC01_Health
   function errorsAsStrings()
   var result = []; 
   {
-    if(f_errors & PHAC01_Error$$PwrCritical)
-      result += PHAC01_Error$$PwrCritical$$label;
-    if(f_errors & PHAC01_Error$$I2C)
-      result += PHAC01_Error$$I2C$$label;
-    if(f_errors & PHAC01_Error$$RTC)
-      result += PHAC01_Error$$RTC$$label;
-    if(f_errors & PHAC01_Error$$RTC_Invalid)
-      result += PHAC01_Error$$RTC_Invalid$$label;
-    if(f_errors & PHAC01_Error$$Storage)
-      result += PHAC01_Error$$Storage$$label;
-    if(f_errors & PHAC01_Error$$ClearNoCal)
-      result += PHAC01_Error$$ClearNoCal$$label;
-    if(f_errors & PHAC01_Error$$ColorNoCal)
-      result += PHAC01_Error$$ColorNoCal$$label;
-    if(f_errors & PHAC01_Error$$MAX4400x)
-      result += PHAC01_Error$$MAX4400x$$label;
+    if(f_errors & EL3C_Error$$PwrCritical)
+      result += EL3C_Error$$PwrCritical$$label;
+    if(f_errors & EL3C_Error$$I2C)
+      result += EL3C_Error$$I2C$$label;
+    if(f_errors & EL3C_Error$$RTC)
+      result += EL3C_Error$$RTC$$label;
+    if(f_errors & EL3C_Error$$RTC_Invalid)
+      result += EL3C_Error$$RTC_Invalid$$label;
+    if(f_errors & EL3C_Error$$Storage)
+      result += EL3C_Error$$Storage$$label;
+    if(f_errors & EL3C_Error$$ClearNoCal)
+      result += EL3C_Error$$ClearNoCal$$label;
+    if(f_errors & EL3C_Error$$ColorNoCal)
+      result += EL3C_Error$$ColorNoCal$$label;
+    if(f_errors & EL3C_Error$$MAX4400x)
+      result += EL3C_Error$$MAX4400x$$label;
   
     return result;
   }
@@ -46,21 +46,21 @@ object PHAC01_Health
   /// return true if health critical error was latched
   property hasCriticalError;
   read: { return f_errors & 
-                                ( PHAC01_Error$$I2C|
-                                  PHAC01_Error$$RTC|
-                                  PHAC01_Error$$Storage|
-                                  PHAC01_Error$$MAX4400x ); 
+                                ( EL3C_Error$$I2C|
+                                  EL3C_Error$$RTC|
+                                  EL3C_Error$$Storage|
+                                  EL3C_Error$$MAX4400x ); 
         }
   /// return true if health non-critical error was latched
   property hasNonCriticalError;
   read: { return f_errors & 
-                                ( PHAC01_Error$$RTC_Invalid|
-                                  PHAC01_Error$$ClearNoCal|
-                                  PHAC01_Error$$ColorNoCal);        
+                                ( EL3C_Error$$RTC_Invalid|
+                                  EL3C_Error$$ClearNoCal|
+                                  EL3C_Error$$ColorNoCal);        
         }
 	// Return true if error flags contain warnings			
 	property hasWarning;
-	read: { return f_errors & PHAC01_Error$$PwrCritical; }
+	read: { return f_errors & EL3C_Error$$PwrCritical; }
 	
   /// Return true if any health error was latched
   property hasError;
@@ -73,7 +73,7 @@ object PHAC01_Health
 
 /// PHA Color data flags|state helper object
 ///
-object PHAC01_DataFlags
+object EL3C_DataFlags
 {
   esU32 f_flags;
   
@@ -87,15 +87,15 @@ object PHAC01_DataFlags
   function ommAsStrings()
   var omm = (f_flags & 0xF0), result = []; 
   { 
-    if(PHAC01_OpModeModifier$$None == omm)
-      result += PHAC01_OpModeModifier$$None$$label;
+    if(EL3C_OpModeModifier$$None == omm)
+      result += EL3C_OpModeModifier$$None$$label;
     else
     {
-      if( omm & PHAC01_OpModeModifier$$BgndTrim )
-        result += PHAC01_OpModeModifier$$BgndTrim$$label;
+      if( omm & EL3C_OpModeModifier$$BgndTrim )
+        result += EL3C_OpModeModifier$$BgndTrim$$label;
         
-      if( omm & PHAC01_OpModeModifier$$Autonomous )
-        result += PHAC01_OpModeModifier$$Autonomous$$label;
+      if( omm & EL3C_OpModeModifier$$Autonomous )
+        result += EL3C_OpModeModifier$$Autonomous$$label;
     }
     
     return result;
@@ -111,12 +111,12 @@ object PHAC01_DataFlags
   function dsAsStrings()
   var ds = (f_flags & 0xF00), result = [];
   {
-    if( PHAC01_DataState$$None == ds )
-      result += PHAC01_DataState$$None$$label;
+    if( EL3C_DataState$$None == ds )
+      result += EL3C_DataState$$None$$label;
     else
     {
-      if( ds & PHAC01_DataState$$LowSignal )
-        result += PHAC01_DataState$$LowSignal$$label;
+      if( ds & EL3C_DataState$$LowSignal )
+        result += EL3C_DataState$$LowSignal$$label;
     }
     
     return result;
@@ -135,7 +135,7 @@ object PHAC01_DataFlags
   read: { return (f_flags & 0x0F); } 
   /// Return sanitized opmode value string
   property opmodeStr;
-  read: { return PHAC01_OpMode.valueLabelGet( $opmode ); } 
+  read: { return EL3C_OpMode.valueLabelGet( $opmode ); } 
   
   /// Return sanitized opmode modifier
   property opmodeModifier;
@@ -145,10 +145,10 @@ object PHAC01_DataFlags
   read: { return ommAsString(); }
   /// Return true if opmode contains BgndTrim modifier
   property isBgndTrimming;
-  read: { return f_flags & PHAC01_OpModeModifier$$BgndTrim; }
+  read: { return f_flags & EL3C_OpModeModifier$$BgndTrim; }
 	/// Return true if opmode contains Autonomous modifier
   property isAutonomous;
-  read: { return f_flags & PHAC01_OpModeModifier$$Autonomous; }
+  read: { return f_flags & EL3C_OpModeModifier$$Autonomous; }
   
   /// Return data state
   property dataState;
@@ -158,37 +158,37 @@ object PHAC01_DataFlags
   read: { return dsAsString(); }
   /// Separately output low light condition
   property isLowLight;
-  read: { return PHAC01_DataState$$LowSignal == ($dataState & PHAC01_DataState$$LowSignal); }
+  read: { return EL3C_DataState$$LowSignal == ($dataState & EL3C_DataState$$LowSignal); }
   
   /// Return data validity flags
   ///
 	property valIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$val); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$val); }
 	
 	property valOrgIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$valOrg); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$valOrg); }
 	
 	property kpIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kp); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kp); }
 	
 	property kpOrgIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpOrg); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpOrg); }
 	
 	property kpiIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpi); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpi); }
   
 	property kpiOrgIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$kpiOrg); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpiOrg); }
   
 	property bgndIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$bgnd); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgnd); }
   
 	property bgndTmoIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$bgndTmo); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgndTmo); }
   
 	property xyIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$xy); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$xy); }
   
  	property ctIsValid;
-	read: { return 0 == (f_flags & PHAC01_DataInvalid$$ct); }
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$ct); }
 }

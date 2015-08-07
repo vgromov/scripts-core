@@ -1,16 +1,16 @@
 // Scripting device support for pha-01 photo-appliance
 ##require("EsDeviceBase.ess");
 ##require("../math/EsSpline.ess");
-##require("phac01/Consts.ess");
-##require("phac01/CorMatrix.ess");
-##require("phac01/FmtHelpers.ess");
-##require("phac01/Legacy.ess");
-##require("phac01/Flags.ess");
-##require("phac01/Data.ess");
-##require("phac01/CalibrationAndSettings.ess");
+##require("el3c/Consts.ess");
+##require("el3c/CorMatrix.ess");
+##require("el3c/FmtHelpers.ess");
+##require("el3c/Legacy.ess");
+##require("el3c/Flags.ess");
+##require("el3c/Data.ess");
+##require("el3c/CalibrationAndSettings.ess");
 
-/// PHAC01 device object
-object PHAC01 extends EsDeviceBase
+/// EL3C device object
+object EL3C extends EsDeviceBase
 @nomarshal;
 {
 /// Device-specific vars
@@ -19,16 +19,16 @@ object PHAC01 extends EsDeviceBase
 /// Mandatory base overrides
   function rpcNameGetById(rpcId)
   {
-    if( rpcId in PHAC01_Rpid )
-      return PHAC01_Rpid.valueLabelGet(rpcId);
+    if( rpcId in EL3C_Rpid )
+      return EL3C_Rpid.valueLabelGet(rpcId);
     
     return EsDeviceBase::rpcNameGetById(rpcId);
   }
   
   function rpcSigGetById(rpcId)
   {
-    if( rpcId in PHAC01_Rpid )
-      return rpcSigGet(PHAC01_Rpid.valueLabelGet(rpcId));
+    if( rpcId in EL3C_Rpid )
+      return rpcSigGet(EL3C_Rpid.valueLabelGet(rpcId));
     
     return EsDeviceBase::rpcSigGetById(rpcId);
   }
@@ -36,7 +36,7 @@ object PHAC01 extends EsDeviceBase
   function fwIdAssert(fwId)
   {
     EsDeviceBase::fwIdAssert(fwId);
-    fwIdValidate(fwId, EsDeviceType$$PHAC1, "PHAC01");
+    fwIdValidate(fwId, EsDeviceType$$PHAC1, "EL3C");
   }
 
   function fwIdDefaultSet()
@@ -48,9 +48,9 @@ object PHAC01 extends EsDeviceBase
   }
   
   function defaultCapsGet()
-  var result = EsDeviceBase::defaultCapsGet() + PHAC01_Rpid$values;
+  var result = EsDeviceBase::defaultCapsGet() + EL3C_Rpid$values;
   {
-     result += EsRpcStdId$$HEALTH_EXEC;
+    result += EsRpcStdId$$HEALTH_EXEC;
     result += EsRpcStdId$$HEALTH_INFO_GET;
     result += EsRpcStdId$$DATETIME_GET;
     result += EsRpcStdId$$DATETIME_SET;
@@ -69,69 +69,69 @@ object PHAC01 extends EsDeviceBase
   var result = null;
   {
     if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
-      result = new PHAC01_Health(rpcResult);    // use PHAC01 health implementation instead of unparsed standard one
+      result = new EL3C_Health(rpcResult);    // use EL3C health implementation instead of unparsed standard one
     // Group all simple no-objects responses into one branch
     else if( 
-      PHAC01_Rpid$$WorkmodeGet == rpcId ||
-      PHAC01_Rpid$$BgndTmoGet == rpcId ||
-      PHAC01_Rpid$$AutosaveTmoGet == rpcId ||
-      PHAC01_Rpid$$DataCountGet == rpcId ||
-      PHAC01_Rpid$$LegacyOperationModeGet == rpcId ||
-      PHAC01_Rpid$$LegacyBgndPeriodLeftGet == rpcId ||
-      PHAC01_Rpid$$LegacyAutosaveIntervalGet == rpcId
+      EL3C_Rpid$$WorkmodeGet == rpcId ||
+      EL3C_Rpid$$BgndTmoGet == rpcId ||
+      EL3C_Rpid$$AutosaveTmoGet == rpcId ||
+      EL3C_Rpid$$DataCountGet == rpcId ||
+      EL3C_Rpid$$LegacyOperationModeGet == rpcId ||
+      EL3C_Rpid$$LegacyBgndPeriodLeftGet == rpcId ||
+      EL3C_Rpid$$LegacyAutosaveIntervalGet == rpcId
       )
     {
       result = rpcResult;
       
       // in addition, save currently active device opmode
       // it's vital for live data requests handling
-      if( PHAC01_Rpid$$LegacyOperationModeGet == rpcId )
-        m_opMode = PHAC01_fromLegacyOpmode(result);
-      else if( PHAC01_Rpid$$WorkmodeGet == rpcId )
+      if( EL3C_Rpid$$LegacyOperationModeGet == rpcId )
+        m_opMode = EL3C_fromLegacyOpmode(result);
+      else if( EL3C_Rpid$$WorkmodeGet == rpcId )
         m_opMode = result;
     }      
-    else if( PHAC01_Rpid$$CalibrationClearGet == rpcId )
+    else if( EL3C_Rpid$$CalibrationClearGet == rpcId )
     {
-      result = new PHAC01_CalibrationClear();
+      result = new EL3C_CalibrationClear();
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$CalibrationColorGet == rpcId )
+    else if( EL3C_Rpid$$CalibrationColorGet == rpcId )
     {
-      result = new PHAC01_CalibrationColor();
+      result = new EL3C_CalibrationColor();
       result$buffer = rpcResult#asBinBuffer();      
     }
-    else if( PHAC01_Rpid$$LiveDataGet == rpcId )
+    else if( EL3C_Rpid$$LiveDataGet == rpcId )
     {
-      result = new PHAC01_Data(); 
+      result = new EL3C_Data(); 
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$RawDataGet == rpcId )
+    else if( EL3C_Rpid$$RawDataGet == rpcId )
     {
-      result = new PHAC01_RawData(); 
+      result = new EL3C_RawData(); 
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$DataAtIdxGet == rpcId )
+    else if( EL3C_Rpid$$DataAtIdxGet == rpcId )
     {
-      result = new PHAC01_Data();
+      result = new EL3C_Data();
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$LegacyLiveDataGet == rpcId )
+    else if( EL3C_Rpid$$LegacyLiveDataGet == rpcId )
     {
-      if( PHAC01_LegacyOpMode$$LiveWoBgnd == PHAC01_toLegacyOpmode(m_opMode) )
-        result = new PHAC01_LegacyDataWoBgnd();
+      if( EL3C_LegacyOpMode$$LiveWoBgnd == EL3C_toLegacyOpmode(m_opMode) )
+        result = new EL3C_LegacyDataWoBgnd();
       else
-        result = new PHAC01_LegacyData();
+        result = new EL3C_LegacyData();
         
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$LegacyDataAtIdxGet == rpcId )
+    else if( EL3C_Rpid$$LegacyDataAtIdxGet == rpcId )
     {
-      result = new PHAC01_LegacyData();
+      result = new EL3C_LegacyData();
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( PHAC01_Rpid$$LegacyCalibrationGet == rpcId )
+    else if( EL3C_Rpid$$LegacyCalibrationGet == rpcId )
     {
-      result = new PHAC01_LegacyCalibrationData();
+      result = new EL3C_LegacyCalibrationData();
       result$buffer = rpcResult#asBinBuffer();
     }
     else 
@@ -144,20 +144,20 @@ object PHAC01 extends EsDeviceBase
   new()
   {
     internalInit(null);    
-    m_opMode = PHAC01_OpMode$$None;
+    m_opMode = EL3C_OpMode$$None;
   }
   
   new(fwId)
   {
     internalInit(fwId);
-    m_opMode = PHAC01_OpMode$$None;
+    m_opMode = EL3C_OpMode$$None;
   }
   
-  /// PHAC01 custom response handlers
+  /// EL3C custom response handlers
   ///
   /// Download settings object
   function settingsDownload()
-  var settings = new PHAC01_Settings(m_fwId), rpcResult;
+  var settings = new EL3C_Settings(m_fwId), rpcResult;
   {
     // Download software info
     rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
@@ -166,25 +166,25 @@ object PHAC01 extends EsDeviceBase
     else
       return rpcResult;
     
-    rpcResult = rpcCall(PHAC01_Rpid$$AutosaveTmoGet, null);
+    rpcResult = rpcCall(EL3C_Rpid$$AutosaveTmoGet, null);
     if( rpcResult[0] )
       settings.f_autosaveInterval = rpcResult[1];
     else
       return rpcResult;
       
-    rpcResult = rpcCall(PHAC01_Rpid$$BgndTmoGet, null);
+    rpcResult = rpcCall(EL3C_Rpid$$BgndTmoGet, null);
     if( rpcResult[0] )
       settings.f_bgndExp = rpcResult[1];
     else
       return rpcResult;      
       
-    rpcResult = rpcCall(PHAC01_Rpid$$CalibrationClearGet, null);
+    rpcResult = rpcCall(EL3C_Rpid$$CalibrationClearGet, null);
     if( rpcResult[0] )
       settings.f_calClear.copyFrom( rpcResult[1] );
     else
       return rpcResult;
     
-    rpcResult = rpcCall(PHAC01_Rpid$$CalibrationColorGet, null);
+    rpcResult = rpcCall(EL3C_Rpid$$CalibrationColorGet, null);
     if( rpcResult[0] )
       settings.f_calColor.copyFrom( rpcResult[1] );
     else
@@ -206,23 +206,23 @@ object PHAC01 extends EsDeviceBase
     
     settings.crcUpdate();
     
-    batchItem += PHAC01_Rpid$$AutosaveTmoSet;
+    batchItem += EL3C_Rpid$$AutosaveTmoSet;
     batchItem += settings.f_autosaveInterval;
     batch#append(batchItem);
     batchItem = [];
     
-    batchItem += PHAC01_Rpid$$BgndTmoSet;
+    batchItem += EL3C_Rpid$$BgndTmoSet;
     batchItem += settings.f_bgndExp;
     batch#append(batchItem);
     batchItem = [];
         
-    batchItem += PHAC01_Rpid$$CalibrationClearSet;
+    batchItem += EL3C_Rpid$$CalibrationClearSet;
     batchItem += settings.f_calClear;
     batch#append(batchItem);
     batchItem = [];
     //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
     
-    batchItem += PHAC01_Rpid$$CalibrationColorSet;
+    batchItem += EL3C_Rpid$$CalibrationColorSet;
     batchItem += settings.f_calColor;
     batch#append(batchItem);
     batchItem = [];
@@ -257,7 +257,7 @@ object PHAC01 extends EsDeviceBase
   /// Opmode string
   property opmodeStr;
   read:
-  var helper = new PHAC01_DataFlags(m_opMode);
+  var helper = new EL3C_DataFlags(m_opMode);
   { 
     return m_opMode;
   }

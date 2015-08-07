@@ -63,7 +63,7 @@ const c_deviceDatabase = [
 	[EsDeviceKind$$Appliance, 	"ИКИ-01",   "Измеритель ИК излучения ИКИ-01"],
 	[EsDeviceKind$$Appliance,		"ЛД-01-В", 	"Головка лазерная дозиметрическая ЛД-01-В"],
 	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"],
-	[EsDeviceKind$$Appliance,		"EL-03-C",  "Luxmeter eLight-03-C"]
+	[EsDeviceKind$$Appliance,		"EL-03-C",  "Lighting meter eLight-03-C"]
 ];
 
 const c_octavaDeviceDatabase = [

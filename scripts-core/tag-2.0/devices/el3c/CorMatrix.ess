@@ -1,9 +1,9 @@
-// PHAC01_CorMatrix object implementation
+// EL3C_CorMatrix object implementation
 //
 
 /// 4x4 extended color space matrix object
 ///
-object PHAC01_CorMatrix
+object EL3C_CorMatrix
 {
   var m_crcInvalid;
   

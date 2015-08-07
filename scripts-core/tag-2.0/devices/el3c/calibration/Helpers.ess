@@ -1,0 +1,81 @@
+/// EL3C Calibration helpers
+///
+
+function el3cCalibrationTypeCheck(type)
+{
+  if( !(type in EL3C_CalibrationType) )
+    throw "Calibration type is out of bounds";
+}
+
+function el3cUnitsGet(type)
+{
+  el3cCalibrationTypeCheck(type);
+  if( EL3C_CalibrationType$$Illuminance == type )
+    return "lx";
+  else if( EL3C_CalibrationType$$Luminance == type )
+    return "cd/m2";
+  else if( EL3C_CalibrationType$$Pulsation == type )
+    return "%";
+  else if( EL3C_CalibrationType$$ColorTemp == type )
+    return "K";
+}  
+
+function el3ccreate(fwId)
+{
+  if( EsDeviceType$$PHAC1 == fwId$devType )
+    return new EL3C(fwId);  
+}
+
+function el3copmodeCheck(device)
+var result;
+{
+  result = device.rpcCall(EL3C_Rpid$$WorkmodeGet, null);
+  if( result[0] )
+  {
+    if( !(result[1] in [EL3C_OpMode$$Illuminance .. EL3C_OpMode$$Luminance]) )
+      result = device.rpcCall(EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Illuminance);
+    
+    return result[0];
+  }
+  
+  return false;  
+}
+
+function el3cstateBatchPrepare()
+var batch = [], item = [];
+{
+  item += EsRpcStdId$$DATETIME_GET;
+  item += null;
+  batch#append(item); item = [];
+
+  item += EsRpcStdId$$POWER_STATUS_GET;
+  item += null;
+  batch#append(item);
+  
+  return batch;
+}
+
+function el3cstateRequest(device)
+var result;
+{
+  return device.rpcBatchCall( el3cstateBatchPrepare() );
+}
+
+function el3cliveRequest(device, verification)
+var batch = el3cstateBatchPrepare(), item = [], result;
+{
+  if( !verification )
+  {
+    item += EL3C_Rpid$$RawDataGet;
+    item += null;
+    batch#append(item);
+  }
+  else  
+  {
+    item += EL3C_Rpid$$LiveDataGet;
+    item += null;
+    batch#append(item);
+  }
+  
+  return device.rpcBatchCall(batch);
+}

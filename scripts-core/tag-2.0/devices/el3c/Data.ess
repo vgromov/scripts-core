@@ -6,12 +6,12 @@
 /// bgndTmo is bgnd measurement ETA, in seconds, otherwise, it's duration of bgnd measuement,
 /// and bgnd is valid measured bgnd value
 ///
-object PHAC01_Data
+object EL3C_Data
 {
   /// Data fields
   esDT  f_ts;               ///< Data timestamp
-  PHAC01_Health f_errors;   ///< Device error flags
-  PHAC01_DataFlags f_flags; ///< Data state|validity flags
+  EL3C_Health f_errors;   ///< Device error flags
+  EL3C_DataFlags f_flags; ///< Data state|validity flags
   esF   f_val;              ///< Measured value (either illuminance or luminance, depending on mode flag)
   esF   f_valOrg;           ///< Original value (for Bgnd. trimming mode)
   esF   f_kp;               ///< Pulsation coefficient, in %
@@ -52,14 +52,14 @@ object PHAC01_Data
 	property valStrMulti;
 	read: 
 	{
-    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
-			return PHAC01_strMultiGet( $val, c_phac01_unitE, f_flags$valIsValid);
-		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
-			return PHAC01_strMultiGet( $val, c_phac01_unitL, f_flags$valIsValid);
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+			return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valIsValid);
+		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+			return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valIsValid);
 	}
 	/// Value string
 	property valStr;
-	read: { return PHAC01_fromStrMulti( $valStrMulti ); }
+	read: { return EL3C_fromStrMulti( $valStrMulti ); }
 	
   /// Original value
   property valOrg;
@@ -68,54 +68,54 @@ object PHAC01_Data
 	property valOrgStrMulti;
 	read: 
 	{
-    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
-			return PHAC01_strMultiGet( $valOrg, c_phac01_unitE, f_flags$valOrgIsValid);
-		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
-			return PHAC01_strMultiGet( $valOrg, c_phac01_unitL, f_flags$valOrgIsValid);
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+			return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgIsValid);
+		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+			return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgIsValid);
 	}
 	/// Value string
 	property valOrgStr;
-	read: { return PHAC01_fromStrMulti( $valOrgStrMulti ); }
+	read: { return EL3C_fromStrMulti( $valOrgStrMulti ); }
 	
   /// Pulsation (Modulation) coefficient, in %
   property kp;
   read: { return f_kp$value; }
 	/// pulsation string components
 	property kpStrMulti;
-	read: {	return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, f_flags$kpIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpIsValid ); }
 	/// pulsation string
 	property kpStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }  
+  read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }  
   
   /// Original Pulsation (Modulation) coefficient, in %
   property kpOrg;
   read: { return f_kpOrg$value; }
 	/// pulsation string components
 	property kpOrgStrMulti;
-	read: {	return PHAC01_strMultiNoMulPartGet( $kpOrg, c_phac01_unitP, f_flags$kpOrgIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgIsValid ); }
 	/// pulsation string
 	property kpOrgStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
+  read: { return EL3C_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
   
   /// Pulsation (Integral) coefficient, in %
   property kpi;
   read: { return f_kpi$value; }
 	/// pulsation string components
 	property kpiStrMulti;
-	read: {	return PHAC01_strMultiNoMulPartGet( $kpi, c_phac01_unitP, f_flags$kpiIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpiIsValid ); }
 	/// pulsation string
 	property kpiStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpiStrMulti ); }  
+  read: { return EL3C_fromStrMultiNoMulPart( $kpiStrMulti ); }  
   
   /// Original Pulsation (Integral) coefficient, in %
   property kpiOrg;
   read: { return f_kpiOrg$value; }
 	/// pulsation string components
 	property kpiOrgStrMulti;
-	read: {	return PHAC01_strMultiNoMulPartGet( $kpiOrg, c_phac01_unitP, f_flags$kpiOrgIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgIsValid ); }
 	/// pulsation string
 	property kpiOrgStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
+  read: { return EL3C_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
   
   /// Measured Background value
   property bgnd;
@@ -124,21 +124,21 @@ object PHAC01_Data
 	property bgndStrMulti;
 	read: 
 	{
-    if( PHAC01_OpMode$$Illuminance == f_flags$opmode )  
-			return PHAC01_strMultiGet( $bgnd, c_phac01_unitE, f_flags$bgndIsValid);
-		else if( PHAC01_OpMode$$Luminance == f_flags$opmode )
-			return PHAC01_strMultiGet( $bgnd, c_phac01_unitL, f_flags$bgndIsValid);
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+			return EL3C_strMultiGet( $bgnd, c_el3c_unitE, f_flags$bgndIsValid);
+		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+			return EL3C_strMultiGet( $bgnd, c_el3c_unitL, f_flags$bgndIsValid);
 	}
 	/// Value string
 	property bgndStr;
-	read: { return PHAC01_fromStrMulti( $bgndStrMulti ); } 
+	read: { return EL3C_fromStrMulti( $bgndStrMulti ); } 
   
   /// CIE x component
   property cie_x;
   read: { return f_x$value; }
   /// Value string
   property cie_xStr;
-  read: { return PHAC01_CieValueFmt($cie_x, f_flags$xyIsValid); }
+  read: { return EL3C_CieValueFmt($cie_x, f_flags$xyIsValid); }
   /// Value string components property
   property cie_xStrMulti;
   read: 
@@ -153,7 +153,7 @@ object PHAC01_Data
   read: { return f_y$value; }
   /// Value string
   property cie_yStr;
-  read: { return PHAC01_CieValueFmt($cie_y, f_flags$xyIsValid); }
+  read: { return EL3C_CieValueFmt($cie_y, f_flags$xyIsValid); }
   /// Value string components property
   property cie_yStrMulti;
   read: 
@@ -168,10 +168,10 @@ object PHAC01_Data
   read: { return f_ct$value; }
   /// Value string components property
   property cctStrMulti;
-  read: { return PHAC01_strMultiNoMulPartGet($cct, c_phac01_unitCT, f_flags$ctIsValid); } 
+  read: { return EL3C_strMultiNoMulPartGet($cct, c_el3c_unitCT, f_flags$ctIsValid); } 
   /// Value string
   property cctStr;
-  read: { return PHAC01_fromStrMultiNoMulPart($cctStrMulti); }
+  read: { return EL3C_fromStrMultiNoMulPart($cctStrMulti); }
   
   /// Background integration (exposure) interval
   property bgndExp;
@@ -265,9 +265,9 @@ object PHAC01_Data
 
 /// Raw data structure, used in calibration process
 ///
-object PHAC01_RawData
+object EL3C_RawData
 {
-  PHAC01_Health f_errors; ///< Device error flags
+  EL3C_Health f_errors; ///< Device error flags
   esF   f_val;          ///< Measured raw value (either illuminance or luminance, depending on mode flag)
   esF   f_kp;           ///< Pulsation coefficient, in %
   esF   f_kpi;          ///< Pulsation coefficient, in %

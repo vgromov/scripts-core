@@ -1,13 +1,13 @@
-/// PHAC01 contants
+/// EL3C contants
 ///
 
-const c_phac01_unitE = "lx";
-const c_phac01_unitL = "cd/m<sup>2</sup>";
-const c_phac01_unitP = "%";
-const c_phac01_unitCT = "K";
+const c_el3c_unitE = "lx";
+const c_el3c_unitL = "cd/m<sup>2</sup>";
+const c_el3c_unitP = "%";
+const c_el3c_unitCT = "K";
 
 // pha01-specific rpcs 
-enum PHAC01_Rpid
+enum EL3C_Rpid
 {
   // Legacy-mode handlers. PHA-01 ids preserved
   //
@@ -47,7 +47,7 @@ enum PHAC01_Rpid
 }
 
 // settings defaults
-enum PHAC01_Defs
+enum EL3C_Defs
 {
   // Autosave intervals in sec
   AutoIntervalMin = 5;
@@ -60,7 +60,7 @@ enum PHAC01_Defs
 }
 
 // photo appliance operation modes
-enum PHAC01_LegacyOpMode 
+enum EL3C_LegacyOpMode 
 {
   None          = 0, "NONE";
   Idle          = 1, "IDLE operation";
@@ -71,7 +71,7 @@ enum PHAC01_LegacyOpMode
 }
 
 /// PHA Color device error flags and bit masks
-enum PHAC01_Error
+enum EL3C_Error
 {
   PwrCritical  = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
   RTC          = 0x00000002, "RTC error";                           ///< RTC initialization error
@@ -84,7 +84,7 @@ enum PHAC01_Error
 }
 
 /// PHA Color operation modes
-enum PHAC01_OpMode
+enum EL3C_OpMode
 {
   None        = 0, "NONE";
   Idle        = 1, "IDLE operation";
@@ -94,7 +94,7 @@ enum PHAC01_OpMode
 }
 
 /// PHA Color operation modifiers
-enum PHAC01_OpModeModifier
+enum EL3C_OpModeModifier
 {
   None         = 0,    "Normal";                    //< Null modifier, normal operation, just for readability        
   BgndTrim     = 0x10, "Background trimming";       //< Bgnd trimming mode is on (0x1 << 4)
@@ -103,14 +103,14 @@ enum PHAC01_OpModeModifier
 }
 
 /// PHA Color data state flags
-enum PHAC01_DataState
+enum EL3C_DataState
 {
   None         = 0, "Normal";                       //< Normal data state, just for readability
   LowSignal    = 0x100, "Low signal";               //< Low value state - no kp data is valid, because slow color sensor output is used (0x1 << 8)
 }
 
 /// PHA Color data (in)validity flags
-enum PHAC01_DataInvalid
+enum EL3C_DataInvalid
 {
   val          = 0x00010000;  //(0x0001 << 16);
   valOrg       = 0x00020000;  //(0x0002 << 16);
@@ -125,41 +125,41 @@ enum PHAC01_DataInvalid
 }
 
 /// Normal opmode to Legacy opmode converter
-function PHAC01_toLegacyOpmode(opmode)
-var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = PHAC01_LegacyOpMode$$None;
+function EL3C_toLegacyOpmode(opmode)
+var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = EL3C_LegacyOpMode$$None;
 {
-  if(PHAC01_OpMode$$Idle == om)
-    result = PHAC01_LegacyOpMode$$Idle;
-  else if( PHAC01_OpMode$$Illuminance == om  ||
-           PHAC01_OpMode$$Luminance == om )
+  if(EL3C_OpMode$$Idle == om)
+    result = EL3C_LegacyOpMode$$Idle;
+  else if( EL3C_OpMode$$Illuminance == om  ||
+           EL3C_OpMode$$Luminance == om )
   {
-    if( omm & PHAC01_OpModeModifier$$Autonomous )
-      result = PHAC01_LegacyOpMode$$Autonomous;
-    else if( omm & PHAC01_OpModeModifier$$BgndTrim )
-      result = PHAC01_LegacyOpMode$$LiveWoBgnd;
+    if( omm & EL3C_OpModeModifier$$Autonomous )
+      result = EL3C_LegacyOpMode$$Autonomous;
+    else if( omm & EL3C_OpModeModifier$$BgndTrim )
+      result = EL3C_LegacyOpMode$$LiveWoBgnd;
     else
-      result = PHAC01_LegacyOpMode$$Live;
+      result = EL3C_LegacyOpMode$$Live;
   }
-  else if( PHAC01_OpMode$$Oscilloscope == om )
-    result = PHAC01_OpMode$$Oscilloscope;
+  else if( EL3C_OpMode$$Oscilloscope == om )
+    result = EL3C_OpMode$$Oscilloscope;
     
   return result;
 }
 
 // Legacy opmode to normal opmode converter
-function PHAC01_fromLegacyOpmode(legacyOpmode)
-var result = PHAC01_OpMode$$None;
+function EL3C_fromLegacyOpmode(legacyOpmode)
+var result = EL3C_OpMode$$None;
 {
-  if( PHAC01_LegacyOpMode$$Idle == legacyOpmode )
-    result = PHAC01_OpMode$$Idle;
-  else if( PHAC01_LegacyOpMode$$Live == legacyOpmode )  
-    result = PHAC01_OpMode$$Illuminance;
-  else if( PHAC01_LegacyOpMode$$Autonomous == legacyOpmode )
-    result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$Autonomous;
-  else if( PHAC01_LegacyOpMode$$LiveWoBgnd == legacyOpmode )
-    result = PHAC01_OpMode$$Illuminance|PHAC01_OpModeModifier$$BgndTrim;
-  else if( PHAC01_LegacyOpMode$$Oscilloscope == legacyOpmode )
-    result = PHAC01_OpMode$$Oscilloscope;
+  if( EL3C_LegacyOpMode$$Idle == legacyOpmode )
+    result = EL3C_OpMode$$Idle;
+  else if( EL3C_LegacyOpMode$$Live == legacyOpmode )  
+    result = EL3C_OpMode$$Illuminance;
+  else if( EL3C_LegacyOpMode$$Autonomous == legacyOpmode )
+    result = EL3C_OpMode$$Illuminance|EL3C_OpModeModifier$$Autonomous;
+  else if( EL3C_LegacyOpMode$$LiveWoBgnd == legacyOpmode )
+    result = EL3C_OpMode$$Illuminance|EL3C_OpModeModifier$$BgndTrim;
+  else if( EL3C_LegacyOpMode$$Oscilloscope == legacyOpmode )
+    result = EL3C_OpMode$$Oscilloscope;
     
   return result;
 }

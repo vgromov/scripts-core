@@ -167,32 +167,22 @@ object EsDeviceUID
   write: { uidFromString(__value); }
 }
 
-// device firmware id as-string formatting flags
-enum EsFirmwareIdFmtFlag
-{
-  DescrShort= 0;
-  DescrLong = 1;
-  Serial    = 2;
-  Version    = 4;
-  UID        = 8;
-}
-
 // device firmware comparison flags
 enum EsFirmwareIdCmpFlag
 {
   // device type is always used in comparison
-  Type      = 0;
-  Serial    = 1;
-  Version    = 2;
-  UID        = 4;
-  Functionality=8;
-  Significant= 3;
-  All        = 0xF;
+  Type          = 0;
+  Serial        = 1;
+  Version       = 2;
+  UID           = 4;
+  Functionality = 8;
+  Significant   = 3;
+  All           = 0xF;
 }
 
 // hardware identifier
 object EsFirmwareId
-  @help = "Hardware identification result object";
+  @help = "Firmware identification result object";
 {
   esU16 f_devType;
     @help = "Device type (model) id";
@@ -331,36 +321,16 @@ object EsFirmwareId
   // services
   //
   function asString(flags)
-  @help = "Return string representation of the hardware id depending on formatting flags";
-  var result = "";
+    @help = "Return string representation of the FW id depending on formatting flags";
+    var uid, func;
   {
-    if( flags & EsFirmwareIdFmtFlag$$DescrLong )
-      result += deviceDescriptionLongGet(f_devType);
-    else
-      result += deviceDescriptionShortGet(f_devType);
-    
-    if( flags & EsFirmwareIdFmtFlag$$Serial )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += f_serial.asString();
-    }
-    
-    if( flags & EsFirmwareIdFmtFlag$$Version )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += f_fwVer.asString();
-    }
+    if( hasField("f_uid") )
+      uid = fieldGet("f_uid");
 
-    if( (flags & EsFirmwareIdFmtFlag$$UID) && hasField("f_uid") )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += fieldGet("f_uid").asString();
-    }
+    if( hasField("f_funcMask") )
+      func = fieldGet("f_funcMask");
 
-    return result;
+    return fmtEcoE(flags, f_devType, f_num.year, f_num.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
   }
 
   function asString()
@@ -374,20 +344,15 @@ object EsFirmwareId
   
   /// Return firmware ID string in universal parseable form
   function asIdString()
-  var result;
+    var uid, func;
   {
-    result = "T:" + f_devType;
-    result += ",Y:" + f_serial.f_year;
-    result += ",O:" + f_serial.f_order;
-    result += ",V:" + f_fwVer.asString();
-    
     if( hasField("f_uid") )
-      result += ",U:" + fieldGet("f_uid").asString();
-        
+      uid = fieldGet("f_uid");
+
     if( hasField("f_funcMask") )
-      result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
-    
-    return result;
+      func = fieldGet("f_funcMask");
+
+    return fmtUniversal(0xFFFF, f_devType, f_num.year, f_num.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
   }
   
   new()
@@ -427,6 +392,9 @@ object EsFirmwareId
 
   property order;
   read: { return f_serial.f_order; }
+  
+  property fwIdStringUniversal;
+  read: { return ; }
 }
 
 /// Try to read and return device firmware id object,

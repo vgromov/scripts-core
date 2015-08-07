@@ -1,8 +1,8 @@
-/// PHAC01 Backwards - compatible (legacy) data structures
+/// EL3C Backwards - compatible (legacy) data structures
 ///
 
-/// Simple PHAC01 data object
-object PHAC01_LegacyData 
+/// Simple EL3C data object
+object EL3C_LegacyData 
 {
   /// Fields
   esDT   f_ts;
@@ -25,34 +25,34 @@ object PHAC01_LegacyData
   read: { return f_lux$value; }
   /// illuminosity string components property
   property luxStrMulti;
-  read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, true); }
+  read: { return EL3C_strMultiGet( $lux, c_el3c_unitE, true); }
   /// illuminosity value string
   property luxStr;
-  read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
+  read: { return EL3C_fromStrMulti( $luxStrMulti ); }
   
   /// Luminosity
   property cdm;
   read: { return f_cdm$value; }
   /// Luminosity string components
   property cdmStrMulti;
-  read: { return PHAC01_strMultiGet( $cdm, c_phac01_unitL, true); }
+  read: { return EL3C_strMultiGet( $cdm, c_el3c_unitL, true); }
   /// Luminosity value string
   property cdmStr;
-  read: { return PHAC01_fromStrMulti( $cdmStrMulti ); }
+  read: { return EL3C_fromStrMulti( $cdmStrMulti ); }
   
   /// pulsation coefficient, in %
   property kp;
   read: { return f_kp / 10.; }
   /// pulsation string components
   property kpStrMulti;
-  read: {  return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, true); }
+  read: {  return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, true); }
   /// pulsation string
   property kpStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }
+  read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }
 }
 
 // background subtraction data packet
-object PHAC01_LegacyDataWoBgnd
+object EL3C_LegacyDataWoBgnd
 {
   esDT    f_ts;
   esF     f_luxOrg;         /// > original illuminosity
@@ -81,48 +81,48 @@ object PHAC01_LegacyDataWoBgnd
   read: { return f_luxOrg$value; }
   /// original illuminosity string components
   property luxOrgStrMulti;
-  read: { return PHAC01_strMultiGet( $luxOrg, c_phac01_unitE, $valid); }
+  read: { return EL3C_strMultiGet( $luxOrg, c_el3c_unitE, $valid); }
   /// original illuminosity string
   property luxOrgStr;
-  read: { return PHAC01_fromStrMulti( $luxOrgStrMulti ); }  
+  read: { return EL3C_fromStrMulti( $luxOrgStrMulti ); }  
 
   /// background illuminosity
   property luxBgnd;
   read: { return f_luxBgnd$value; }
   /// background illuminosity  string components
   property luxBgndStrMulti;
-  read: { return PHAC01_strMultiGet( $luxBgnd, c_phac01_unitE, $valid); }
+  read: { return EL3C_strMultiGet( $luxBgnd, c_el3c_unitE, $valid); }
   /// background illuminosity  string
   property luxBgndStr;
-  read: { return PHAC01_fromStrMulti( $luxBgndStrMulti ); }  
+  read: { return EL3C_fromStrMulti( $luxBgndStrMulti ); }  
 
   /// illuminosity W|O background
   property lux;
   read: { return f_lux$value; }
   /// illuminosity W|O background, string components
   property luxStrMulti;
-  read: { return PHAC01_strMultiGet( $lux, c_phac01_unitE, $valid); }
+  read: { return EL3C_strMultiGet( $lux, c_el3c_unitE, $valid); }
   /// illuminosity W|O background, string
   property luxStr;
-  read: { return PHAC01_fromStrMulti( $luxStrMulti ); }
+  read: { return EL3C_fromStrMulti( $luxStrMulti ); }
 
   /// original pulsation coefficient, %
   property kpOrg;
   read: { return f_kpOrg / 10.; }
   property kpOrgStrMulti;
-  read: { return PHAC01_strMultiNoMulPartGet( $kpOrg, c_phac01_unitP, $valid ); }
+  read: { return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, $valid ); }
   property kpOrgStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpOrgStrMulti ); }
+  read: { return EL3C_fromStrMultiNoMulPart( $kpOrgStrMulti ); }
 
   /// resulting pulsation coefficient, %
   property kp;
   read: { return f_kp / 10.; }
   /// pulsation multi string
   property kpStrMulti;
-  read: { return PHAC01_strMultiNoMulPartGet( $kp, c_phac01_unitP, $valid ); }
+  read: { return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, $valid ); }
   /// pulsation string
   property kpStr;
-  read: { return PHAC01_fromStrMultiNoMulPart( $kpStrMulti ); }
+  read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }
   
   /// Background exposure duration in seconds
   property bgndExp;
@@ -135,19 +135,19 @@ object PHAC01_LegacyDataWoBgnd
 
 // Legacy calibration data. For compatibility only!
 // NB!!!! No real calibration data is received on response to this request
-// from PHAC01, just identity calibration stubs got passed in response.
+// from EL3C, just identity calibration stubs got passed in response.
 //
 /// Calibration node
-object PHAC01_LegacyCalibrationNode
+object EL3C_LegacyCalibrationNode
 {
   esF f_1;
   esF f_2;
 }
 
 /// All calibration info
-object PHAC01_LegacyCalibrationData
+object EL3C_LegacyCalibrationData
 {
-  PHAC01_LegacyCalibrationNode f_lux[4];
-  PHAC01_LegacyCalibrationNode f_cdm[4];
-  PHAC01_LegacyCalibrationNode f_kp[2];
+  EL3C_LegacyCalibrationNode f_lux[4];
+  EL3C_LegacyCalibrationNode f_cdm[4];
+  EL3C_LegacyCalibrationNode f_kp[2];
 }

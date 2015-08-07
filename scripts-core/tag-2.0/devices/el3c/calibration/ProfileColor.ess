@@ -3,7 +3,7 @@
 
 /// Color profile node object.
 ///
-object PHAC01_ColorProfileNode
+object EL3C_ColorProfileNode
 {
   var m_ref,        ///< Reference value. Either basic monochrome color, nm
                     ///  or color temperature in K
@@ -156,7 +156,7 @@ object PHAC01_ColorProfileNode
 }
 
 /// Color calibration profile
-object PHAC01_ColorProfile
+object EL3C_ColorProfile
 {
   var m_name,         // Profile name
     m_colorSpace,     // Color space calibration nodes
@@ -168,12 +168,12 @@ object PHAC01_ColorProfile
   function defaultNodesCreate(type)
   var idx, node, result = [];
   {
-    if( type in [PHAC01_CalibrationType$$ColorSpace .. PHAC01_CalibrationType$$ColorTemp] )
+    if( type in [EL3C_CalibrationType$$ColorSpace .. EL3C_CalibrationType$$ColorTemp] )
     {
       for( idx = 0; idx < 4; ++idx )
       {    
-        node = new PHAC01_ColorProfileNode(PHAC01_CalibrationType$$ColorSpace == type && 3 != idx);
-        node$ref = (PHAC01_CalibrationType$$ColorSpace == type) ? 
+        node = new EL3C_ColorProfileNode(EL3C_CalibrationType$$ColorSpace == type && 3 != idx);
+        node$ref = (EL3C_CalibrationType$$ColorSpace == type) ? 
           c_csRefDefaults[idx] :
           c_ctRefDefaults[idx];
         
@@ -199,8 +199,8 @@ object PHAC01_ColorProfile
   new(name)
   {
     m_name = name#asString();
-    m_colorSpace = defaultNodesCreate(PHAC01_CalibrationType$$ColorSpace);
-    m_colorTemp = defaultNodesCreate(PHAC01_CalibrationType$$ColorTemp);
+    m_colorSpace = defaultNodesCreate(EL3C_CalibrationType$$ColorSpace);
+    m_colorTemp = defaultNodesCreate(EL3C_CalibrationType$$ColorTemp);
   }
   
   /// Custom stream writer
@@ -215,8 +215,8 @@ object PHAC01_ColorProfile
   function streamRead(stream)
   {
     m_name = stream.valueRead("name", "Profile");
-    m_colorSpace = stream.valueRead("colorSpace", defaultNodesCreate(PHAC01_CalibrationType$$ColorSpace));
-    m_colorTemp = stream.valueRead("colorTemperature", defaultNodesCreate(PHAC01_CalibrationType$$ColorTemp));
+    m_colorSpace = stream.valueRead("colorSpace", defaultNodesCreate(EL3C_CalibrationType$$ColorSpace));
+    m_colorTemp = stream.valueRead("colorTemperature", defaultNodesCreate(EL3C_CalibrationType$$ColorTemp));
    } 
    
   /// Properties

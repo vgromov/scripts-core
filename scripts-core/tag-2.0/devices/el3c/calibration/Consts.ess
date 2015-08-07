@@ -1,7 +1,7 @@
-/// PHAC01 calibration constants
+/// EL3C calibration constants
 
 /// Nodes type index
-enum PHAC01_CalibrationType {
+enum EL3C_CalibrationType {
   Illuminance     = 1, "Illuminance";
   Luminance       = 2, "Luminanace";
   Pulsation       = 3, "Pulsation";
@@ -10,7 +10,7 @@ enum PHAC01_CalibrationType {
 }
 
 /// Session verification modes
-enum PHAC01_SessionMode
+enum EL3C_SessionMode
 {
   Verification  = 1, "Verification";
   Calibration   = 2, "Calibration";

@@ -1,0 +1,18 @@
+/// @file: coreUtils.ess
+/// Misc. common utility functions and classes used across all the scripts
+/// 
+
+/// Check parameter is not null. Otherwise, throw an exception
+function coreUtilsCheckParamNotNull(param, paramName)
+{
+  if( param#isEmpty() )
+    throw EsStr::format("Parameter '%s' is null", paramName);
+}
+
+/// Check parameter is not null and of specific type. Otherwise, throw an exception
+function coreUtilsCheckParamNotNullOfType(param, paramName, paramType)
+{
+  coreUtilsCheckParamNotNull(param, paramName);
+  if( !param.isKindOf(paramType) )
+    throw EsStr::format("Parameter '%s' type is incompatible with type '%s'", paramName, paramType );
+}

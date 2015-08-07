@@ -2,7 +2,7 @@
 ///
 
 /// Reference profile node
-object PHAC01_ClearProfileNode
+object EL3C_ClearProfileNode
 {
   var m_ref,              // Reference value
       m_deviation,        // Allowed deviation form reference value
@@ -15,8 +15,8 @@ object PHAC01_ClearProfileNode
   {
     if( !other#isEmpty() )
     {
-      if( !other#isKindOf("PHAC01_ClearProfileNode") )
-        throw I"Incompatible comparison argument type, must be 'PHAC01_ClearProfileNode'";
+      if( !other#isKindOf("EL3C_ClearProfileNode") )
+        throw I"Incompatible comparison argument type, must be 'EL3C_ClearProfileNode'";
       
       if( EsUtils::areEqualFloats(m_ref, other.m_ref) )
         return 0;
@@ -73,7 +73,7 @@ object PHAC01_ClearProfileNode
   write: { refValidate(__value); m_ref = __value#asDouble(); }
   /// reference formatted string
   property refStr;
-  read: { return PHAC01_ValueFmt( m_ref ); }    
+  read: { return EL3C_ValueFmt( m_ref ); }    
   
   /// reference node deviation ratio, 0..0.9 (0..90%)
   property deviation;
@@ -89,14 +89,14 @@ object PHAC01_ClearProfileNode
   read: { return m_ref*(1.-m_deviation); }
   /// Reference node calculated minimum string
   property refMinStr;
-  read: { return PHAC01_ValueFmt( $refMin ); }
+  read: { return EL3C_ValueFmt( $refMin ); }
   
   /// Reference node calculated maximum
   property refMax;
   read: { return m_ref*(1.+m_deviation); }
   /// Reference node calculated maximum string
   property refMaxStr;
-  read: { return PHAC01_ValueFmt( $refMax ); }
+  read: { return EL3C_ValueFmt( $refMax ); }
 
   /// Raw uncalibrated OSRAM value
   property rawOsram;
@@ -110,7 +110,7 @@ object PHAC01_ClearProfileNode
     if(m_rawOsram#isEmpty()) 
       return "";
     else 
-      PHAC01_ValueFmt(m_rawOsram); 
+      EL3C_ValueFmt(m_rawOsram); 
   }
 
   /// Raw uncalibrated MAX4400x value
@@ -125,7 +125,7 @@ object PHAC01_ClearProfileNode
     if(m_rawMax4400x#isEmpty()) 
       return "";
     else 
-      PHAC01_ValueFmt(m_rawMax4400x); 
+      EL3C_ValueFmt(m_rawMax4400x); 
   }
  
   /// Calibrated verified value
@@ -140,7 +140,7 @@ object PHAC01_ClearProfileNode
     if(m_verified#isEmpty()) 
       return "";
     else 
-      PHAC01_ValueFmt(m_verified); 
+      EL3C_ValueFmt(m_verified); 
   }
  
   /// Node was used in calibration - it has raw value set
@@ -159,7 +159,7 @@ object PHAC01_ClearProfileNode
 }
 
 /// Reference profile.
-object PHAC01_ClearCalibrationProfile
+object EL3C_ClearCalibrationProfile
 {
   var m_name, // Calibration profile name
     m_lux,    // Illuminance calibration nodes
@@ -172,17 +172,17 @@ object PHAC01_ClearCalibrationProfile
   function defaultNodesCreate(type)
   var result = [];
   {
-    if( type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Luminance] )
+    if( type in [EL3C_CalibrationType$$Illuminance .. EL3C_CalibrationType$$Luminance] )
     {
       // Lux and Cdm will have at least one zero system point
-      result += new PHAC01_ClearProfileNode(0, 0.1);
+      result += new EL3C_ClearProfileNode(0, 0.1);
       result[0].m_system = true;
     }
     else
     {
       // Pulsation will always have 2 system points - 0 and 100%
-      result += new PHAC01_ClearProfileNode(0, 0.1);
-      result += new PHAC01_ClearProfileNode(100, 0.1);
+      result += new EL3C_ClearProfileNode(0, 0.1);
+      result += new EL3C_ClearProfileNode(100, 0.1);
       result[0].m_system = true;
       result[1].m_system = true;
       // Moreover, we can pre-set raw values for system nodes as well
@@ -196,7 +196,7 @@ object PHAC01_ClearCalibrationProfile
   // Internal helper. Reset raw data for profile node of specified type
   function intenralNodeRawDataReset(node, type)
   {
-    if( PHAC01_CalibrationType$$Pulsation == type )
+    if( EL3C_CalibrationType$$Pulsation == type )
     {
       // Reset values for zero or 100% points to default
       if( EsUtils::areEqualFloats(0., node$ref) )
@@ -214,10 +214,10 @@ object PHAC01_ClearCalibrationProfile
   /// Access nodes collection of specified type
   function nodesGet(type)
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
       return m_lux;
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
       return m_cdm;
     else
       return m_kp;
@@ -312,12 +312,12 @@ object PHAC01_ClearCalibrationProfile
   {
     if( !m_linkedSettings#isEmpty() )
     {
-      if( type != PHAC01_CalibrationType$$Pulsation )
+      if( type != EL3C_CalibrationType$$Pulsation )
       {
         nodesOsram = fittingSplineCalculate(type, true);
         nodesMax = fittingSplineCalculate(type, false);
         
-        if( type == PHAC01_CalibrationType$$Illuminance )
+        if( type == EL3C_CalibrationType$$Illuminance )
         {
           splineOsram = m_linkedSettings$calClear$calIlluminance;
           splineMax = m_linkedSettings$calColor$calIlluminance;
@@ -346,9 +346,9 @@ object PHAC01_ClearCalibrationProfile
   
   function splinesUpdateAll()
   { 
-    splinesUpdate(PHAC01_CalibrationType$$Illuminance);    
-    splinesUpdate(PHAC01_CalibrationType$$Luminance);    
-    splinesUpdate(PHAC01_CalibrationType$$Pulsation);  
+    splinesUpdate(EL3C_CalibrationType$$Illuminance);    
+    splinesUpdate(EL3C_CalibrationType$$Luminance);    
+    splinesUpdate(EL3C_CalibrationType$$Pulsation);  
   }
    
   /// Clear profile nodes of specified type. Contents of collection
@@ -356,10 +356,10 @@ object PHAC01_ClearCalibrationProfile
   ///
   function nodesClear(type)
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
       m_lux = defaultNodesCreate(type);
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
       m_cdm = defaultNodesCreate(type);
     else
       m_kp = defaultNodesCreate(type);
@@ -370,9 +370,9 @@ object PHAC01_ClearCalibrationProfile
   /// Clear all node collections to defaults
   function nodesClearAll()
   {
-    m_lux = defaultNodesCreate(PHAC01_CalibrationType$$Illuminance);
-    m_cdm = defaultNodesCreate(PHAC01_CalibrationType$$Luminance);
-    m_kp = defaultNodesCreate(PHAC01_CalibrationType$$Pulsation);
+    m_lux = defaultNodesCreate(EL3C_CalibrationType$$Illuminance);
+    m_cdm = defaultNodesCreate(EL3C_CalibrationType$$Luminance);
+    m_kp = defaultNodesCreate(EL3C_CalibrationType$$Pulsation);
     
     splinesUpdateAll();  
   }
@@ -389,10 +389,10 @@ object PHAC01_ClearCalibrationProfile
   /// Return count of nodes of specified type in profile
   function nodesCountGet(type)
   {
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
       return m_lux#countGet();
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
       return m_cdm#countGet();
     else
       return m_kp#countGet();
@@ -427,15 +427,15 @@ object PHAC01_ClearCalibrationProfile
   function nodeAdd(type, ref, deviation)
   var newNode;
   {
-    newNode = new PHAC01_ClearProfileNode(ref, deviation);
+    newNode = new EL3C_ClearProfileNode(ref, deviation);
 
-    phac01ClearCalibrationTypeCheck(type);
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    el3cClearCalibrationTypeCheck(type);
+    if( EL3C_CalibrationType$$Illuminance == type )
     {
       m_lux#appendUnique(newNode);
       m_lux#sortAscending();
     }
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
     {
       m_cdm#appendUnique(newNode);
       m_cdm#sortAscending();
@@ -462,9 +462,9 @@ object PHAC01_ClearCalibrationProfile
       throw I"You may not delete a system node";
       
     // Finally, we are clear to do deletion
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    if( EL3C_CalibrationType$$Illuminance == type )
       m_lux#itemDelete(idx);
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
       m_cdm#itemDelete(idx);
     else
       m_kp#itemDelete(idx);
@@ -496,23 +496,23 @@ object PHAC01_ClearCalibrationProfile
   var node = nodeGet(type, idx), nodes = nodesWithRawDataGet(type);
   {
     // We must not change zero point for Pulsation
-    if( 0 == idx && PHAC01_CalibrationType$$Pulsation == type )
+    if( 0 == idx && EL3C_CalibrationType$$Pulsation == type )
       throw I"Zero node for Pulsation calibration must not be changed";
     
     node$rawOsram = rawVals[0];
-    if( PHAC01_CalibrationType$$Pulsation != type )
+    if( EL3C_CalibrationType$$Pulsation != type )
       node$rawMax4400x = rawVals[1];
         
     // If we're setting raw values for default zero node in either Illuminance
     // or Luminance, we may automatically set thte same values for other type
     if( 0 == idx ) // system zero point
     {
-      if( type in [PHAC01_CalibrationType$$Illuminance .. PHAC01_CalibrationType$$Luminance] )
+      if( type in [EL3C_CalibrationType$$Illuminance .. EL3C_CalibrationType$$Luminance] )
       {
-        if( PHAC01_CalibrationType$$Illuminance == type )
-          node = nodeGet(PHAC01_CalibrationType$$Luminance, 0);
-        else if( PHAC01_CalibrationType$$Luminance == type )
-          node = nodeGet(PHAC01_CalibrationType$$Illuminance, 0);
+        if( EL3C_CalibrationType$$Illuminance == type )
+          node = nodeGet(EL3C_CalibrationType$$Luminance, 0);
+        else if( EL3C_CalibrationType$$Luminance == type )
+          node = nodeGet(EL3C_CalibrationType$$Illuminance, 0);
        
         node$rawOsram = rawVals[0];
         node$rawMax4400x = rawVals[1];
@@ -535,9 +535,9 @@ object PHAC01_ClearCalibrationProfile
   function streamRead(stream)
   {
     m_name = stream.valueRead("name", "Profile");
-    m_lux = stream.valueRead("lux", defaultNodesCreate(PHAC01_CalibrationType$$Illuminance));
-    m_cdm = stream.valueRead("cdm", defaultNodesCreate(PHAC01_CalibrationType$$Luminance));
-    m_kp = stream.valueRead("kp", defaultNodesCreate(PHAC01_CalibrationType$$Pulsation));
+    m_lux = stream.valueRead("lux", defaultNodesCreate(EL3C_CalibrationType$$Illuminance));
+    m_cdm = stream.valueRead("cdm", defaultNodesCreate(EL3C_CalibrationType$$Luminance));
+    m_kp = stream.valueRead("kp", defaultNodesCreate(EL3C_CalibrationType$$Pulsation));
   }
 
 /// Properties
@@ -562,7 +562,7 @@ object PHAC01_ClearCalibrationProfile
 /// Create default profile object, with system-only points
 ///
 function profileClearDefaultCreate()
-var profile = new PHAC01_ClearCalibrationProfile("DefaultProfile");
+var profile = new EL3C_ClearCalibrationProfile("DefaultProfile");
 {
   return profile;
 }
@@ -585,7 +585,7 @@ var profile;
 function profileClearSave(profile, path)
 var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, "");
 {
-  if( !profile#isKindOf("PHAC01_ClearCalibrationProfile") )
+  if( !profile#isKindOf("EL3C_ClearCalibrationProfile") )
     throw "Could not write incompatible object as profile";
 
   if( !profile$isOk )

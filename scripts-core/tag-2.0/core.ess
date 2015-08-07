@@ -34,7 +34,9 @@ enum EsRpcStdId
   FWID_MODERN_GET    = 22,  "esBA_Call|Query firmware identification block of modern devices which support dual ID feature";
 }
 
+##require("coreUtils.ess");
 ##require("coreDevicesDb.ess");
+##require("coreDevicesIdFormatters.ess");
 ##require("coreDevicesId.ess");
 ##require("coreDevicesStd.ess");
 ##require("coreDevicesHw.ess");

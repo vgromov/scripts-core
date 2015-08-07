@@ -97,28 +97,241 @@ object EsFirmwareSwInfo
   read: { return f_crc; }
 }
 
+/// New universal hardware and firmware info structure definition
+///
+
+/// Standard hardware configuration bits
+enum EseHwConfigBitsStd
+{
+  BluetoothClassic  = 0x0001, "Classic Bluetooth";
+  BluetoothLE       = 0x0002, "Bluetooth Low Energy";
+  WiFi              = 0x0004, "Wi-Fi";
+  USB               = 0x0008, "USB slave";
+  Accumulator       = 0x0010, "Rechargeable battery";
+}
+
+/// Universal hardware information
+//
+object EseHwConfigInfo
+{
+/// Hardware configuration
+  esU16 f_stdandard;
+  esU16 f_custom;
+  
+/// Properties 
+  property standard;
+  read: { return f_standard#asULong(); }
+  write: { f_standard = __value#asULong(); }
+  
+  property custom;
+  read: { return f_custom#asULong(); }
+  write: { f_custom = __value#asULong(); }
+}
+
+/// Universal 64 byte firmware information
+///
+object EseFwInfo
+  @fixedSize = 64;
+  @help = "Universal firmware and hardware identification object";
+{
+  /// Device type
+  esU16 f_type;
+    @help = "Device type (model) id";
+    
+  /// Order
+  esU32 f_order;
+  /// Year
+  esU16 f_year;
+  /// Month
+  esU8 f_month;
+  /// Day of month
+  esU8 f_day;
+  /// Version
+  EseVerInfo f_ver;
+  /// Country code, as in ISO 3166-1-numeric 
+  esU16 f_countryCode;
+  /// Hardware configuration
+  EseHwConfigInfo f_hwConfig;
+  
+  /// Services
+  ///
+  
+  function comparePartial(other, flags)
+  var result = -1;
+  {
+    if( other.isKindOf("EseFwInfo") )
+    {
+      if( f_type > other.f_type )
+        result = 1;
+      else if( f_type == other.f_type )
+        result = 0;
+        
+      if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Serial))
+      {
+        if( f_serial > other.f_serial )
+          result = 1;
+        else if( f_serial < other.f_serial )
+          result = -1;
+      }
+      
+      if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Version))
+      {
+        if(  f_fwVer > other.f_fwVer )
+          result = 1;
+        else if( f_fwVer < other.f_fwVer )
+          result = -1;
+      }
+    }
+    
+    return result;
+  }
+
+  function compare(other)
+  {
+    return comparePartial(other, EsFirmwareIdCmpFlag$$Significant);
+  }
+  
+  function asString(flags)
+  @help = "Return string representation of the hardware id depending on formatting flags";
+  var result = "";
+  {
+    if( flags & EsFirmwareIdFmtFlag$$DescrLong )
+      result += deviceDescriptionLongGet(f_type);
+    else
+      result += deviceDescriptionShortGet(f_type);
+    
+    if( flags & EsFirmwareIdFmtFlag$$Serial )
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += f_serial.asString();
+    }
+    
+    if( flags & EsFirmwareIdFmtFlag$$Version )
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += f_fwVer.asString();
+    }
+
+    if( (flags & EsFirmwareIdFmtFlag$$UID) && hasField("f_uid") )
+    {
+      if( !result#isEmpty() )
+        result += "; ";
+      result += fieldGet("f_uid").asString();
+    }
+
+    return result;
+  }
+
+  function asString()
+    @help = "Return standard string representation of the hardware id";
+  {
+    return asString(EsFirmwareIdFmtFlag$$DescrLong|
+                    EsFirmwareIdFmtFlag$$Serial|
+                    EsFirmwareIdFmtFlag$$Version|
+                    EsFirmwareIdFmtFlag$$UID);  
+  }
+  
+  /// Return firmware ID string in universal parseable form
+  function asIdString()
+  var result;
+  {
+    result = "T:" + f_type;
+    result += ",Y:" + f_serial.f_year;
+    result += ",O:" + f_serial.f_order;
+    result += ",V:" + f_fwVer.asString();
+    
+    if( hasField("f_uid") )
+      result += ",U:" + fieldGet("f_uid").asString();
+        
+    if( hasField("f_funcMask") )
+      result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
+    
+    return result;
+  }
+  
+  new()
+  {
+    f_type = EsDeviceType$$ECOL1;
+  }
+  
+  new(type)
+  {
+    f_type = type;
+  }
+  
+  /// Properties
+  ///
+  
+  property fwIdString;
+  read: { return asString(); }
+  
+  // read-only access to the dev id components
+  property devType;
+  read: { return f_type; }
+  
+  property devTypeName;
+  read: { return deviceDescriptionLongGet(f_type); }
+
+  property ver;
+  read: { return f_fwVer; }
+  
+  property verMajor;
+  read: { return f_fwVer.f_major; }
+
+  property verMinor;
+  read: { return f_fwVer.f_minor; }
+
+  property order;
+  read: { return f_order; }  
+
+  property year;
+  read: { return f_year; }
+
+  property month;
+  read: { return f_month; }
+
+  property day;
+  read: { return f_day; }
+  
+  property countryCode;
+  read: { return f_countryCode; }
+  
+  property hwConfigInfo;
+  read: { return f_hwConfig; }
+}
+
+/// 192-byte Software information block now includes universal 64 bit firmware information block
 object EsSoftwareInfo 
   @fixedSize = 192;
 {
   EsFirmwareSwInfo f_fwSwInfo;
   EsSoftwareCrcInfo f_crcCalibration;
+  EseFwInfo f_fwInfo;
   
+/// Properties 
+/// 
   property fwSoftwareInfo;
   read: { return f_fwSwInfo; }
   
   property calibrationCrcInfo;
   read: { return f_crcCalibration; }
+  
+  property fwInfo;
+  read: { return f_fwInfo; }
 }
 
-// power status flag masks
+/// Power status flag masks
 enum EsPowerStatusFlag
 {
   BATTERY       = 0x01, "Battery attached";
-  AUX             = 0x02, "Auxiliary power is ON";
-  CHARGING       = 0x04, "Battery is charging";
+  AUX           = 0x02, "Auxiliary power is ON";
+  CHARGING      = 0x04, "Battery is charging";
   FAST_CHARGING = 0x08, "Battery is fast charging";
 }
 
+/// Power status structure
 object EsPowerStatus
   @help = "Device power status object";
 {
