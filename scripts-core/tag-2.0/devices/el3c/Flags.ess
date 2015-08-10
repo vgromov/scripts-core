@@ -162,33 +162,33 @@ object EL3C_DataFlags
   
   /// Return data validity flags
   ///
-	property valIsValid;
+	property valvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$val); }
 	
-	property valOrgIsValid;
+	property valOrgvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$valOrg); }
 	
-	property kpIsValid;
+	property kpvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$kp); }
 	
-	property kpOrgIsValid;
+	property kpOrgvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpOrg); }
 	
-	property kpiIsValid;
+	property kpivalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpi); }
   
-	property kpiOrgIsValid;
+	property kpiOrgvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpiOrg); }
   
-	property bgndIsValid;
+	property bgndvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgnd); }
   
-	property bgndTmoIsValid;
+	property bgndTmovalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgndTmo); }
   
-	property xyIsValid;
+	property xyvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$xy); }
   
- 	property ctIsValid;
+ 	property ctvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$ct); }
 }

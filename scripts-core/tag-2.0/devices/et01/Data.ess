@@ -42,10 +42,10 @@ object ET01_Data
 
 /// Fields
 ///
-	esDT				f_ts;						// timestamp (not used, ET does not have RTC)
+	esDT				    f_ts;						// timestamp (not used, ET does not have RTC)
 	ET01_Flags 			f_flags;				// flags block
 	ET01_DataBlock	f_data;					// data block
-	esU32					f_gradient;			// data change tendency indicator
+	esU32					  f_gradient;			// data change tendency indicator
 	
 /// Non-default ctor with opmode assignment
 	new(opmode)

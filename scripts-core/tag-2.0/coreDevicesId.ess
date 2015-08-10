@@ -1,6 +1,6 @@
 // --------------------------- device identification
 // firmware version
-object EsFirmwareVersion
+object EsVerInfo
   @help = "Firmware version";
 {
   esU8 f_major;
@@ -15,7 +15,7 @@ object EsFirmwareVersion
   {
     if( other#isString() )
       return EsStr::compare( asString(), other );
-    else if( other.isKindOf("EsFirmwareVersion") )
+    else if( other.isKindOf("EsVerInfo") )
     {
       if( f_major == other.f_major )
       {
@@ -188,7 +188,7 @@ object EsFirmwareId
     @help = "Device type (model) id";
   
   EsDeviceSerial f_serial;
-  EsFirmwareVersion f_fwVer;
+  EsVerInfo f_fwVer;
   
   if( deviceIsHubFull(f_devType) )
   {
@@ -330,7 +330,7 @@ object EsFirmwareId
     if( hasField("f_funcMask") )
       func = fieldGet("f_funcMask");
 
-    return fmtEcoE(flags, f_devType, f_num.year, f_num.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
+    return fmtEcoE(flags, f_devType, f_serial.f_year, f_serial.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
   }
 
   function asString()
@@ -352,7 +352,7 @@ object EsFirmwareId
     if( hasField("f_funcMask") )
       func = fieldGet("f_funcMask");
 
-    return fmtUniversal(0xFFFF, f_devType, f_num.year, f_num.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
+    return fmtUniversal(0xFFFF, f_devType, f_serial.f_year, f_serial.f_order, null, null, func, uid, f_fwVer.f_major, f_fwVer.f_minor, null, null, null);
   }
   
   new()

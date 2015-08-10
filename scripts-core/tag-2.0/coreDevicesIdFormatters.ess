@@ -5,20 +5,21 @@
 // device firmware id as-string formatting flags
 enum EsFirmwareIdFmtFlag
 {
-  DescrShort  = 0x0001;
-  DescrLong   = 0x0002;
-  Serial      = 0x0004;
-  Version     = 0x0008;
-  Region      = 0x0010;
-  HWinfo      = 0x0020;
-  SerialShort = 0x0040; //< Shortened serial number version OOOOO-YYMMDD  
-  UID         = 0x0080;
+  DescrShort    = 0x0001;
+  DescrLong     = 0x0002;
+  Serial        = 0x0004;
+  Version       = 0x0008;
+  Region        = 0x0010;
+  HWinfo        = 0x0020;
+  SerialShort   = 0x0040; //< Shortened serial number version OOOOO-YYMMDD  
+  UID           = 0x0080;
+  Functionality = 0x0100;
 }
 
 function fmtUID(uid)
 var str;
 {
-	coreUtilsCheckParamNotNullOfType(uid, "uid", "EsDeviceUID");
+  coreUtilsCheckParamNotNullOfType(uid, "uid", "EsDeviceUID");
   str = uid.asString();
   // Format in 4 groups 8 chars each
   return str#sliceGet(0, 7) + "-" + 
@@ -30,20 +31,20 @@ var str;
 
 function fmtUIDtoIdString(uid)
 {
-	coreUtilsCheckParamNotNull(uid, "uid");
+  coreUtilsCheckParamNotNull(uid, "uid");
   return "U:" + uid#asString();
 }
 
 function fmtFunctionalToIdString(functional)
 {
-	coreUtilsCheckParamNotNull(functional, "functional");
+  coreUtilsCheckParamNotNull(functional, "functional");
   return EsStr::format("F:0x%08X", functional);
 }
 
 function fmtVersionToIdString(verMajor, verMinor)
 {
-	coreUtilsCheckParamNotNull(verMajor, "verMajor");
-	coreUtilsCheckParamNotNull(verMinor, "verMinor");
+  coreUtilsCheckParamNotNull(verMajor, "verMajor");
+  coreUtilsCheckParamNotNull(verMinor, "verMinor");
   
   return EsStr::format(
     "V:%d.%d", 
@@ -56,12 +57,12 @@ function fmtVersionToIdString(verMajor, verMinor)
 function fmtEcoE(flags, type, year, order, month, day, functionality, uid, verMajor, verMinor, region, hwStd, hwCustom)
 var result = "";
 {
-	coreUtilsCheckParamNotNull(type, "type");
+  coreUtilsCheckParamNotNull(type, "type");
 
   if( flags & EsFirmwareIdFmtFlag$$DescrShort )
-    result = getDeviceDescriptionShortGet(type);
+    result = deviceDescriptionShortGet(type);
   else if( flags & EsFirmwareIdFmtFlag$$DescrLong )
-    result = getDeviceDescriptionLongGet(type);
+    result = deviceDescriptionLongGet(type);
   
   if( flags & EsFirmwareIdFmtFlag$$Serial )
   {
@@ -74,8 +75,8 @@ var result = "";
         "%0.5u-%0.2u",
       order, 
       (!month#isEmpty() && !day#isEmpty()) ?
-        (unsigned)year : 
-        (unsigned)(year%100)
+        year : 
+        year%100
     );
     
     if( !month#isEmpty() && 
@@ -149,7 +150,7 @@ var result = "";
     if( !result#countGet() )
       result += " ";
     
-    result += fmtUID();
+    result += fmtUID(uid);
   }
 
   // Format functionality
@@ -182,7 +183,7 @@ function fmtUniversal(flags, type, year, order, month, day, uid, functionality, 
 var result = "";
 {
   // Always format type
-	coreUtilsCheckParamNotNull(type, "type");
+  coreUtilsCheckParamNotNull(type, "type");
   result = EsStr::format("T:%u", type);
   
   // Format serial

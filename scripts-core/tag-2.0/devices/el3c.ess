@@ -36,12 +36,12 @@ object EL3C extends EsDeviceBase
   function fwIdAssert(fwId)
   {
     EsDeviceBase::fwIdAssert(fwId);
-    fwIdValidate(fwId, EsDeviceType$$PHAC1, "EL3C");
+    fwIdValidate(fwId, EsDeviceType$$EL3C, "EL3C");
   }
 
   function fwIdDefaultSet()
   {
-    m_fwId = new EsFirmwareId(EsDeviceType$$PHAC1);
+    m_fwId = new EsFirmwareId(EsDeviceType$$EL3C);
     m_fwId.f_serial.f_year = EsDateTime::now()$year;
     m_fwId.f_fwVer.f_major = 1;
     m_fwId.f_fwVer.f_minor = 0;
@@ -104,6 +104,7 @@ object EL3C extends EsDeviceBase
     {
       result = new EL3C_Data(); 
       result$buffer = rpcResult#asBinBuffer();
+      m_opMode = result$opmode | result$opmodeModifier;
     }
     else if( EL3C_Rpid$$RawDataGet == rpcId )
     {
@@ -259,6 +260,6 @@ object EL3C extends EsDeviceBase
   read:
   var helper = new EL3C_DataFlags(m_opMode);
   { 
-    return m_opMode;
+    return helper$opmodeStr + "; " + helper$opmodeModifierStr;
   }
 }

@@ -6,7 +6,7 @@ const c_el3c_unitL = "cd/m<sup>2</sup>";
 const c_el3c_unitP = "%";
 const c_el3c_unitCT = "K";
 
-// pha01-specific rpcs 
+// el3c-specific rpcs 
 enum EL3C_Rpid
 {
   // Legacy-mode handlers. PHA-01 ids preserved

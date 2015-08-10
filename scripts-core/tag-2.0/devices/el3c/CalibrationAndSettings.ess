@@ -29,7 +29,7 @@ object EL3C_CalibrationClear
   /// Default constructor
   new()
   {
-		init();
+    init();
   }  
   
   /// Update all crc blocks if needed
@@ -199,14 +199,14 @@ object EL3C_Settings
   /// Constructors
   new()
   {
-    f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$PHAC1) );
+    f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$EL3C) );
     f_calClear.init();
     f_calColor.init();
   }
   
   new(fwId)
   {
-    fwIdValidate(fwId, EsDeviceType$$PHAC1, "EL3C settings");
+    fwIdValidate(fwId, EsDeviceType$$EL3C, "EL3C settings");
     f_fwId.copyFrom(fwId);
     f_calClear.init();
     f_calColor.init();

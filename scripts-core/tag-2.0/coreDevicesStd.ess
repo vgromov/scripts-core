@@ -25,9 +25,9 @@ object EsFirmwareSwInfo
   esU8 f_file[32];
   EsSoftwareCrcInfo f_crc;
   
-	function nameFromString(str)
+  function nameFromString(str)
   var idx = 0, ch, name = EsStr::toByteString(str, EsStrByteEncoding$$CP1251);
-	{
+  {
     foreach( ch in name )
     {
       f_name[idx] = ch;
@@ -37,16 +37,16 @@ object EsFirmwareSwInfo
     }
     // add zero-terminator if name string is shorter than 64 symbols, and there is no terminator at the end already
     if( idx < 64 && 0 != f_name[idx-1] )
-      f_name[idx] = 0;	
-	}
-	
-	function nameAsString()
-	{
-		return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251);
-	}
-	
-	function fileFromString(str)
-	var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper(str), EsStrByteEncoding$$CP1251);
+      f_name[idx] = 0;  
+  }
+  
+  function nameAsString()
+  {
+    return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251);
+  }
+  
+  function fileFromString(str)
+  var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper(str), EsStrByteEncoding$$CP1251);
   {
     foreach( ch in file )
     {
@@ -58,33 +58,33 @@ object EsFirmwareSwInfo
     // add zero-terminator if file string is shorter than 32 symbols, and there is no terminator at the end already
     if( idx < 32 && 0 != f_file[idx-1] )
       f_file[idx] = 0;
-	}
-	
-	function fileAsString()
-	{
-		return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251);
-	}
-	
+  }
+  
+  function fileAsString()
+  {
+    return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251);
+  }
+  
 /// Custom stream reader
-	function streamRead(stream)
-	var str, crc;
-	{
-		str = stream.valueRead("name", "");
-		nameFromString(str);
-		str = stream.valueRead("file", "");
-		fileFromString(str);
-		f_crc.copyFrom( stream.valueRead("crc", null) );
-	}
-	
+  function streamRead(stream)
+  var str, crc;
+  {
+    str = stream.valueRead("name", "");
+    nameFromString(str);
+    str = stream.valueRead("file", "");
+    fileFromString(str);
+    f_crc.copyFrom( stream.valueRead("crc", null) );
+  }
+  
 /// Custom stream writer
-	function streamWrite(stream)
-	{
-		stream.valueWrite("name", nameAsString());
-		stream.valueWrite("file", fileAsString());
-		stream.valueWrite("crc", f_crc);		
-	}
-	
-/// Properties	
+  function streamWrite(stream)
+  {
+    stream.valueWrite("name", nameAsString());
+    stream.valueWrite("file", fileAsString());
+    stream.valueWrite("crc", f_crc);    
+  }
+  
+/// Properties  
   property name;
   read: { return nameAsString(); }
   write: { nameFromString(__value); }
@@ -101,7 +101,7 @@ object EsFirmwareSwInfo
 ///
 
 /// Standard hardware configuration bits
-enum EseHwConfigBitsStd
+enum EsHwConfigBitsStd
 {
   BluetoothClassic  = 0x0001, "Classic Bluetooth";
   BluetoothLE       = 0x0002, "Bluetooth Low Energy";
@@ -112,10 +112,10 @@ enum EseHwConfigBitsStd
 
 /// Universal hardware information
 //
-object EseHwConfigInfo
+object EsHwConfigInfo
 {
 /// Hardware configuration
-  esU16 f_stdandard;
+  esU16 f_standard;
   esU16 f_custom;
   
 /// Properties 
@@ -130,7 +130,7 @@ object EseHwConfigInfo
 
 /// Universal 64 byte firmware information
 ///
-object EseFwInfo
+object EsFwInfo
   @fixedSize = 64;
   @help = "Universal firmware and hardware identification object";
 {
@@ -147,11 +147,11 @@ object EseFwInfo
   /// Day of month
   esU8 f_day;
   /// Version
-  EseVerInfo f_ver;
+  EsVerInfo f_ver;
   /// Country code, as in ISO 3166-1-numeric 
   esU16 f_countryCode;
   /// Hardware configuration
-  EseHwConfigInfo f_hwConfig;
+  EsHwConfigInfo f_hwConfig;
   
   /// Services
   ///
@@ -159,7 +159,7 @@ object EseFwInfo
   function comparePartial(other, flags)
   var result = -1;
   {
-    if( other.isKindOf("EseFwInfo") )
+    if( other.isKindOf("EsFwInfo") )
     {
       if( f_type > other.f_type )
         result = 1;
@@ -168,17 +168,49 @@ object EseFwInfo
         
       if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Serial))
       {
-        if( f_serial > other.f_serial )
+        if( f_order > other.f_order )
           result = 1;
-        else if( f_serial < other.f_serial )
+        else if( f_order < other.f_order )
           result = -1;
+        else 
+          result = 0;
+
+        if( 0 == result )
+        {
+          if(f_year > other.f_year )
+            result = 1;
+          else if( f_year < other.f_year )
+            result = -1;
+          else
+            result = 0;
+        }
+
+        if( 0 == result )
+        {
+          if(f_month > other.f_month )
+            result = 1;
+          else if( f_month < other.f_month )
+            result = -1;
+          else
+            result = 0;
+        }
+
+        if( 0 == result )
+        {
+          if(f_day > other.f_day )
+            result = 1;
+          else if( f_day < other.f_day )
+            result = -1;
+          else
+            result = 0;
+        }
       }
       
       if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Version))
       {
-        if(  f_fwVer > other.f_fwVer )
+        if( f_ver > other.f_ver )
           result = 1;
-        else if( f_fwVer < other.f_fwVer )
+        else if( f_ver < other.f_ver )
           result = -1;
       }
     }
@@ -193,35 +225,8 @@ object EseFwInfo
   
   function asString(flags)
   @help = "Return string representation of the hardware id depending on formatting flags";
-  var result = "";
   {
-    if( flags & EsFirmwareIdFmtFlag$$DescrLong )
-      result += deviceDescriptionLongGet(f_type);
-    else
-      result += deviceDescriptionShortGet(f_type);
-    
-    if( flags & EsFirmwareIdFmtFlag$$Serial )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += f_serial.asString();
-    }
-    
-    if( flags & EsFirmwareIdFmtFlag$$Version )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += f_fwVer.asString();
-    }
-
-    if( (flags & EsFirmwareIdFmtFlag$$UID) && hasField("f_uid") )
-    {
-      if( !result#isEmpty() )
-        result += "; ";
-      result += fieldGet("f_uid").asString();
-    }
-
-    return result;
+    return fmtEcoE(flags, f_type, f_year, f_order, f_month, f_day, null, null, f_ver.f_major, f_ver.f_minor, f_countryCode, f_hwConfig.f_standard, f_hwConfig.f_custom);
   }
 
   function asString()
@@ -229,26 +234,21 @@ object EseFwInfo
   {
     return asString(EsFirmwareIdFmtFlag$$DescrLong|
                     EsFirmwareIdFmtFlag$$Serial|
-                    EsFirmwareIdFmtFlag$$Version|
-                    EsFirmwareIdFmtFlag$$UID);  
+                    EsFirmwareIdFmtFlag$$Version
+    );
   }
   
   /// Return firmware ID string in universal parseable form
-  function asIdString()
-  var result;
+  function asIdString(flags)
   {
-    result = "T:" + f_type;
-    result += ",Y:" + f_serial.f_year;
-    result += ",O:" + f_serial.f_order;
-    result += ",V:" + f_fwVer.asString();
-    
-    if( hasField("f_uid") )
-      result += ",U:" + fieldGet("f_uid").asString();
-        
-    if( hasField("f_funcMask") )
-      result += EsStr::format(",F:0x%0X", fieldGet("f_funcMask"));    
-    
-    return result;
+    return fmtUniversal(flags, f_type, f_year, f_order, f_month, f_day, null, null, f_ver.f_major, f_ver.f_minor, f_countryCode, f_hwConfig.f_standard, f_hwConfig.f_custom);
+  }
+
+  function asIdString()
+  {
+    return asIdString(EsFirmwareIdFmtFlag$$Serial|
+                      EsFirmwareIdFmtFlag$$Version
+    );
   }
   
   new()
@@ -275,13 +275,13 @@ object EseFwInfo
   read: { return deviceDescriptionLongGet(f_type); }
 
   property ver;
-  read: { return f_fwVer; }
+  read: { return f_ver; }
   
   property verMajor;
-  read: { return f_fwVer.f_major; }
+  read: { return f_ver.f_major; }
 
   property verMinor;
-  read: { return f_fwVer.f_minor; }
+  read: { return f_ver.f_minor; }
 
   property order;
   read: { return f_order; }  
@@ -308,7 +308,7 @@ object EsSoftwareInfo
 {
   EsFirmwareSwInfo f_fwSwInfo;
   EsSoftwareCrcInfo f_crcCalibration;
-  EseFwInfo f_fwInfo;
+  EsFwInfo f_fwInfo;
   
 /// Properties 
 /// 
@@ -492,17 +492,17 @@ object EsFsItemResult
   if( EsFsResult$$OK == f_result )
     EsFsItem f_item;
 
-	property isOk;
-	read: { return EsFsResult$$OK == f_result; }
-	
-	property result;
-	read: { return f_result$value; }
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
 
-	property item;
-	read: { 		
-		if( hasField("f_item") )
-			return fieldGet("f_item");
-	}
+  property item;
+  read: {     
+    if( hasField("f_item") )
+      return fieldGet("f_item");
+  }
 }
 
 /// File system space info
@@ -518,18 +518,18 @@ object EsFsSpaceInfoResult
   esU16 f_result;
   if( EsFsResult$$OK == f_result )
     EsFsSpaceInfo f_info;
-		
-	property isOk;
-	read: { return EsFsResult$$OK == f_result; }
-	
-	property result;
-	read: { return f_result$value; }
-	
-	property info;
-	read: { 
-		if( hasField("f_info") )
-			return fieldGet("f_info");
-	}
+    
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
+  
+  property info;
+  read: { 
+    if( hasField("f_info") )
+      return fieldGet("f_info");
+  }
 }
 
 /// File read request result
@@ -538,18 +538,18 @@ object EsFsFileReadRequest
   esU16 f_result;
   if( EsFsResult$$OK == f_result )
     esU32 f_chunks;
-		
-	property isOk;
-	read: { return EsFsResult$$OK == f_result; }
-	
-	property result;
-	read: { return f_result$value; }
-	
-	property chunks;
-	read: { 
-		if( hasField("f_chunks") )
-			return fieldGet("f_chunks")$value;
-	}
+    
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
+  
+  property chunks;
+  read: { 
+    if( hasField("f_chunks") )
+      return fieldGet("f_chunks")$value;
+  }
 }
 
 function fsResultStringGet(fsResult)

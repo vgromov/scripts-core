@@ -1,4 +1,4 @@
-/// PHA Color data point structure
+/// EL3C Color data point structure
 /// Data interpretation notes:
 /// 1) Error flags field duplicated that of device health value
 /// 2) Data flags describe device working mode|data fields validity
@@ -9,9 +9,11 @@
 object EL3C_Data
 {
   /// Data fields
+  ///
+  
   esDT  f_ts;               ///< Data timestamp
-  EL3C_Health f_errors;   ///< Device error flags
-  EL3C_DataFlags f_flags; ///< Data state|validity flags
+  EL3C_Health f_errors;     ///< Device error flags
+  EL3C_DataFlags f_flags;   ///< Data state|validity flags
   esF   f_val;              ///< Measured value (either illuminance or luminance, depending on mode flag)
   esF   f_valOrg;           ///< Original value (for Bgnd. trimming mode)
   esF   f_kp;               ///< Pulsation coefficient, in %
@@ -27,6 +29,7 @@ object EL3C_Data
   
   /// Properties
 	///
+  
 	/// Timestamp
 	property ts;
 	read: { return f_ts$value; }
@@ -48,15 +51,17 @@ object EL3C_Data
   /// Value
   property val;
   read: { return f_val$value; }
+  
 	/// Value string components property
 	property valStrMulti;
 	read: 
 	{
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valIsValid);
+			return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valvalid);
 		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valIsValid);
+			return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valvalid);
 	}
+  
 	/// Value string
 	property valStr;
 	read: { return EL3C_fromStrMulti( $valStrMulti ); }
@@ -64,15 +69,17 @@ object EL3C_Data
   /// Original value
   property valOrg;
   read: { return f_valOrg$value; }
+  
 	/// Value string components property
 	property valOrgStrMulti;
 	read: 
 	{
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgIsValid);
+			return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgvalid);
 		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgIsValid);
+			return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgvalid);
 	}
+  
 	/// Value string
 	property valOrgStr;
 	read: { return EL3C_fromStrMulti( $valOrgStrMulti ); }
@@ -80,9 +87,11 @@ object EL3C_Data
   /// Pulsation (Modulation) coefficient, in %
   property kp;
   read: { return f_kp$value; }
+  
 	/// pulsation string components
 	property kpStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpvalid ); }
+  
 	/// pulsation string
 	property kpStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }  
@@ -90,9 +99,11 @@ object EL3C_Data
   /// Original Pulsation (Modulation) coefficient, in %
   property kpOrg;
   read: { return f_kpOrg$value; }
+  
 	/// pulsation string components
 	property kpOrgStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgvalid ); }
+  
 	/// pulsation string
 	property kpOrgStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
@@ -100,9 +111,11 @@ object EL3C_Data
   /// Pulsation (Integral) coefficient, in %
   property kpi;
   read: { return f_kpi$value; }
+  
 	/// pulsation string components
 	property kpiStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpiIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpivalid ); }
+  
 	/// pulsation string
 	property kpiStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpiStrMulti ); }  
@@ -110,35 +123,41 @@ object EL3C_Data
   /// Original Pulsation (Integral) coefficient, in %
   property kpiOrg;
   read: { return f_kpiOrg$value; }
+  
 	/// pulsation string components
 	property kpiOrgStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgIsValid ); }
+	read: {	return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgvalid ); }
+  
 	/// pulsation string
 	property kpiOrgStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
   
   /// Measured Background value
-  property bgnd;
+  property valBgnd;
   read: { return f_bgnd$value; }
+  
 	/// Value string components property
-	property bgndStrMulti;
+	property valBgndStrMulti;
 	read: 
 	{
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $bgnd, c_el3c_unitE, f_flags$bgndIsValid);
+			return EL3C_strMultiGet( $bgnd, c_el3c_unitE, f_flags$bgndvalid);
 		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $bgnd, c_el3c_unitL, f_flags$bgndIsValid);
+			return EL3C_strMultiGet( $bgnd, c_el3c_unitL, f_flags$bgndvalid);
 	}
+  
 	/// Value string
-	property bgndStr;
-	read: { return EL3C_fromStrMulti( $bgndStrMulti ); } 
+	property valBgndStr;
+	read: { return EL3C_fromStrMulti( $valBgndStrMulti ); } 
   
   /// CIE x component
   property cie_x;
   read: { return f_x$value; }
+  
   /// Value string
   property cie_xStr;
-  read: { return EL3C_CieValueFmt($cie_x, f_flags$xyIsValid); }
+  read: { return EL3C_CieValueFmt($cie_x, f_flags$xyvalid); }
+  
   /// Value string components property
   property cie_xStrMulti;
   read: 
@@ -146,14 +165,16 @@ object EL3C_Data
   { 
     result += $cie_xStr;
     return result; 
-   }
+  }
   
   /// CIE y component
   property cie_y;
   read: { return f_y$value; }
+  
   /// Value string
   property cie_yStr;
-  read: { return EL3C_CieValueFmt($cie_y, f_flags$xyIsValid); }
+  read: { return EL3C_CieValueFmt($cie_y, f_flags$xyvalid); }
+  
   /// Value string components property
   property cie_yStrMulti;
   read: 
@@ -166,9 +187,11 @@ object EL3C_Data
   /// Correlated color temperature in K
   property cct;
   read: { return f_ct$value; }
+  
   /// Value string components property
   property cctStrMulti;
-  read: { return EL3C_strMultiNoMulPartGet($cct, c_el3c_unitCT, f_flags$ctIsValid); } 
+  read: { return EL3C_strMultiNoMulPartGet($cct, c_el3c_unitCT, f_flags$ctvalid); } 
+  
   /// Value string
   property cctStr;
   read: { return EL3C_fromStrMultiNoMulPart($cctStrMulti); }
@@ -188,15 +211,15 @@ object EL3C_Data
     if( !f_flags$isBgndTrimming )
     {
       // In this mode we require just value to be valid, at least
-      return f_flags$valIsValid;      
+      return f_flags$valvalid;      
     }
     else
     {
       return 0 == f_bgndEta &&
-        f_flags$valIsValid &&
-        f_flags$valOrgIsValid &&
-				f_flags$bgndIsValid &&
-				f_flags$bgndTmoIsValid;
+        f_flags$valvalid &&
+        f_flags$valOrgvalid &&
+				f_flags$bgndvalid &&
+				f_flags$bgndTmovalid;
     }
   }
   
@@ -206,6 +229,7 @@ object EL3C_Data
   /// Return sanitized opmode value
   property opmode;
   read: { return f_flags$opmode; } 
+  
   /// Return sanitized opmode value string
   property opmodeStr;
   read: { return f_flags$opmodeStr; } 
@@ -213,12 +237,15 @@ object EL3C_Data
   /// Return sanitized opmode modifier
   property opmodeModifier;
   read: { return f_flags$opmodeModifier; }
+  
   /// Return sanitized opmode modifier string
   property opmodeModifierStr;
   read: { return f_flags$opmodeModifierStr; }
+  
   /// Return true if opmode contains BgndTrim modifier
   property isBgndTrimming;
   read: { return f_flags$isBgndTrimming; }
+  
 	/// Return true if opmode contains Autonomous modifier
   property isAutonomous;
   read: { return f_flags$isAutonomous; }
@@ -226,41 +253,48 @@ object EL3C_Data
   /// Return data state
   property dataState;
   read: { return f_flags$dataState; }
+  
   /// Return data state string representation
   property dataStateStr;
   read: { return f_flags$dataStateStr; } 
   
   /// Return data validity flags
   ///
-	property valIsValid;
-	read: { return f_flags$valIsValid; }
+	property valvalid;
+	read: { return f_flags$valvalid; }
 	
-	property valOrgIsValid;
-	read: { return f_flags$valOrgIsValid; }
+	property valOrgvalid;
+	read: { return f_flags$valOrgvalid; }
 	
-	property kpIsValid;
-	read: { return f_flags$kpIsValid; }
+	property kpvalid;
+	read: { return f_flags$kpvalid; }
 	
-	property kpOrgIsValid;
-	read: { return f_flags$kpOrgIsValid; }
+	property kpOrgvalid;
+	read: { return f_flags$kpOrgvalid; }
 	
-	property kpiIsValid;
-	read: { return f_flags$kpiIsValid; }
+	property kpivalid;
+	read: { return f_flags$kpivalid; }
   
-	property kpiOrgIsValid;
-	read: { return f_flags$kpiOrgIsValid; }
+	property kpiOrgvalid;
+	read: { return f_flags$kpiOrgvalid; }
   
-	property bgndIsValid;
-	read: { return f_flags$bgndIsValid; }
+	property bgndvalid;
+	read: { return f_flags$bgndvalid; }
   
-	property bgndTmoIsValid;
-	read: { return f_flags$bgndTmoIsValid; }
+	property bgndTmovalid;
+	read: { return f_flags$bgndTmovalid; }
   
-	property xyIsValid;
-	read: { return f_flags$xyIsValid; }
+	property xyvalid;
+	read: { return f_flags$xyvalid; }
+
+	property cie_xvalid;
+	read: { return f_flags$xyvalid; }
+
+	property cie_yvalid;
+	read: { return f_flags$xyvalid; }
   
- 	property ctIsValid;
-	read: { return f_flags$ctIsValid; }  
+ 	property ctvalid;
+	read: { return f_flags$ctvalid; }  
 }
 
 /// Raw data structure, used in calibration process
