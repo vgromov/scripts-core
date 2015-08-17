@@ -66,8 +66,8 @@ var result = "";
   
   if( flags & EsFirmwareIdFmtFlag$$Serial )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
     
     result += EsStr::format(
       (!month#isEmpty() && !day#isEmpty()) ? 
@@ -92,8 +92,8 @@ var result = "";
   }
   else if( flags & EsFirmwareIdFmtFlag$$SerialShort )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
     
     result += EsStr::format(
       "%0.5u-%0.2u", 
@@ -117,8 +117,8 @@ var result = "";
       !verMinor#isEmpty()
   )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
 
     result += fmtVersionToIdString(verMajor, verMinor);
   }
@@ -129,7 +129,7 @@ var result = "";
   )
   {
     // If firmware version was formatted - concat with it
-    if( !result#countGet() )
+    if( result#countGet() )
     {
       if( (flags & EsFirmwareIdFmtFlag$$Version) && 
           !verMajor#isEmpty() && 
@@ -137,7 +137,7 @@ var result = "";
       )
         result += ".";
       else  
-        result += " ";
+        result += "; ";
     }
 
     result += EsStr::format("%u", region);
@@ -147,8 +147,8 @@ var result = "";
     !uid#isEmpty()
   )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
     
     result += fmtUID(uid);
   }
@@ -158,8 +158,8 @@ var result = "";
       !functionality#isEmpty()
   )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
     
     result += fmtFunctionalToIdString(functionality);
   }
@@ -170,8 +170,8 @@ var result = "";
     !hwCustom#isEmpty() 
   )
   {
-    if( !result#countGet() )
-      result += " ";
+    if( result#countGet() )
+      result += "; ";
     
     result += EsStr::format("0x%04X%04X", hwStd, hwCustom);
   }

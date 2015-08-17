@@ -53,16 +53,16 @@ enum EsDeviceDatabaseField
 // known device database, indexed by device type
 // type value, device kind, symbolic name, short description, long description 
 const c_deviceDatabase = [
-	[EsDeviceKind$$HubFull, 		"БОИ-01", 	"Блок отображения информации БОИ-01"],
-	[EsDeviceKind$$Appliance, 	"ФГ-01", 		"Фотоголовка ФГ-01"],
-	[EsDeviceKind$$HubLight, 		"БОИ-02Ф", 	"Блок отображения информации БОИ-02Ф"],
-	[EsDeviceKind$$HubLight, 		"БОИ-02Т", 	"Блок отображения информации БОИ-02Т"],
+	[EsDeviceKind$$HubFull, 		"DCU-01", 	"Блок отображения информации БОИ-01"],
+	[EsDeviceKind$$Appliance, 	"PHA-01", 	"Фотоголовка ФГ-01"],
+	[EsDeviceKind$$HubLight, 		"DCU-02L", 	"Блок отображения информации БОИ-02Ф"],
+	[EsDeviceKind$$HubLight, 		"DCU-02T", 	"Блок отображения информации БОИ-02Т"],
 	[EsDeviceKind$$Appliance, 	"ET-01", 	  "Измеритель метеорологических параметров ЭкоТерма"],
-	[EsDeviceKind$$Appliance, 	"ГЕО-01", 	"Головка изм. геомагнитного поля ГЕО-01"],
-	[EsDeviceKind$$Appliance, 	"РАД-01", 	"Измеритель активности радона РАД-01"],
-	[EsDeviceKind$$Appliance, 	"ИКИ-01",   "Измеритель ИК излучения ИКИ-01"],
-	[EsDeviceKind$$Appliance,		"ЛД-01-В", 	"Головка лазерная дозиметрическая ЛД-01-В"],
-	[EsDeviceKind$$Appliance,		"ПИГО", 		"Преобразователь ИГ Октава"],
+	[EsDeviceKind$$Appliance, 	"GEO-01", 	"Головка изм. геомагнитного поля ГЕО-01"],
+	[EsDeviceKind$$Appliance, 	"RAD-01", 	"Измеритель активности радона РАД-01"],
+	[EsDeviceKind$$Appliance, 	"IRA-01",   "Измеритель ИК излучения ИКИ-01"],
+	[EsDeviceKind$$Appliance,		"LD-01-V", 	"Головка лазерная дозиметрическая ЛД-01-В"],
+	[EsDeviceKind$$Appliance,		"OAA", 		  "Преобразователь ИГ Октава"],
 	[EsDeviceKind$$Appliance,		"EL-03-C",  "Lighting meter eLight-03-C"]
 ];
 

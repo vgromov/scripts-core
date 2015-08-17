@@ -165,26 +165,40 @@ object EsDeviceBase
   
 /// Assign fwId to device  
   function fwIdSet(fwId)
+  var tmpFwIdStr;
   {
     fwIdAssert(fwId);
+    
+    tmpFwIdStr = fwId.asString(
+      EsFirmwareIdFmtFlag$$DescrShort|
+      EsFirmwareIdFmtFlag$$Serial|
+      EsFirmwareIdFmtFlag$$Version
+    );
+    
     if( fwId != m_fwId ) // significant differences in fwId
     {
       if( m_fwInitialized )
         throw I"Could not re-assign firmware id to existing device";
         
       m_fwId = fwId;
-      m_tmpFwIdStr = m_fwId.asString();
+      m_tmpFwIdStr = m_fwId.asString(
+        EsFirmwareIdFmtFlag$$DescrShort|
+        EsFirmwareIdFmtFlag$$Serial|
+        EsFirmwareIdFmtFlag$$Version
+      );
+      
       m_tmpFwIdStrEssential = m_fwId.asString(
-                    EsFirmwareIdFmtFlag$$DescrLong|
-                    EsFirmwareIdFmtFlag$$Serial);
+        EsFirmwareIdFmtFlag$$DescrShort|
+        EsFirmwareIdFmtFlag$$Serial
+      );
 
       m_fwInitialized = true;
       evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
     }
-    else if( m_fwId.asString() != fwId.asString() ) // insignificant differences
+    else if( m_tmpFwIdStr != tmpFwIdStr ) // insignificant differences
     {
       m_fwId = fwId;
-      m_tmpFwIdStr = m_fwId.asString();
+      m_tmpFwIdStr = tmpFwIdStr;
       m_fwInitialized = true;
       evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
     }

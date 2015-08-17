@@ -394,7 +394,7 @@ object EsFirmwareId
   read: { return f_serial.f_order; }
   
   property fwIdStringUniversal;
-  read: { return ; }
+  read: { return asIdString(); }
 }
 
 /// Try to read and return device firmware id object,
