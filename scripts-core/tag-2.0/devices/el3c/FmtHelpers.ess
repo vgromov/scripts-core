@@ -50,6 +50,7 @@ var mul = 1., result = [];
   {
     result += "--";
     result += "--";
+    result += "--";
   }
   else
   {

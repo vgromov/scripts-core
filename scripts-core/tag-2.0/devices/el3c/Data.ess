@@ -141,9 +141,9 @@ object EL3C_Data
 	read: 
 	{
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $bgnd, c_el3c_unitE, f_flags$bgndvalid);
+			return EL3C_strMultiGet( $valBgnd, c_el3c_unitE, f_flags$valBgndvalid);
 		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $bgnd, c_el3c_unitL, f_flags$bgndvalid);
+			return EL3C_strMultiGet( $valBgnd, c_el3c_unitL, f_flags$valBgndvalid);
 	}
   
 	/// Value string
@@ -218,8 +218,8 @@ object EL3C_Data
       return 0 == f_bgndEta &&
         f_flags$valvalid &&
         f_flags$valOrgvalid &&
-				f_flags$bgndvalid &&
-				f_flags$bgndTmovalid;
+				f_flags$valBgndvalid &&
+				f_flags$bgndExpvalid;
     }
   }
   
@@ -264,25 +264,45 @@ object EL3C_Data
 	read: { return f_flags$valvalid; }
 	
 	property valOrgvalid;
-	read: { return f_flags$valOrgvalid; }
+	read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$valOrgvalid; 
+  }
 	
 	property kpvalid;
 	read: { return f_flags$kpvalid; }
 	
 	property kpOrgvalid;
-	read: { return f_flags$kpOrgvalid; }
+	read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$kpOrgvalid; 
+  }
 	
 	property kpivalid;
 	read: { return f_flags$kpivalid; }
   
 	property kpiOrgvalid;
-	read: { return f_flags$kpiOrgvalid; }
+	read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$kpiOrgvalid; 
+  }
   
-	property bgndvalid;
-	read: { return f_flags$bgndvalid; }
+	property valBgndvalid;
+	read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$valBgndvalid; 
+  }
   
-	property bgndTmovalid;
-	read: { return f_flags$bgndTmovalid; }
+	property bgndExpvalid;
+	read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$bgndExpvalid; 
+  }
   
 	property xyvalid;
 	read: { return f_flags$xyvalid; }

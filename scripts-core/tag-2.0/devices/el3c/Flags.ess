@@ -180,10 +180,10 @@ object EL3C_DataFlags
 	property kpiOrgvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpiOrg); }
   
-	property bgndvalid;
+	property valBgndvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgnd); }
   
-	property bgndTmovalid;
+	property bgndExpvalid;
 	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgndTmo); }
   
 	property xyvalid;
