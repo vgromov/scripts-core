@@ -104,6 +104,9 @@ object EL3C extends EsDeviceBase
     {
       result = new EL3C_Data(); 
       result$buffer = rpcResult#asBinBuffer();
+      
+      //EsScriptDebug::log("EL3C_Data received (size=%d)", result$size);
+    
       m_opMode = result$opmode | result$opmodeModifier;
     }
     else if( EL3C_Rpid$$RawDataGet == rpcId )
