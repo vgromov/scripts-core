@@ -688,7 +688,7 @@ object EsDeviceBase
   function fileRead(fileAbsPath)
   var bs = EsStr::toByteString(fileAbsPath), fsResult, 
       f = EsVar::as(EsVariantType$$VAR_BIN_BUFFER), 
-      chunks, chunk, result, task = new EsProgressMonitorTask(m_tmpFwIdStr);
+      chunks, chunk, result, task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) );
   {
     // send zero-terminated buffer, including terminating 0
     bs += B'\0';
@@ -711,15 +711,20 @@ object EsDeviceBase
       else
       {
         chunks = fsResult$chunks;
+        // EsScriptDebug::log("Expected chunks: %d", chunks);
+        
         chunk = 0;
         // re-notify file read start action with known range now
         task$range = chunks;
         task$position = chunk;
+        
         while( result[0] && chunk < chunks )
         {
+          // EsScriptDebug::log("Reading chunk: %d", chunk);
           result = rpcCall(EsRpcStdId$$FILE_READ_NEXT, null);
           if( result[0] )
           {
+            // EsScriptDebug::log("Chunk read OK");
             f += result[1];
             // notify action progress
             task$position = chunk;

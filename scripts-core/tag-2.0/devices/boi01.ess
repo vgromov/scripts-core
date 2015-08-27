@@ -177,7 +177,7 @@ object BOI01 extends EsDeviceBase
     dataBlocks, dataBlock = ["", null], 
     deviceDataBlocks, deviceDataBlock = ["", null],
     deviceSessions, deviceSession = ["", "", 0],
-    task = new EsProgressMonitorTask(m_tmpFwIdStr),
+    task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) ) ,
     internalResult, result;
   {
     task.attachTo(__scriptHost$progressMonitor);
@@ -284,10 +284,15 @@ object BOI01 extends EsDeviceBase
     {
       try
       {
-//        EsScriptDebug::log("Writing binary file...");
-//        file = new EsFile("D:/Users/vsevolod/Documents/Projects/bigboi-1.0/scripts/boi_data_file.dat", EsFileFlag$$Write);
+//---- Debug code
+//        file = new EsFile(
+//          "D:/Users/vsevolod/Documents/boi_data_file"+EsPath::makeSafe(absFilePath)+".bin", 
+//          EsFileFlag$$Write
+//        );
 //        file.open();
 //        file.writeAllAsBinBuffer(result[1]);
+//        file.close();
+//---- Debug code end
         
         fparsed = binDataFileBufferParse(result[1]);
 				result[1] = fparsed;

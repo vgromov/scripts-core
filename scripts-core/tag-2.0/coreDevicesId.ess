@@ -434,6 +434,20 @@ function deviceFwIdModernRead(rpcMaster)
   return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
 }
 
+/// Try to read and return device firmware ID (in either legacy, or modern mode, depending on caps contents)
+function deviceKnownCapsFwIdRead(rpcMaster, caps)
+{
+  if( caps#isEmpty() ) //< Nothing in caps, stick to generic routine
+    return deviceFwIdRead(rpcMaster);
+  else
+  {
+    if( EsRpcStdId$$FWID_MODERN_GET in caps )
+      return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
+    else
+      return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_GET);
+  }
+}
+
 /// Try to read UID from the device. If device is HUB, request returns its 16 byte Unique ID
 /// otherwise, null is returned.
 ///

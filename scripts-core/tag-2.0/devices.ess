@@ -29,3 +29,13 @@ var type = fwId$devType;
   /// Otherwise, return default 'Anonymous' device object
   return new EsDeviceBase(fwId);
 }
+
+function devicesDeviceCreate(fwId, caps)
+var dev = devicesDeviceCreate(fwId);
+{
+  if( !dev#isEmpty() &&
+      !caps#isEmpty() )
+    dev.m_caps = caps;
+    
+  return dev;
+}
