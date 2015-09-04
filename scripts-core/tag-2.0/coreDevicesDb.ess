@@ -13,16 +13,16 @@ enum EsDeviceKind
 enum EsDeviceType
 {
   BOI1     = 0,       "BOI1    ";
-  ECOL1   = 1,       "ECOL1   ";
+  ECOL1    = 1,       "ECOL1   ";
   BOI2L    = 2,       "BOI2L   ";
   BOI2T    = 3,       "BOI2T   ";
-  ET      = 4,       "ET      ";
+  ET       = 4,       "ET      ";
   EGEM1    = 5,       "EGEM1   ";
-  RAD1    = 6,       "RAD1    ";
-  IRA1    = 7,       "IRA1    ";
-  LD1V    = 8,       "LD1V    ";
+  RAD1     = 6,       "RAD1    ";
+  IRA1     = 7,       "IRA1    ";
+  LD1V     = 8,       "LD1V    ";
   OAA      = 9,       "OAA     ";
-  EL3C    = 10,     "EL3C    ";
+  EL3C     = 10,      "EL3C    ";
 }
 
 
@@ -30,7 +30,7 @@ enum EsDeviceType
 const c_octavaDeviceTypeBase = 32001;
 enum EsOctavaDeviceType
 {
-  P380E    = 32001,  "P380E   ";
+  P380E    = 32001,   "P380E   ";
   P3811    = 32002,   "P3811   ";
   P3812    = 32003,   "P3812   ";
 }
@@ -40,8 +40,8 @@ const c_tenzorDeviceTypeBase = 40001;
 enum EsTenzorDeviceType
 {
   TECOL1   = 40001,   "TECOL1  ";
-  TBOI1   = 40002,   "TBOI1   ";
-  TIRA1   = 40003,  "TIRA1   ";  
+  TBOI1    = 40002,   "TBOI1   ";
+  TIRA1    = 40003,   "TIRA1   ";  
 }
 
 enum EsDeviceDatabaseField
