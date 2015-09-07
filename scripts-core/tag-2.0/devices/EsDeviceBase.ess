@@ -298,7 +298,7 @@ object EsDeviceBase
     {
       // handle standard data requests
       // NB! health info query response, included here, should normally be overridden in derived devices
-      // to return helth info object instead.
+      // to return health info object instead.
       if( EsRpcStdId$$FWID_GET == rpcId || EsRpcStdId$$FWID_MODERN_GET == rpcId )
       {
         handlingResult = new EsFirmwareId();

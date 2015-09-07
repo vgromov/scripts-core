@@ -26,7 +26,7 @@ enum EsDeviceType
 }
 
 
-// ids of 3-rd party OCTAVA appliances
+// IDs of 3-rd party OCTAVA appliances
 const c_octavaDeviceTypeBase = 32001;
 enum EsOctavaDeviceType
 {
@@ -35,13 +35,22 @@ enum EsOctavaDeviceType
   P3812    = 32003,   "P3812   ";
 }
 
-// ids of TENZOR re-branded appliances && hubs
+// IDs of TENZOR re-branded appliances && hubs
 const c_tenzorDeviceTypeBase = 40001;
 enum EsTenzorDeviceType
 {
   TECOL1   = 40001,   "TECOL1  ";
   TBOI1    = 40002,   "TBOI1   ";
   TIRA1    = 40003,   "TIRA1   ";  
+}
+
+// IDs of 'dumb', AKA accessory, or output-only ECO-E devices, like Ekconnect, or Lupin
+const c_ecoeAccDeviceTypeBase = 60000;
+enum EsEcoeAccDeviceType
+{
+  EKONNECT  = 60000;
+  EKONNECT2 = 60001;
+  LUPIN1    = 60002;
 }
 
 enum EsDeviceDatabaseField

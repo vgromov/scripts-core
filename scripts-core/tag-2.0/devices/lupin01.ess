@@ -1,0 +1,65 @@
+object LUPIN01_FwInfo 
+{
+  // order
+  esU32 f_order;
+  // year
+  esU16 f_year;
+  // month
+  esU8 f_month;
+  // day of month
+  esU8 f_day;
+  // version
+  EsVerInfo f_ver;
+  
+  if( f_ver > "1.2" )
+  {
+    // Country code, as in ISO 3166-1-numeric 
+    esU16 f_countryCode;
+    // Hardware configuration
+    EsHwConfigInfo f_hwConfig;
+    
+    function asString()
+    {
+      return EsStr::format(
+        "%0.4d-%0.2d-%0.2d %lu",
+        f_year,
+        f_month,
+        f_day,
+        f_order
+      ) + 
+      EsString::format(
+        ".%d",
+        f_countryCode
+      ) +
+      f_ver.asString() +
+      EsString::format(
+        esT(".%d.%d"),
+        f_hwConfig.f_standard,
+        f_hwConfig.f_custom
+      );
+    }
+    
+    property countryCode;
+    read: { return f_countryCode#asULong(); }
+  }
+  else
+  {
+    function asString()
+    {
+      return EsStr::format(
+        "%0.4d-%0.2d-%0.2d %lu",
+        f_year,
+        f_month,
+        f_day,
+        f_order
+      ) + 
+      f_ver.asString();
+    }
+    
+    property countryCode; //< Return Russia by default
+    read: { return 643; }
+  }
+  
+  property haveExtendedData;
+  read: { return f_ver > "1.2"; }
+}
