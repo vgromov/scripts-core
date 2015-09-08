@@ -64,7 +64,9 @@ var batchItem;
 object EsDeviceBase
 @nomarshal;
 {
-  var m_fwInitialized,
+  var 
+    m_fwInitialized,
+    m_countryCode,
 /// Device id. Null, if never identified
     m_fwId,
 /// Device RPC capabilities. Null, if never contacted     
@@ -260,6 +262,7 @@ object EsDeviceBase
 /// Common initializer
   function internalInit(fwId)
   {
+    m_countryCode = 643; //< Default to Russia
     m_fwInitialized = false;
           
     m_tmpFwIdStr = "";
@@ -318,6 +321,7 @@ object EsDeviceBase
       {
         handlingResult = new EsSoftwareInfo();
         handlingResult$buffer = rpcResult;
+        m_countryCode = handlingResult$fwInfo$countryCode;
       }
       else if(EsRpcStdId$$POWER_STATUS_GET == rpcId && rpcResult#countGet() )
       {
@@ -824,4 +828,8 @@ object EsDeviceBase
 /// Return error log collection, if any
   property ioErrorLog;
   read: { return m_ioErrorLog; }
+  
+/// Return device country code (Russia, by default)
+  property countryCode;
+  read: { return m_countryCode; }
 }

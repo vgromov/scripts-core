@@ -166,7 +166,9 @@ object EL3C extends EsDeviceBase
     // Download software info
     rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
     if( rpcResult[0] )
+    {
       settings.f_swInfo.copyFrom( rpcResult[1] );
+    }
     else
       return rpcResult;
     
@@ -254,6 +256,13 @@ object EL3C extends EsDeviceBase
   
   /// Properties
   ///
+  
+  /// countryCode reader override
+  function countryCode_read()
+  {
+    return ;
+  }
+  
   /// Currently active opmode
   property opmode;
   read: { return m_opMode; }

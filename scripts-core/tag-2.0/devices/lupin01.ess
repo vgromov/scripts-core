@@ -1,4 +1,7 @@
-object LUPIN01_FwInfo 
+// LUPIN01 firmware information structure
+//
+
+object LUPIN01_FwInfo
 {
   // order
   esU32 f_order;
@@ -27,13 +30,13 @@ object LUPIN01_FwInfo
         f_day,
         f_order
       ) + 
-      EsString::format(
+      EsStr::format(
         ".%d",
         f_countryCode
       ) +
       f_ver.asString() +
-      EsString::format(
-        esT(".%d.%d"),
+      EsStr::format(
+        ".%d.%d",
         f_hwConfig.f_standard,
         f_hwConfig.f_custom
       );
