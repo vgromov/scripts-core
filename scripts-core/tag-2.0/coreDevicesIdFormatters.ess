@@ -22,11 +22,10 @@ var str;
   coreUtilsCheckParamNotNullOfType(uid, "uid", "EsDeviceUID");
   str = uid.asString();
   // Format in 4 groups 8 chars each
-  return str#sliceGet(0, 7) + "-" + 
-    str#sliceGet(8, 11) + "-" + 
-    str#sliceGet(12, 15) + "-" + 
-    str#sliceGet(16, 19) + "-" + 
-    str#sliceGet(20, 31); 
+  return str#sliceGet(0, 8) + "-" + 
+    str#sliceGet(8, 16) + "-" + 
+    str#sliceGet(16, 24) + "-" + 
+    str#sliceGet(24, 32); 
 }
 
 function fmtUIDtoIdString(uid)
