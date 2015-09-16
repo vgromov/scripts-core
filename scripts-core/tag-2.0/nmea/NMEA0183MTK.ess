@@ -1,0 +1,169 @@
+// MTK3333 NMEA custom packets extension
+//
+##require("NMEA0183.ess");
+
+// MTK chips && supported commands
+//
+const c_MTK_CMDS = [
+  // Command item is as follows:
+  //[CMD, IN|OUT, FLD_COUNT, Descr]
+  [ 
+    3333,
+    [
+      [0,     NMEA_DIRECTION$$OUT,   0,    "Test"],
+      [1,     NMEA_DIRECTION$$IN,    2,    "ACK response"],
+      [220,   NMEA_DIRECTION$$OUT,   1,    "Set POS fix rate"],
+      [251,   NMEA_DIRECTION$$OUT,   1,    "Set NMEA baudrate"],
+      [300,   NMEA_DIRECTION$$OUT,   5,    "Set fix control"],
+      [314,   NMEA_DIRECTION$$OUT,   19,   "Set NMEA sentence refresh intervals"],
+      [330,   NMEA_DIRECTION$$OUT,   1,    "Set datum"],
+      [386,   NMEA_DIRECTION$$OUT,   1,    "Set static navigation threshold"],
+      [400,   NMEA_DIRECTION$$OUT,   0,    "Fix control query"],
+      [414,   NMEA_DIRECTION$$OUT,   0,    "NMEA sentence refresh intervals query"],
+      [430,   NMEA_DIRECTION$$OUT,   0,    "Datum query"],
+      [500,   NMEA_DIRECTION$$IN,    5,    "Fix control data"],
+      [514,   NMEA_DIRECTION$$IN,    19,   "NMEA sentence refresh intervals"],
+      [605,   NMEA_DIRECTION$$OUT,   0,    "Firmware release info query"],
+      [705,   NMEA_DIRECTION$$IN,    4,    "Firmware release info"]
+    ]
+  ]
+];
+
+// NMEA0183 extensions for MTK platform
+//
+object EsNmeaMtk extends EsNmea0183
+{
+  var 
+    m_chip,
+    m_cmds;
+
+  // Initialize commands available for the currently selected chip
+  function commandsInit()
+  var entry;
+  {
+    m_cmds = null;
+    foreach(entry in c_MTK_CMDS)
+    {
+      if( m_chip == entry[0] )
+      {
+        m_cmds = entry[1];
+        break;
+      }
+    }  
+  }
+
+  // Check if chip is supported
+  function chipCheck(chip)
+  var entry;
+  {
+    foreach(entry in c_MTK_CMDS)
+    {
+      if( chip == entry[0] )
+        return;
+    }
+    
+    throw EsStr::format("MTK Chip %d is not supported", chip);
+  }
+  
+  // Check if command code is supported, requested direction is right,
+  // and data filed count is as expected by the command
+  //
+  function cmdCheck(cmd, dir, data)
+  var cmdEntry, fldCnt;
+  {
+    foreach(cmdEntry in m_cmds)
+    {
+      if( cmd == cmdEntry[0] )
+      {
+        if( dir != cmdEntry[1] )
+          throw EsStr::format(
+            "Wrong MTK command '%03d' direction.",
+            cmd
+          );
+        
+        fldCnt = cmdEntry[2];
+        if( 0 == fldCnt && !data#isEmpty() )
+          throw EsStr::format(
+            "No data expected for MTK command '%03d'",
+            cmd
+          );
+        else if( 0 < fldCnt )
+        {
+          if( data#isEmpty() )
+            throw EsStr::format(
+              "Expected %d data items for MTK command '%03d'",
+              fldCnt,
+              cmd
+            );
+          else if( (data#isCollection() && fldCnt != data#countGet()) ||
+            (!data#isCollection() && fldCnt != 1)
+          )
+            throw EsStr::format(
+              "Expected %d data items for MTK command '%03d', got %d instead",
+              fldCnt,
+              cmd,
+              data#countGet()
+            );
+        } 
+        return;
+      }
+    }
+    
+    throw EsStr::format(
+      "Unsupported MTK command '%03d' for chip '%d'",
+      cmd,
+      m_chip
+    );
+  }
+  
+  new(chip)
+  {
+    EsNmea0183::new();
+    chipCheck(chip);
+    m_chip = chip;
+    commandsInit();
+  }
+
+  // Default ctor - use 3333 chip family by default
+  new()
+  {
+    m_chip = 3333;
+    commandsInit();
+  }
+  
+  // Send proprietary packet to the MTK chip
+  function cmdSend(chnl, cmd, data, withCrLf)
+  {
+    cmdCheck(cmd, NMEA_DIRECTION$$OUT, data);
+    return proprietarySend(
+      chnl, 
+      "MTK", 
+      EsStr::format("%03u", cmd), 
+      data,
+      true, 
+      withCrLf
+    );
+  }
+  
+  // Explicit formatting for special cmd 314 form
+  function nmeaRefreshIntervalsReset(chnl, withCrLf)
+  {
+    return proprietarySend(
+      chnl, 
+      "MTK", 
+      314, 
+      [-1],
+      true, 
+      withCrLf
+    );
+  }
+  
+  // Properties
+  //
+  
+  property chip;
+  read: { return m_chip; }
+  
+  property commands;
+  read: { return m_cmds; }
+}
