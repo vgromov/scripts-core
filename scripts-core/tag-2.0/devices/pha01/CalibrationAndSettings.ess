@@ -45,6 +45,15 @@ object PHA01_Calibration
 			
 		return true;
 	}
+  
+  function calibratedValueCalculate(calType, val)
+  {
+    PHA01_CalType
+    {
+      Lux = 0, "Illuminance calibration";
+      Cdm = 1, "Luminance calibration";
+      Kp  = 2, "Pulsation calibration";  
+  }
 }
 
 // linearization coeffs, for firmware newer than or equal to 1.4

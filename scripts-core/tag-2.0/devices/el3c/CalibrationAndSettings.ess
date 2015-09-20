@@ -40,6 +40,11 @@ object EL3C_CalibrationClear
     f_csKp.crcUpdate();
   }
   
+  /// Calculate calibrated value
+  function calibratedValueCalculate(calType, val)
+  {
+  }
+  
   /// Properties
   ///
   
@@ -140,6 +145,21 @@ object EL3C_CalibrationColor
   {
     f_acf[idx] = val$value;
     m_acfCrcInvalid = true;
+  }
+  
+  /// Calculate calibrated value
+  function calibratedValueCalculate(calType, val)
+  {
+  }
+  
+  /// Calculate color space coordinates [x, y], given input vector [c, r, g, b]
+  function calibratedXyCalculate(val)
+  {
+  }
+
+  /// Calculate color temperature (K), given input vector [c, r, g, b]
+  function calibratedColorTemperatureCalculate(val)
+  {
   }
  
   /// Properties

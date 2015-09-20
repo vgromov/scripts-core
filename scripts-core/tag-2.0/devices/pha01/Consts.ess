@@ -17,22 +17,22 @@ enum PHA01_Rpid
   // preserve prc IDs to maintain compatibility with existing clients
   OperationModeSet    = 2056, "VOID_Call_esU8|";
   OperationModeGet    = 2057, "esU8_Call|";
-  LiveDataGet          = 2058, "esBA_Call|";
+  LiveDataGet         = 2058, "esBA_Call|";
   DataCountGet        = 2059, "esU16_Call|Return count of data saved in autonomous mode";
   DataAtIdxGet        = 2060, "esBA_Call_esU16|";
-  DataClear            = 2061, "esBL_Call|";
+  DataClear           = 2061, "esBL_Call|";
   RangeGet            = 2062, "esU8_Call|";
   RangeSet            = 2063, "VOID_Call_esU8|";
   AutoRangeGet        = 2064, "esBL_Call|";
   AutoRangeSet        = 2065, "VOID_Call_esBL|";
   AllowChargingSet    = 2067, "VOID_Call_esBL|";
-  LinFactorsSet        = 2068, "VOID_Call_esBA|";
-  LinFactorsGet        = 2069, "esBA_Call|";
-  CalSelectiveReset    = 2070, "VOID_Call_esU8|";
-  HysteresisGet        = 2071, "esU32_Call|";
-  HysteresisSet        = 2072, "VOID_Call_esU32|";
-  LiveWithBgndStart    = 2073, "VOID_Call_esU16|";
-  BgndPeriodLeftGet    = 2074, "esU16_Call|";
+  LinFactorsSet       = 2068, "VOID_Call_esBA|";
+  LinFactorsGet       = 2069, "esBA_Call|";
+  CalSelectiveReset   = 2070, "VOID_Call_esU8|";
+  HysteresisGet       = 2071, "esU32_Call|";
+  HysteresisSet       = 2072, "VOID_Call_esU32|";
+  LiveWithBgndStart   = 2073, "VOID_Call_esU16|";
+  BgndPeriodLeftGet   = 2074, "esU16_Call|";
 }
 
 // settings defaults
