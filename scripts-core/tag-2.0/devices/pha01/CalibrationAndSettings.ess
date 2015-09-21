@@ -6,9 +6,9 @@ object PHA01_CalNode
 {
   esF f_1;
   esF f_2;
-	
-	property notEmpty;
-	read: { return f_1 != 0. || f_2 != 0.; }
+  
+  property notEmpty;
+  read: { return f_1 != 0. || f_2 != 0.; }
 }
 
 /// All calibration info
@@ -17,42 +17,40 @@ object PHA01_Calibration
   PHA01_CalNode f_lux[4];
   PHA01_CalNode f_cdm[4];
   PHA01_CalNode f_kp[2];
-	
-	function checkEmpty(calType)
-	var node, nodes;
-	{
-		if( calType in PHA01_CalType)
-		{
-			if( PHA01_CalType$$Lux == calType )
-				nodes = f_lux;
-			else if( PHA01_CalType$$Cdm == calType )
-				nodes = f_cdm;
-			else if( PHA01_CalType$$Kp == calType )
-				nodes = f_kp;
-			else
-				return checkEmpty(PHA01_CalType$$Lux) &&
-					checkEmpty(PHA01_CalType$$Cdm) &&
-					checkEmpty(PHA01_CalType$$Kp);
-				
-			foreach( node in nodes )
-			{
-				if( node$notEmpty )
-					return false;
-			}
-		}
-		else
-			throw "Calibration type value is out of range";
-			
-		return true;
-	}
+  
+  function checkEmpty(calType)
+  var node, nodes;
+  {
+    if( calType in PHA01_CalType )
+    {
+      if( PHA01_CalType$$Lux == calType )
+        nodes = f_lux;
+      else if( PHA01_CalType$$Cdm == calType )
+        nodes = f_cdm;
+      else if( PHA01_CalType$$Kp == calType )
+        nodes = f_kp;
+      else
+        return checkEmpty(PHA01_CalType$$Lux) &&
+          checkEmpty(PHA01_CalType$$Cdm) &&
+          checkEmpty(PHA01_CalType$$Kp);
+        
+      foreach( node in nodes )
+      {
+        if( node$notEmpty )
+          return false;
+      }
+    }
+    else
+      throw "Calibration type value is out of range";
+      
+    return true;
+  }
   
   function calibratedValueCalculate(calType, val)
   {
-    PHA01_CalType
-    {
-      Lux = 0, "Illuminance calibration";
-      Cdm = 1, "Luminance calibration";
-      Kp  = 2, "Pulsation calibration";  
+//    PHA01_CalType$$Lux;
+//    PHA01_CalType$$Cdm;
+//    PHA01_CalType$$Kp;  
   }
 }
 
@@ -116,11 +114,11 @@ object PHA01_Health
   {
     return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
   }
-	
-	/// Properties
-	///
-	property errors;
-	read: { return f_errors$value; }
+  
+  /// Properties
+  ///
+  property errors;
+  read: { return f_errors$value; }
   /// return true if health critical error was latched
   property hasCriticalError;
   read: { return f_errors & 
@@ -138,9 +136,9 @@ object PHA01_Health
                                   PHA01_Error$$Calibration|
                                   PHA01_Error$$Linearization);        
         }
-	// Return true if error flags contain warnings			
-	property hasWarning;
-	read: { return f_errors & PHA01_Error$$Batt; }
+  // Return true if error flags contain warnings      
+  property hasWarning;
+  read: { return f_errors & PHA01_Error$$Batt; }
   /// return true if any health error was latched
   property hasError;
   read: { return f_errors != 0;  }
