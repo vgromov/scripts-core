@@ -1,5 +1,15 @@
 /// PHA01 calibration, linearization, and settings objects
 ///
+##require("../../math.ess");
+
+const c_PHA01_zeroNode              = [0., 0.];
+const c_PHA01_identityNode          = [1., 0.];
+const c_LUXCDM_CAL_NODES_CNT        = 4;
+const c_KP_CAL_NODES_CNT            = 2;
+const c_LUXCDM_CAL_NODES_CNT_POLY   = 5;
+const c_KP_CAL_NODES_CNT_POLY       = 3;
+const c_PHA01_MAX_LUXCDM            = 200000.;
+const c_PHA01_MAX_KP                = 1000.;
 
 /// Calibration node
 object PHA01_CalNode
@@ -7,51 +17,210 @@ object PHA01_CalNode
   esF f_1;
   esF f_2;
   
+  function countGet()
+  {
+    return 2;
+  }
+  
+  function itemGet(idx)
+  {
+    if(0 == idx)
+      return f_1;
+    else if(1 == idx)
+      return f_2;
+      
+    throw "Index is out of bounds";  
+  }
+
+  function itemSet(idx, val)
+  {
+    if(0 == idx)
+      f_1 = val;
+    else if(1 == idx)
+      f_2 = val;
+      
+    throw "Index is out of bounds";  
+  }
+  
   property notEmpty;
   read: { return f_1 != 0. || f_2 != 0.; }
+  
+  property greaterThanEps;
+  read: { return f_1 > c_math_FLT_EPSILON && f_2 > c_math_FLT_EPSILON; }
+}
+
+// Polylines helper objects
+object PHA01_CalibrationPolylines
+{
+  PHA01_CalNode f_lux[c_LUXCDM_CAL_NODES_CNT_POLY];
+  PHA01_CalNode f_cdm[c_LUXCDM_CAL_NODES_CNT_POLY];
+  PHA01_CalNode f_kp[c_KP_CAL_NODES_CNT_POLY];
 }
 
 /// All calibration info
 object PHA01_Calibration
 {
-  PHA01_CalNode f_lux[4];
-  PHA01_CalNode f_cdm[4];
-  PHA01_CalNode f_kp[2];
+  var m_polylines;
+
+  PHA01_CalNode f_lux[c_LUXCDM_CAL_NODES_CNT];
+  PHA01_CalNode f_cdm[c_LUXCDM_CAL_NODES_CNT];
+  PHA01_CalNode f_kp[c_KP_CAL_NODES_CNT];
   
-  function checkEmpty(calType)
+  new()
+  {
+    m_polylines = new PHA01_CalibrationPolylines();
+  }
+  
+  function calTypeCheck(type)
+  {
+    if( !(type in PHA01_CalType) )
+      throw "Calibration type value is out of range";  
+  }
+  
+  function calGetByType(type)
+  {
+    calTypeCheck(type);
+    
+    if( PHA01_CalType$$Lux == type )
+      return f_lux;
+    else if( PHA01_CalType$$Cdm == type )
+      return f_cdm;
+    else if( PHA01_CalType$$Kp == type )
+      return f_kp;
+  }
+  
+  function polyGetByType(type)
+  {
+    calTypeCheck(type);
+
+    if( PHA01_CalType$$Lux == type )
+      return m_polylines.f_lux;
+    else if( PHA01_CalType$$Cdm == type )
+      return m_polylines.f_cdm;
+    else if( PHA01_CalType$$Kp == type )
+      return m_polylines.f_kp;
+  }
+  
+  function checkEmpty(type)
   var node, nodes;
   {
-    if( calType in PHA01_CalType )
-    {
-      if( PHA01_CalType$$Lux == calType )
-        nodes = f_lux;
-      else if( PHA01_CalType$$Cdm == calType )
-        nodes = f_cdm;
-      else if( PHA01_CalType$$Kp == calType )
-        nodes = f_kp;
-      else
-        return checkEmpty(PHA01_CalType$$Lux) &&
-          checkEmpty(PHA01_CalType$$Cdm) &&
-          checkEmpty(PHA01_CalType$$Kp);
-        
-      foreach( node in nodes )
-      {
-        if( node$notEmpty )
-          return false;
-      }
-    }
+    calTypeCheck(type);
+
+    if( PHA01_CalType$$Lux == type )
+      nodes = f_lux;
+    else if( PHA01_CalType$$Cdm == type )
+      nodes = f_cdm;
+    else if( PHA01_CalType$$Kp == type )
+      nodes = f_kp;
     else
-      throw "Calibration type value is out of range";
+      return checkEmpty(PHA01_CalType$$Lux) &&
+        checkEmpty(PHA01_CalType$$Cdm) &&
+        checkEmpty(PHA01_CalType$$Kp);
+      
+    foreach( node in nodes )
+    {
+      if( node$notEmpty )
+        return false;
+    }
       
     return true;
   }
   
-  function calibratedValueCalculate(calType, val)
+  function lineCoeffsCalc(node0, node1, coeffs)
   {
-//    PHA01_CalType$$Lux;
-//    PHA01_CalType$$Cdm;
-//    PHA01_CalType$$Kp;  
+    coeffs[0] = (node1[1] - node0[1]) / (node1[0] - node0[0]);
+    coeffs[1] = node0[1] - coeffs[0] * node0[0];
   }
+  
+  // reset calibration polyline
+  function internalResetCalibrationPolyline(type)
+  var idx, calDest = polyGetByType(type),
+      cnt = (type < PHA01_CalType$$Kp) ? c_KP_CAL_NODES_CNT_POLY : c_KP_CAL_NODES_CNT_POLY;
+  {
+    for( idx = 0; idx < cnt; ++idx )
+    {
+      calDest[idx][0] = c_PHA01_identityNode[0];
+      calDest[idx][1] = c_PHA01_identityNode[1];
+    }
+  }  
+  
+  function internalRecalcCalibrationPolyline(type)
+  var idx, destIdx = 0, srcCnt = 
+    (type < PHA01_CalType$$Kp) ? 
+      c_LUXCDM_CAL_NODES_CNT : 
+      c_KP_CAL_NODES_CNT;
+  var node, prevNode = c_PHA01_zeroNode, calSrc, calDest;
+  {
+    if( !checkEmpty(type) )
+    {
+      calSrc = calGetByType(type);
+      calDest = polyGetByType(type);
+      
+      // 1) find non-empty source node slot
+      // 2) calc all polyline parts between previous slot and this one
+      for( idx = 0; idx < srcCnt; ++idx )
+      {
+        node = calSrc[idx];
+        if( node$greaterThanEps )
+        {
+          for( ; destIdx <= idx; ++destIdx )
+            lineCoeffsCalc( prevNode, node, calDest[destIdx] );
+            
+          prevNode = node;
+        }  
+      }
+      
+      // calc the rest of polyline part(s)
+      for( ; destIdx < srcCnt+1; ++destIdx )
+        lineCoeffsCalc( c_PHA01_zeroNode, prevNode, calDest[destIdx] );
+    }
+    else
+      internalResetCalibrationPolyline(type);
+  }
+
+  function calibrationPolylineRecalc(type)
+  {
+    if( PHA01_CalType$$All == type )
+    {
+      internalRecalcCalibrationPolyline(PHA01_CalType$$Lux);
+      internalRecalcCalibrationPolyline(PHA01_CalType$$Cdm);
+      internalRecalcCalibrationPolyline(PHA01_CalType$$Kp);
+    }
+    else
+      internalRecalcCalibrationPolyline(type);
+  }
+
+  function calibratedValueCalculate(type, val)
+  var calPoly = polyGetByType(type),
+    calSrc = calGetByType(type),
+    slotCnt = (type < PHA01_CalType$$Kp) ? c_LUXCDM_CAL_NODES_CNT : c_KP_CAL_NODES_CNT,
+    slot = 0,
+    polyNode;
+  {    
+    if( type > PHA01_CalType$$Kp )
+      return 0.;
+      
+    // find slot for which to perform calibration calculation    
+    if( !checkEmpty(type) )
+    {
+      while( val > calSrc[slot].f_1 && slot < slotCnt )
+        ++slot;
+      
+      polyNode = calPoly[slot];
+      val = polyNode.f_1 * val + polyNode.f_2;
+    }
+    
+    // restrict returned value
+    if( type < PHA01_CalType$$Kp )
+    {
+      if( val > c_PHA01_MAX_LUXCDM )
+        val = c_PHA01_MAX_LUXCDM;
+    }
+    else if( val > c_PHA01_MAX_KP )
+      val = c_PHA01_MAX_KP;
+
+    return val;
+  }  
 }
 
 // linearization coeffs, for firmware newer than or equal to 1.4
@@ -173,4 +342,9 @@ object PHA01_Settings
     fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01 settings");
     f_fwId.copyFrom(fwId);
   }
+  
+  function calibratedClearValueCalculate(type, val)
+  {
+    return f_cal.calibratedClearValueCalculate(type, val);
+  }  
 }

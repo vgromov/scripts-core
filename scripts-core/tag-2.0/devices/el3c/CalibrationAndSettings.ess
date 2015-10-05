@@ -40,11 +40,6 @@ object EL3C_CalibrationClear
     f_csKp.crcUpdate();
   }
   
-  /// Calculate calibrated value
-  function calibratedValueCalculate(calType, val)
-  {
-  }
-  
   /// Properties
   ///
   
@@ -74,8 +69,8 @@ object EL3C_CalibrationColor
 {
   var m_acfCrcInvalid;
   
-  EL3C_CorMatrix f_ccm;     ///< XYZ color space correlation matrix
-  EL3C_CorMatrix f_tcm;     ///< Color temperature correlation matrix
+  EL3C_CorMatrix f_ccm;       ///< XYZ color space correlation matrix
+  EL3C_CorMatrix f_tcm;       ///< Color temperature correlation matrix
   EsSpline f_ccIllum;         ///< Clear channel illumination calibration
   EsSpline f_ccLum;           ///< Clear channel luminosity calibration
   esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
@@ -145,11 +140,6 @@ object EL3C_CalibrationColor
   {
     f_acf[idx] = val$value;
     m_acfCrcInvalid = true;
-  }
-  
-  /// Calculate calibrated value
-  function calibratedValueCalculate(calType, val)
-  {
   }
   
   /// Calculate color space coordinates [x, y], given input vector [c, r, g, b]
@@ -252,6 +242,17 @@ object EL3C_Settings
       return f_calColor$calIlluminance;
     else if( EL3C_CalibrationType$$Luminance == type )  
       return f_calColor$calLuminance;
+  }
+  
+  /// Calculate calibrated value
+  function calibratedClearValueCalculate(type, val)
+  { 
+    return calClearGet(type).calculate(val);
+  }
+  
+  function calibratedColorValueCalculate(type, val)
+  { 
+    return calColorClearGet(type).calculate(val);
   }
   
   /// Update CRC data in clear and color calibrations
