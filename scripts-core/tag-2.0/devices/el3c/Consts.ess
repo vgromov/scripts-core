@@ -124,13 +124,6 @@ enum EL3C_DataInvalid
   ct           = 0x02000000;  //(0x0200 << 16);
 }
 
-enum EL3C_CalType
-{
-  Illuminance = 0, "Illuminance calibration";
-  Luminance   = 1, "Luminance calibration";
-  Pulsation   = 2, "Pulsation calibration";
-}
-
 /// Normal opmode to Legacy opmode converter
 function EL3C_toLegacyOpmode(opmode)
 var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = EL3C_LegacyOpMode$$None;

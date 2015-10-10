@@ -250,7 +250,7 @@ object EL3C_Settings
     return calClearGet(type).calculate(val);
   }
   
-  function calibratedColorValueCalculate(type, val)
+  function calibratedColorClearValueCalculate(type, val)
   { 
     return calColorClearGet(type).calculate(val);
   }

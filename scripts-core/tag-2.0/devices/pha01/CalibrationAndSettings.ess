@@ -60,7 +60,8 @@ object PHA01_CalibrationPolylines
 /// All calibration info
 object PHA01_Calibration
 {
-  var m_polylines;
+  var m_polylines,
+    m_calculatedPoly;
 
   PHA01_CalNode f_lux[c_LUXCDM_CAL_NODES_CNT];
   PHA01_CalNode f_cdm[c_LUXCDM_CAL_NODES_CNT];
@@ -69,6 +70,7 @@ object PHA01_Calibration
   new()
   {
     m_polylines = new PHA01_CalibrationPolylines();
+    m_calculatedPoly = false;
   }
   
   function calTypeCheck(type)
@@ -199,7 +201,13 @@ object PHA01_Calibration
   {    
     if( type > PHA01_CalType$$Kp )
       return 0.;
-      
+
+    if( !m_calculatedPoly )
+    {
+      calibrationPolylineRecalc(PHA01_CalType$$All);
+      m_calculatedPoly = true;
+    }
+    
     // find slot for which to perform calibration calculation    
     if( !checkEmpty(type) )
     {
@@ -345,6 +353,6 @@ object PHA01_Settings
   
   function calibratedClearValueCalculate(type, val)
   {
-    return f_cal.calibratedClearValueCalculate(type, val);
+    return f_cal.calibratedValueCalculate(type, val);
   }  
 }
