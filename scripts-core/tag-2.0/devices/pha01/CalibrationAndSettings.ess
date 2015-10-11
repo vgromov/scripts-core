@@ -67,12 +67,13 @@ object PHA01_Calibration
   PHA01_CalNode f_cdm[c_LUXCDM_CAL_NODES_CNT];
   PHA01_CalNode f_kp[c_KP_CAL_NODES_CNT];
   
-  new()
+  function polylinesInit()
   {
     m_polylines = new PHA01_CalibrationPolylines();
-    m_calculatedPoly = false;
+    m_polylines.useContextOf(this);
+    m_calculatedPoly = false;  
   }
-  
+
   function calTypeCheck(type)
   {
     if( !(type in PHA01_CalType) )
@@ -94,6 +95,9 @@ object PHA01_Calibration
   function polyGetByType(type)
   {
     calTypeCheck(type);
+
+    if( m_polylines#isEmpty() ) //< If read from stream, for instance, state vars got nullified
+      polylinesInit();
 
     if( PHA01_CalType$$Lux == type )
       return m_polylines.f_lux;
@@ -145,7 +149,7 @@ object PHA01_Calibration
       calDest[idx][1] = c_PHA01_identityNode[1];
     }
     
-    EsScriptDebug::log("Polyline reset for %s", PHA01_CalType.valueLabelGet(type));    
+//    EsScriptDebug::log("Polyline reset for %s", PHA01_CalType.valueLabelGet(type));    
   }  
   
   function internalRecalcCalibrationPolyline(type)
@@ -157,7 +161,7 @@ object PHA01_Calibration
   {
     if( !checkEmpty(type) )
     {
-      EsScriptDebug::log("Calculating polyline for %s", PHA01_CalType.valueLabelGet(type));
+//      EsScriptDebug::log("Calculating polyline for %s", PHA01_CalType.valueLabelGet(type));
       
       calSrc = calGetByType(type);
       calDest = polyGetByType(type);
@@ -168,15 +172,15 @@ object PHA01_Calibration
       {
         node = calSrc[idx];
 
-        EsScriptDebug::log("Slot %d check", idx);      
+//        EsScriptDebug::log("Slot %d check", idx);      
 
         if( node$greaterThanEps )
         {
-          EsScriptDebug::log("Slot %d is non empty", idx);      
+//          EsScriptDebug::log("Slot %d is non empty", idx);      
           
           for( ; destIdx <= idx; ++destIdx )
           {
-            EsScriptDebug::log("Calculating coeffs for slot %d", destIdx);      
+//            EsScriptDebug::log("Calculating coeffs for slot %d", destIdx);      
             lineCoeffsCalc( prevNode, node, calDest[destIdx] );
           }
           
@@ -187,11 +191,11 @@ object PHA01_Calibration
       // calc the rest of polyline part(s)
       for( ; destIdx < srcCnt+1; ++destIdx )
       {
-        EsScriptDebug::log("Calculating the rest coeffs for slot %d", destIdx); 
+//        EsScriptDebug::log("Calculating the rest coeffs for slot %d", destIdx); 
         lineCoeffsCalc( c_PHA01_zeroNode, prevNode, calDest[destIdx] );
       }
 
-      EsScriptDebug::log("Polyline calculated for %s", PHA01_CalType.valueLabelGet(type));
+//      EsScriptDebug::log("Polyline calculated for %s", PHA01_CalType.valueLabelGet(type));
     }
     else
       internalResetCalibrationPolyline(type);
@@ -219,7 +223,7 @@ object PHA01_Calibration
     if( type > PHA01_CalType$$Kp )
       return 0.;
 
-    EsScriptDebug::log("Calculating calibrated value for '%s'", PHA01_CalType.valueLabelGet(type));      
+//    EsScriptDebug::log("Calculating calibrated value for '%s'", PHA01_CalType.valueLabelGet(type));      
       
     if( !m_calculatedPoly )
     {
@@ -246,7 +250,7 @@ object PHA01_Calibration
     else if( val > c_PHA01_MAX_KP )
       val = c_PHA01_MAX_KP;
 
-    EsScriptDebug::log("Calibrated value for %s calculated", PHA01_CalType.valueLabelGet(type));      
+//    EsScriptDebug::log("Calibrated value for %s calculated", PHA01_CalType.valueLabelGet(type));      
      
     return val;
   }  
