@@ -42,7 +42,16 @@ object EsFwBinary
     if( !tokenizer$moreTokens )
       throw "Firmware hex image is too small or empty";
     allLines = tokenizer$remainingTokens;
-    notifyThreshold = allLines/1000; if( notifyThreshold < 1 ) notifyThreshold = 1;
+    if( allLines > 0 )
+    {
+      notifyThreshold = EsMath::log10(allLines);
+      notifyThreshold = EsMath::round(notifyThreshold)-2;
+      if( notifyThreshold < 2 )
+        notifyThreshold = 1;
+
+      notifyThreshold = EsMath::pow10(notifyThreshold);
+      //EsScriptDebug::log("allLInes is: %d notifyThreshold is: %d", allLines, notifyThreshold);
+    }
 		
     pmTask = new EsProgressMonitorTask("hex2bin", "Converting hex to binary...", allLines, 0);
     pmTask.attachTo(__scriptHost$progressMonitor);
