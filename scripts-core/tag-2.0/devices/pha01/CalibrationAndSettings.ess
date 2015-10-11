@@ -25,11 +25,11 @@ object PHA01_CalNode
   function itemGet(idx)
   {
     if(0 == idx)
-      return f_1;
+      return f_1$value;
     else if(1 == idx)
-      return f_2;
-      
-    throw "Index is out of bounds";  
+      return f_2$value;
+    else  
+      throw "Index is out of bounds";  
   }
 
   function itemSet(idx, val)
@@ -38,8 +38,8 @@ object PHA01_CalNode
       f_1 = val;
     else if(1 == idx)
       f_2 = val;
-      
-    throw "Index is out of bounds";  
+    else  
+      throw "Index is out of bounds";  
   }
   
   property notEmpty;
@@ -144,6 +144,8 @@ object PHA01_Calibration
       calDest[idx][0] = c_PHA01_identityNode[0];
       calDest[idx][1] = c_PHA01_identityNode[1];
     }
+    
+    EsScriptDebug::log("Polyline reset for %s", PHA01_CalType.valueLabelGet(type));    
   }  
   
   function internalRecalcCalibrationPolyline(type)
@@ -155,6 +157,8 @@ object PHA01_Calibration
   {
     if( !checkEmpty(type) )
     {
+      EsScriptDebug::log("Calculating polyline for %s", PHA01_CalType.valueLabelGet(type));
+      
       calSrc = calGetByType(type);
       calDest = polyGetByType(type);
       
@@ -163,18 +167,31 @@ object PHA01_Calibration
       for( idx = 0; idx < srcCnt; ++idx )
       {
         node = calSrc[idx];
+
+        EsScriptDebug::log("Slot %d check", idx);      
+
         if( node$greaterThanEps )
         {
+          EsScriptDebug::log("Slot %d is non empty", idx);      
+          
           for( ; destIdx <= idx; ++destIdx )
+          {
+            EsScriptDebug::log("Calculating coeffs for slot %d", destIdx);      
             lineCoeffsCalc( prevNode, node, calDest[destIdx] );
-            
+          }
+          
           prevNode = node;
         }  
       }
       
       // calc the rest of polyline part(s)
       for( ; destIdx < srcCnt+1; ++destIdx )
+      {
+        EsScriptDebug::log("Calculating the rest coeffs for slot %d", destIdx); 
         lineCoeffsCalc( c_PHA01_zeroNode, prevNode, calDest[destIdx] );
+      }
+
+      EsScriptDebug::log("Polyline calculated for %s", PHA01_CalType.valueLabelGet(type));
     }
     else
       internalResetCalibrationPolyline(type);
@@ -202,6 +219,8 @@ object PHA01_Calibration
     if( type > PHA01_CalType$$Kp )
       return 0.;
 
+    EsScriptDebug::log("Calculating calibrated value for '%s'", PHA01_CalType.valueLabelGet(type));      
+      
     if( !m_calculatedPoly )
     {
       calibrationPolylineRecalc(PHA01_CalType$$All);
@@ -227,6 +246,8 @@ object PHA01_Calibration
     else if( val > c_PHA01_MAX_KP )
       val = c_PHA01_MAX_KP;
 
+    EsScriptDebug::log("Calibrated value for %s calculated", PHA01_CalType.valueLabelGet(type));      
+     
     return val;
   }  
 }
