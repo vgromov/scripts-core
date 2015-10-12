@@ -33,7 +33,9 @@ object EsVerInfo
     }
   
     return -1;
-  }  
+  } 
+
+    
 }
 
 // device f_serial number

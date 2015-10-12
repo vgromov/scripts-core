@@ -155,7 +155,8 @@ object EsUploaderBase
       {
         // error ocurred during the most basic device query
         // device may be already in boot mode
-        deviceIsInBootMode = true;
+        deviceIsInBootMode = programmer.checkIfInBoot(chnl);
+        supportedRpcs = null;
         rpcMaster.deactivate();
       }
     }
