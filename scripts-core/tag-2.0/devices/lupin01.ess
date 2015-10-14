@@ -65,4 +65,15 @@ object LUPIN01_FwInfo
   
   property haveExtendedData;
   read: { return f_ver > "1.2"; }
+  
+  property fwIdStrEssential;
+  read: { 
+    return EsStr::format(
+      "%0.4d-%0.2d-%0.2d %lu",
+      f_year,
+      f_month,
+      f_day,
+      f_order
+    );
+  }
 }
