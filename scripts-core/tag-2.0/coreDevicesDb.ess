@@ -2,7 +2,7 @@
 // device kinds
 enum EsDeviceKind
 {
-  Appliance = 0, "Measurement Appliance";
+  Appliance  = 0, "Measurement Appliance";
   HubLight   = 1, "Reduced-functionality HUB";
   HubFull    = 3, "Full-functional HUB";
 }
@@ -23,6 +23,7 @@ enum EsDeviceType
   LD1V     = 8,       "LD1V    ";
   OAA      = 9,       "OAA     ";
   EL3C     = 10,      "EL3C    ";
+  EL3      = 11,      "EL3     "; //< ECOL1 HW with updated SW
 }
 
 
