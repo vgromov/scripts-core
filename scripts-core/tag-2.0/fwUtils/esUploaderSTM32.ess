@@ -34,13 +34,13 @@ object EsUploaderStm32 extends EsUploaderBase
   function chnlPrepareForBootloader(chnl)
   {
     EsUploaderBase::chnlPrepareForBootloader(chnl);
-    chnl$parity = EsEkonnectIoParityEnum$$parityEven;  
+    chnl$parity = EsEkonnectIoParity$$Even;  
   }
     
   function chnlPrepareForDefaultNormalComm(chnl)
   {
     EsUploaderBase::chnlPrepareForDefaultNormalComm(chnl);
-    chnl$parity = EsEkonnectIoParityEnum$$parityNone;
+    chnl$parity = EsEkonnectIoParity$$None;
   }  
 
   // Restore channel settings, appicable for normal (ES-RPC) communications,
@@ -48,7 +48,7 @@ object EsUploaderStm32 extends EsUploaderBase
   function chnlPrepareForNormalComm(chnl)
   {
     EsUploaderBase::chnlPrepareForNormalComm(chnl);
-    chnl$parity = EsEkonnectIoParityEnum$$parityNone;
+    chnl$parity = EsEkonnectIoParity$$None;
   }  
   
   // Configure and ebnter boot mode, before programming device with ISP
