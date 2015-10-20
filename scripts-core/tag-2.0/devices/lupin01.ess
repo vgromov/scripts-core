@@ -43,7 +43,7 @@ object LUPIN01_FwInfo
     }
     
     property countryCode;
-    read: { return f_countryCode#asULong(); }
+    read: { return f_countryCode$value; }
   }
   else
   {

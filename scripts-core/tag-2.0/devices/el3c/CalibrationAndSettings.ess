@@ -206,6 +206,12 @@ object EL3C_Settings
   // Color calibration data
   EL3C_CalibrationColor f_calColor;    
   
+  if( f_fwId$ver > "1.0" )
+  {
+    property countryCode;
+    read: { return f_swInfo$fwInfo$countryCode; }
+  }  
+  
   /// Constructors
   new()
   {
@@ -269,7 +275,7 @@ object EL3C_Settings
   
   property swInfo;
   read: { return f_swInfo.clone(); }
-  
+ 
   property autosaveInterval;
   read: { return f_autosaveInterval$value; }
   write: { f_autosaveInterval = __value; }

@@ -269,7 +269,7 @@ object EsFwInfo
   
   // read-only access to the dev id components
   property devType;
-  read: { return f_type; }
+  read: { return f_type$value; }
   
   property devTypeName;
   read: { return deviceDescriptionLongGet(f_type); }
@@ -278,28 +278,28 @@ object EsFwInfo
   read: { return f_ver; }
   
   property verMajor;
-  read: { return f_ver.f_major; }
+  read: { return f_ver$major; }
 
   property verMinor;
-  read: { return f_ver.f_minor; }
+  read: { return f_ver$minor; }
 
   property order;
-  read: { return f_order; }  
+  read: { return f_order$value; }  
 
   property year;
-  read: { return f_year; }
+  read: { return f_year$value; }
 
   property month;
-  read: { return f_month; }
+  read: { return f_month$value; }
 
   property day;
-  read: { return f_day; }
+  read: { return f_day$value; }
   
   property countryCode;
-  read: { return f_countryCode; }
+  read: { return f_countryCode$value; }
   
   property hwConfigInfo;
-  read: { return f_hwConfig; }
+  read: { return f_hwConfig$value; }
 }
 
 /// 192-byte Software information block now includes universal 64 bit firmware information block

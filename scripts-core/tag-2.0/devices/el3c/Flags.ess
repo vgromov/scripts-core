@@ -45,22 +45,26 @@ object EL3C_Health
 	read: { return f_errors$value; }
   /// return true if health critical error was latched
   property hasCriticalError;
-  read: { return f_errors & 
+  read: { return 0 != (f_errors & 
                                 ( EL3C_Error$$I2C|
                                   EL3C_Error$$RTC|
                                   EL3C_Error$$Storage|
-                                  EL3C_Error$$MAX4400x ); 
+                                  EL3C_Error$$MAX4400x 
+                                )
+                      ); 
         }
   /// return true if health non-critical error was latched
   property hasNonCriticalError;
-  read: { return f_errors & 
+  read: { return 0 != (f_errors & 
                                 ( EL3C_Error$$RTC_Invalid|
                                   EL3C_Error$$ClearNoCal|
-                                  EL3C_Error$$ColorNoCal);        
+                                  EL3C_Error$$ColorNoCal
+                                )
+                      );        
         }
 	// Return true if error flags contain warnings			
 	property hasWarning;
-	read: { return f_errors & EL3C_Error$$PwrCritical; }
+	read: { return 0 != (f_errors & EL3C_Error$$PwrCritical); }
 	
   /// Return true if any health error was latched
   property hasError;

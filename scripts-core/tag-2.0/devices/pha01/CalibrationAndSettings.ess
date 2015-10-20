@@ -356,11 +356,18 @@ object PHA01_Settings
   EsFirmwareId f_fwId;
   
   if( f_fwId$ver > "1.5" )
+  {
     EsSoftwareInfo f_swInfo;
-  
+    if( f_fwId$ver > "1.8" )
+    {
+      property countryCode;
+      read: { return f_swInfo$fwInfo$countryCode; }  
+    }
+  }
+
   if( f_fwId$ver > "1.1" )
     PHA01_Hysteresis f_hys;
-
+    
   esU8 f_autosaveInterval;
     @default = PHA01_Defs$$AutoIntervalDef;
     @restriction = [PHA01_Defs$$AutoIntervalMin..PHA01_Defs$$AutoIntervalMax];
@@ -368,7 +375,7 @@ object PHA01_Settings
   PHA01_Linearization f_lin;
   // calibration data
   PHA01_Calibration f_cal;    
-  
+ 
   /// Constructor
   new(fwId)
   {

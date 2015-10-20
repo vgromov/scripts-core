@@ -35,7 +35,13 @@ object EsVerInfo
     return -1;
   } 
 
-    
+  property major;
+  read: { return f_major$value; }
+  write: { f_major = __value#asByte(); }
+
+  property minor;
+  read: { return f_minor$value; }
+  write: { f_minor = __value#asByte(); }
 }
 
 // device f_serial number
@@ -372,7 +378,7 @@ object EsFirmwareId
   
   // read-only access to the dev id components
   property devType;
-  read: { return f_devType; }
+  read: { return f_devType$value; }
   
   property devTypeName;
   read: { return deviceDescriptionLongGet(f_devType); }
@@ -381,19 +387,19 @@ object EsFirmwareId
   read: { return f_fwVer; }
   
   property verMajor;
-  read: { return f_fwVer.f_major; }
+  read: { return f_fwVer$major; }
 
   property verMinor;
-  read: { return f_fwVer.f_minor; }
+  read: { return f_fwVer$minor; }
   
   property serial;
   read: { return f_serial; }
   
   property year;
-  read: { return f_serial.f_year; }
+  read: { return f_serial$year; }
 
   property order;
-  read: { return f_serial.f_order; }
+  read: { return f_serial$order; }
   
   property fwIdStringUniversal;
   read: { return asIdString(); }
