@@ -795,11 +795,11 @@ object EsMcuprogStm32
     err;
   {
     if( !isAlreadySynched )
-      bootConnectAndIdentify(chnl, 1000);
+      bootConnectAndIdentify(chnl, 2000);
     else
     {
       m_synched = isAlreadySynched;
-      identify(chnl, 1000);
+      identify(chnl, 2000);
     }
     
     progressTask = new EsProgressMonitorTask("firmwareProgramming");
@@ -832,7 +832,7 @@ object EsMcuprogStm32
       ++pgCnt;
     }
     
-    wrtUnprotect(chnl, 1000);
+    wrtUnprotect(chnl, 2000);
     binUpload(chnl, addr, fwAlignedSize, pgCnt, pgInfos, progressTask);
     
     if( m_flags & EsStm32Flag$$Verify )
@@ -854,11 +854,11 @@ object EsMcuprogStm32
       while(sector < sectorCnt)
         sectors += sector;
       
-      wrtProtect(chnl, sectors, 1000);
+      wrtProtect(chnl, sectors, 2000);
     }
     
     if( m_flags & EsStm32Flag$$UseReadProt )
-      rdoProtect(chnl, 1000);
+      rdoProtect(chnl, 2000);
       
     if( !err#isEmpty() )
       throw err;

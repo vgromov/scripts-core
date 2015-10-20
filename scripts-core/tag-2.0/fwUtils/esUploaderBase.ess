@@ -116,7 +116,8 @@ object EsUploaderBase
   {  
     rpcMaster.deactivate();
     m_savedBaud = chnl$baud;
-    
+
+    EsScriptDebug::log("Preparing for default boot communication");
     // Prepare channel for bootloader communication
     chnlPrepareForBootloader(chnl);
     // power device normally
@@ -124,22 +125,25 @@ object EsUploaderBase
     
     // Check if we're in bootloader mode (empty chip), trying to sync with bootloader at once
     chnl.open();
+    EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
     deviceIsInBootMode = programmer.checkIfInBoot(chnl);
     chnl.close();
     
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
+      EsScriptDebug::log("Preparing for RPC-controlled communication");
       // Prepare for normal communications
       chnlPrepareForDefaultNormalComm(chnl);
       // Power device on in normal mode
       devicePowerOnInNormalMode(chnl);
-
+      // Wait extra time to allow device to boot-up
+      EsThreadWorker::sleep(2000);
       rpcMaster.activate();
       
       try
       {
-        // EsScriptDebug::log("Getting implemented RPCs");
+        EsScriptDebug::log("Getting implemented RPCs");
         supportedRpcs = rpcMaster.getImplementedRPCs();
         // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
         if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
@@ -150,13 +154,13 @@ object EsUploaderBase
           m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
         }
         rpcMaster.deactivate();
+        
+        EsScriptDebug::log("Implemented RPCs acquired");
       }
       catch
       {
         // error ocurred during the most basic device query
         // device may be already in boot mode
-        deviceIsInBootMode = programmer.checkIfInBoot(chnl);
-        supportedRpcs = null;
         rpcMaster.deactivate();
       }
     }
