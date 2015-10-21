@@ -286,6 +286,9 @@ object EL3C_Settings
   
   /// Propertires
   ///
+  property devType;
+  read: { return f_fwId$devType; }
+  
   property fwId;
   read: { return f_fwId.clone(); }
   

@@ -395,5 +395,8 @@ object PHA01_Settings
   function calibratedClearValueCalculate(type, val)
   {
     return f_cal.calibratedValueCalculate(type, val);
-  }  
+  } 
+
+  property devType;
+  read: { return f_fwId$devType; }
 }

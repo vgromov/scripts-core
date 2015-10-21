@@ -5,7 +5,7 @@
 /// Spline node
 object EsSplineNode
 {
-  esF f_x;
+  esF f_x;  ///< Spline interval start
   esF f_a;  ///< pow 0
   esF f_b;  ///< pow 1
   esF f_c;  ///< pow 2
@@ -193,25 +193,30 @@ object EsSpline
   {
     if( !isEmpty() )
     {
-      if( x <= f_nodes[0].f_x) //< use the first node, if x is out of range left-wise
-        node = f_nodes[0];
-      else if(x >= f_nodes[f_cnt - 1].f_x) //< use the last node, if x is out of range right-wise
-        node = f_nodes[f_cnt - 1];
+      node = f_nodes[0];
+      if( x <= node.f_x) //< use the first node, if x is out of range left-wise
+        return node;
       else
       {
-        // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
-        left = 0;
-        right = f_cnt-1;
-        while( left != right-1 )
+        node = f_nodes[f_cnt - 1];
+        if(x >= node.f_x) //< use the last node, if x is out of range right-wise
+          return node;
+        else
         {
-          mid = (left+right)/2;
-          if( f_nodes[mid].f_x >= x )
-            right = mid;
-          else
-            left = mid;
+          // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
+          left = 0;
+          right = f_cnt-1;
+          while( left != right-1 )
+          {
+            mid = (left+right)/2;
+            if( f_nodes[mid].f_x >= x )
+              right = mid;
+            else
+              left = mid;
+          }
+      
+          node = f_nodes[left];
         }
-    
-        node = f_nodes[left];
       }
     }
     
