@@ -61,7 +61,11 @@ object PHA01_CalibrationPolylines
 object PHA01_Calibration
 {
   var m_polylines,
-    m_calculatedPoly;
+    m_calculatedPoly,
+    m_prevType,
+    m_isEmpty,
+    m_calPoly,
+    m_calSrc;
 
   PHA01_CalNode f_lux[c_LUXCDM_CAL_NODES_CNT];
   PHA01_CalNode f_cdm[c_LUXCDM_CAL_NODES_CNT];
@@ -214,9 +218,7 @@ object PHA01_Calibration
   }
 
   function calibratedValueCalculate(type, val)
-  var calPoly = polyGetByType(type),
-    calSrc = calGetByType(type),
-    slotCnt = (type < PHA01_CalType$$Kp) ? c_LUXCDM_CAL_NODES_CNT : c_KP_CAL_NODES_CNT,
+  var slotCnt = (type < PHA01_CalType$$Kp) ? c_LUXCDM_CAL_NODES_CNT : c_KP_CAL_NODES_CNT,
     slot = 0,
     polyNode;
   {    
@@ -224,6 +226,13 @@ object PHA01_Calibration
       return 0.;
 
 //    EsScriptDebug::log("Calculating calibrated value for '%s'", PHA01_CalType.valueLabelGet(type));      
+    if( m_prevType != type )
+    {
+      m_prevType = type;
+      m_isEmpty = checkEmpty(type);
+      m_calPoly = polyGetByType(type);
+      m_calSrc = calGetByType(type);
+    }
       
     if( !m_calculatedPoly )
     {
@@ -232,12 +241,12 @@ object PHA01_Calibration
     }
     
     // find slot for which to perform calibration calculation    
-    if( !checkEmpty(type) )
+    if( !m_isEmpty )
     {
-      while( val > calSrc[slot].f_1 && slot < slotCnt )
+      while( val > m_calSrc[slot].f_1 && slot < slotCnt )
         ++slot;
       
-      polyNode = calPoly[slot];
+      polyNode = m_calPoly[slot];
       val = polyNode.f_1 * val + polyNode.f_2;
     }
     

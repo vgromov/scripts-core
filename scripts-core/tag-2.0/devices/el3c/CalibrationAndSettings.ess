@@ -188,6 +188,10 @@ object EL3C_CalibrationColor
 /// EL3C device settings
 object EL3C_Settings
 {
+  var m_prevType,
+      m_calClear,
+      m_calClearColor;
+  
   // settings block
   EsFirmwareId f_fwId;
   EsSoftwareInfo f_swInfo;
@@ -250,15 +254,27 @@ object EL3C_Settings
       return f_calColor$calLuminance;
   }
   
+  function clearCalibrationCache(type)
+  {
+    if( m_prevType != type )
+    {
+      m_prevType = type;
+      m_calClear = calClearGet(type);
+      m_calClearColor = calColorClearGet(type);
+    }
+  }
+  
   /// Calculate calibrated value
   function calibratedClearValueCalculate(type, val)
   { 
-    return calClearGet(type).calculate(val);
+    clearCalibrationCache(type);
+    return m_calClear.calculate(val);
   }
   
   function calibratedColorClearValueCalculate(type, val)
   { 
-    return calColorClearGet(type).calculate(val);
+    clearCalibrationCache(type);
+    return m_calClearColor.calculate(val);
   }
   
   /// Update CRC data in clear and color calibrations
