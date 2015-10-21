@@ -79,6 +79,14 @@ object EsDeviceSerial
     
     return -1;
   }
+  
+  property year;
+  read: { return f_year$value; }
+  write: { f_year = __value#asULong(); }
+
+  property order;
+  read: { return f_order$value; }
+  write: { f_order = __value#asULong(); }
 }
 
 // device f_uid
