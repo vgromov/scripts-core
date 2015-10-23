@@ -12,7 +12,7 @@ enum PHA01_Rpid
   AutosaveIntervalGet = 2049, "esU8_Call|";
   CalibrationNodeSet  = 2050, "VOID_Call_esU8_esBA|";
   CalibrationGet      = 2051, "esBA_Call|";
-  CalibrationSet      = 2052,  "VOID_Call_esBA|";
+  CalibrationSet      = 2052, "VOID_Call_esBA|";
   CalibrationReset    = 2053, "VOID_Call|";
   // preserve prc IDs to maintain compatibility with existing clients
   OperationModeSet    = 2056, "VOID_Call_esU8|";

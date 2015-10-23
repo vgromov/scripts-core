@@ -12,7 +12,6 @@ object EsUploaderNXP extends EsUploaderBase
 		progressTask.pulse("Shutting down device...");
     rpcMaster.activate();
 		configurePowerOff(chnl);
-		configureBoot(chnl);
 		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
 		EsThreadWorker::sleep(1000);
 		configurePowerOn(chnl);
@@ -38,7 +37,6 @@ object EsUploaderNXP extends EsUploaderBase
 	{
     chnl.open();
 		configurePowerOff(chnl);		
-		configureBoot(chnl);
 		progressTask.initialize("Waiting for device to power down...", tmo, tmo);
 			
 		// wait for 40 seconds - standard poweroff timeout

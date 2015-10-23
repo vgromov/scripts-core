@@ -216,6 +216,15 @@ object PHA01_Calibration
     else
       internalRecalcCalibrationPolyline(type);
   }
+  
+  function polylinesPrepare()
+  {
+    if( !m_calculatedPoly )
+    {
+      calibrationPolylineRecalc(PHA01_CalType$$All);
+      m_calculatedPoly = true;
+    }  
+  }
 
   function calibratedValueCalculate(type, val)
   var slotCnt = (type < PHA01_CalType$$Kp) ? c_LUXCDM_CAL_NODES_CNT : c_KP_CAL_NODES_CNT,
@@ -234,11 +243,7 @@ object PHA01_Calibration
       m_calSrc = calGetByType(type);
     }
       
-    if( !m_calculatedPoly )
-    {
-      calibrationPolylineRecalc(PHA01_CalType$$All);
-      m_calculatedPoly = true;
-    }
+    polylinesPrepare();
     
     // find slot for which to perform calibration calculation    
     if( !m_isEmpty )
@@ -397,6 +402,12 @@ object PHA01_Settings
     return f_cal.calibratedValueCalculate(type, val);
   } 
 
+  /// Properties
+  ///
+  
   property devType;
   read: { return f_fwId$devType; }
+  
+  property calibration;
+  read: { return f_cal; }
 }

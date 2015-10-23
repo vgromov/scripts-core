@@ -18,19 +18,8 @@ object EsUploaderBase
   function configurePowerOff(chnl)
   {
     chnl.devicePowerSet(false);
+    chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
     EsThreadWorker::sleep(200);
-  }
-      
-  function configureBoot(chnl)
-  {
-    chnl.deviceProgrammingModeSet(true);
-    EsThreadWorker::sleep(200);    
-  }
-  
-  function configureNormal(chnl)
-  {
-    chnl.deviceProgrammingModeSet(false);
-    EsThreadWorker::sleep(200);  
   }
   
   function devicePowerOnInNormalMode(chnl)
@@ -39,7 +28,7 @@ object EsUploaderBase
     {
       chnl.open();
       configurePowerOff(chnl);
-      configureNormal(chnl);
+      chnl.deviceProgrammingModeSet(false);
       configurePowerOn(chnl);
       chnl.close();
     }
@@ -51,7 +40,6 @@ object EsUploaderBase
     {  
       chnl.open();
       configurePowerOff(chnl);
-      configureBoot(chnl);
       configurePowerOn(chnl);
       chnl.close();
     }
