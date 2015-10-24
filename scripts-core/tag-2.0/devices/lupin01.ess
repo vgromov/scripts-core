@@ -63,6 +63,53 @@ object LUPIN01_FwInfo
     read: { return 643; }
   }
   
+  if( f_ver > "1.3" )
+  {
+    // Additional info, containing calibration Calibration Factors
+    esF f_lumDiv;   //< To get luminance value from the input one, we should divide the latter by f_lumDiv 
+    esF f_pulsMul;  //< To get calibrated pulsation, we have to multiply input value by this factor
+    
+    function luminanceCalc(illum)
+    {
+      return illum / f_lumDiv;
+    }
+
+    function pulsationCalc(kp)
+    {
+      return kp * f_pulsMul;
+    }
+
+    property lumDiv;
+    read: { return f_lumDiv$value; }
+
+    property pulsMul;
+    read: { return f_pulsMul$value; }
+  }
+  else
+  {
+    // Just to provide seamless calculation interface for older versions
+    //
+    
+    function luminanceCalc(illum)
+    {
+      return illum / 3.07;
+    }
+
+    function pulsationCalc(kp)
+    {
+      return kp;
+    }
+    
+    property lumDiv;
+    read: { return 3.07; }
+
+    property pulsMul;
+    read: { return 1.; }
+  }
+  
+  property devType;
+  read: { return EsEcoeAccDeviceType$$LUPIN1; }
+  
   property haveExtendedData;
   read: { return f_ver > "1.2"; }
   
