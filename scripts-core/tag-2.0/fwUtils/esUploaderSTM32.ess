@@ -58,7 +58,7 @@ object EsUploaderStm32 extends EsUploaderBase
   }  
   
   // Configure and ebnter boot mode, before programming device with ISP
-  function configureForBoot(rpcMaster, supportedRpcs)
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
   var chnl = rpcMaster$channel, 
     supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
     progressTask = new EsProgressMonitorTask("configureForBoot");

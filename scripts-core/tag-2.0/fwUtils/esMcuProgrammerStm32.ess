@@ -188,6 +188,7 @@ object EsMcuprogStm32
   // Try to do a quick check if we're already in boot mode
   function checkIfInBoot(chnl)
   {
+    chnl.open(); //< Just in case...
     syncWithBootloader(chnl, 2, false, null);
     return m_synched;
   }

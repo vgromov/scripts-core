@@ -91,19 +91,16 @@ object EsUploaderBase
   }
   
   // Configure and ebnter boot mode, before programming device with ISP
-  function configureForBoot(rpcMaster, supportedRpcs)
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
   {  
     return false;
   }
     
-  // Upload firmware 
-  function upload(rpcMaster)
-  var programmer = programmerCreate();
-  var chnl = rpcMaster$channel, swInfo,
-    supportedRpcs, deviceIsInBootMode = false, isAlreadySynched = false;
-  {  
-    rpcMaster.deactivate();
-    m_savedBaud = chnl$baud;
+  function checkIfStartedInBoot(chnl, programmer)
+  var progressTask = new EsProgressMonitorTask("checkIfStartedInBoot"), deviceIsInBootMode = false;
+  {
+		progressTask.attachTo(__scriptHost$progressMonitor);
+    progressTask.pulse("Checking empty device...");
 
     EsScriptDebug::log("Preparing for default boot communication");
     // Prepare channel for bootloader communication
@@ -115,7 +112,21 @@ object EsUploaderBase
     chnl.open();
     EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
     deviceIsInBootMode = programmer.checkIfInBoot(chnl);
-    chnl.close();
+    chnl.close();  
+    
+    return deviceIsInBootMode;
+  }  
+    
+  // Upload firmware 
+  function upload(rpcMaster)
+  var programmer = programmerCreate();
+  var chnl = rpcMaster$channel, swInfo,
+    supportedRpcs, deviceIsInBootMode = false;
+  {  
+    rpcMaster.deactivate();
+    m_savedBaud = chnl$baud;
+
+    deviceIsInBootMode = checkIfStartedInBoot(chnl, programmer);
     
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
@@ -131,7 +142,7 @@ object EsUploaderBase
       
       try
       {
-        EsScriptDebug::log("Getting implemented RPCs");
+//        EsScriptDebug::log("Getting implemented RPCs");
         supportedRpcs = rpcMaster.getImplementedRPCs();
         // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
         if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
@@ -143,7 +154,7 @@ object EsUploaderBase
         }
         rpcMaster.deactivate();
         
-        EsScriptDebug::log("Implemented RPCs acquired");
+//        EsScriptDebug::log("Implemented RPCs acquired");
       }
       catch
       {
@@ -151,25 +162,21 @@ object EsUploaderBase
         // device may be already in boot mode
         rpcMaster.deactivate();
       }
-    }
-    else
-      isAlreadySynched = true;
       
+      deviceIsInBootMode = configureForBoot(programmer, rpcMaster, supportedRpcs);
+    }
+     
+    chnl.close();
     if( !deviceIsInBootMode )
     {
-      deviceIsInBootMode = configureForBoot(rpcMaster, supportedRpcs);
-      if( !deviceIsInBootMode )
-        throw "Could not enter device programming mode";
+      chnlPrepareForBootloader(chnl);
+      devicePowerOnInBootMode(chnl);
     }
-      
-    chnl.close();
-    chnlPrepareForBootloader(chnl);
-    devicePowerOnInBootMode(chnl);    
     chnl.open();
 
     try
     {
-      programmer.program(chnl, isAlreadySynched);
+      programmer.program(chnl, deviceIsInBootMode);
       completeUpload(chnl);
     }
     catch

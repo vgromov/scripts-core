@@ -13,7 +13,7 @@ object EsUploaderNXP extends EsUploaderBase
     rpcMaster.activate();
 		configurePowerOff(chnl);
 		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-		EsThreadWorker::sleep(1000);
+		EsThreadWorker::sleep(2000);
 		configurePowerOn(chnl);
     rpcMaster.deactivate();
 	}
@@ -64,7 +64,7 @@ object EsUploaderNXP extends EsUploaderBase
   }
   
   // Configure and ebnter boot mode, before programming device with ISP
-	function configureForBoot(rpcMaster, supportedRpcs)
+	function configureForBoot(programmer, rpcMaster, supportedRpcs)
 	var chnl = rpcMaster$channel, 
 		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
 		progressTask = new EsProgressMonitorTask("configureForBoot");
@@ -77,32 +77,49 @@ object EsUploaderNXP extends EsUploaderBase
 		{
 			try
 			{
+        EsScriptDebug::log("Trying to enter boot with shutdown");
+        
+        chnlPrepareForDefaultNormalComm(chnl);       
 				enterBootWithShutdown(progressTask, rpcMaster);
-				return true;
+        chnlPrepareForBootloader(chnl);
+        
+				if( programmer.checkIfInBoot(chnl) )
+          return true;
 			}
 			catch
 			{
+        EsScriptDebug::log("Fail");
         rpcMaster.deactivate();
       }
 		}
-		
+	
 		if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
 		{
 			try
 			{
+        EsScriptDebug::log("Trying to warm-boot");
+        
+        chnlPrepareForDefaultNormalComm(chnl);
 				enterBootWithWarmBoot(progressTask, rpcMaster);
-				return true;
+        chnlPrepareForBootloader(chnl);
+        
+        if( programmer.checkIfInBoot(chnl) )
+          return true;
 			}
 			catch
 			{
+        EsScriptDebug::log("Fail");      
         rpcMaster.deactivate();
       }
 		}
 		
 		if( supportsPowerCtl && !chnl$useRS232 )
 		{
+      EsScriptDebug::log("Trying to enter boot with natural power-off");
 			enterBootWithNaturalPowerOff(progressTask, rpcMaster);
-			return true;
+      chnlPrepareForBootloader(chnl);
+        
+			return programmer.checkIfInBoot(chnl);
 		}
 		
 		return false;

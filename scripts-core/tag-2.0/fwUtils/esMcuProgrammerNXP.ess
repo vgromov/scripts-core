@@ -244,7 +244,9 @@ object EsMcuprogNxp
       requestStringSend(chnl, "?");
       response = dataReceive(chnl, c_responseLenMax, 1, 100);
       response = responseStringExtract(response);
-		//	EsScriptDebug::log("responseStringExtract '%s'", response);
+		
+//      EsScriptDebug::log("Bootloader response: '%s'", EsStr::fromByteString(response));
+
       if( !response#isEmpty() )
       {
         if( B"Bootloader\r\n" == response )
@@ -301,8 +303,14 @@ object EsMcuprogNxp
   }
   
   function checkIfInBoot(chnl)
+  var ok = false;
   {
-    return syncWithBootloader(chnl, 20, false);
+    chnl.open(); //< Just in case...
+    ok = syncWithBootloader(chnl, 20, false);
+    
+    EsScriptDebug::log("In Boot: %s", ok);
+    
+    return ok;
   }
   
   function oscCommandSend(chnl)
@@ -310,10 +318,13 @@ object EsMcuprogNxp
   {
     requestStr = m_moniker.m_xtalHz/1000;
     requestStringSend(chnl, requestStr+"\n");
-    response = dataReceive(chnl, c_responseLenMax, 2, 1000);
+    response = dataReceive(chnl, c_responseLenMax, 2, 5000);
 
     m_regex$pattern = requestStr+"(?:\r|\n)\n?OK\r\n";
     m_regex$text = EsStr::fromByteString(response);
+
+    EsScriptDebug::log("OSC response: '%s'", m_regex$text);
+
     if( !m_regex$matches )
       throw "No answer on 'Oscillator' command";
   }
@@ -530,7 +541,7 @@ object EsMcuprogNxp
     fwSize = m_fw#countGet();
     binaryCheck();
     
-    // EsScriptDebug::log("Programming, already synched: %s, don't sync flag: %s", isAlreadySynched, (m_flags & EsMcuprogNxpFirmwareFlag$$DONT_SYNC));
+    //EsScriptDebug::log("Programming, already synched: %s, don't sync flag: %s", isAlreadySynched, (m_flags & EsMcuprogNxpFirmwareFlag$$DONT_SYNC));
     if( !isAlreadySynched )
       syncWithBootloader(chnl, m_syncRetries, true);
 
@@ -669,7 +680,7 @@ object EsMcuprogNxp
   // default ctor
   new(flags, retries, moniker)
   {
-    m_regex = new EsRegEx("", EsRegExCompileFlag$$DEFAULT);
+    m_regex = new EsRegEx();
     m_flags = flags#asULong();
     m_syncRetries = retries#asULong();
     m_moniker = moniker;
