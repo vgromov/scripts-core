@@ -17,9 +17,9 @@ object EsUploaderBase
 
   function configurePowerOff(chnl)
   {
-    chnl.devicePowerSet(false);
     chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
-    EsThreadWorker::sleep(200);
+    chnl.devicePowerSet(false);
+    EsThreadWorker::sleep(500);
   }
   
   function devicePowerOnInNormalMode(chnl)
