@@ -149,7 +149,7 @@ object EL3C_CalibrationSession
   function streamRead(stream)
   {
     m_created = stream.valueRead("created", EsDateTime::now());
-    m_mode = stream.valueRead("mode", PHAC01_SessionMode$$Verification);
+    m_mode = stream.valueRead("mode", EL3C_SessionMode$$Verification);
     m_complete = stream.valueRead("completed", null);
     m_bak = stream.valueRead("bak", null);
     m_cur = stream.valueRead("cur", null);
@@ -168,13 +168,13 @@ object EL3C_CalibrationSession
   /// Is Session comlpete
   property isComplete;
   read: { return !m_complete#isEmpty() &&
-          PHAC01_SessionMode$$Complete == m_mode; }
+          EL3C_SessionMode$$Complete == m_mode; }
   
   /// Session working mode
   property mode;
   read: { return m_mode; }
   write: { 
-    if( !(__value in PHAC01_SessionMode) )
+    if( !(__value in EL3C_SessionMode) )
       throw "Invalid working mode value";
     m_mode = __value; }
   
@@ -296,7 +296,7 @@ var spath, scpath, idStr = session$fwIdStr, stream;
   if( !session$isComplete )
   {
     session.m_complete = EsDateTime::now();
-    session.m_mode = PHAC01_SessionMode$$Complete;
+    session.m_mode = EL3C_SessionMode$$Complete;
     
     spath = sessionPathGet(pathActive, idStr);
     scpath = sessionPathGet(pathComplete, idStr + " " + session.m_complete.asString());

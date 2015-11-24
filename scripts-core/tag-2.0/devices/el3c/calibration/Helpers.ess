@@ -22,7 +22,7 @@ function el3cUnitsGet(type)
 
 function el3ccreate(fwId)
 {
-  if( EsDeviceType$$PHAC1 == fwId$devType )
+  if( EsDeviceType$$EL3C == fwId$devType )
     return new EL3C(fwId);  
 }
 
