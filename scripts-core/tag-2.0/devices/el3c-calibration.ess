@@ -7,7 +7,7 @@
 ##require("el3c/calibration/ProfileColor.ess");
 
 /// Calibration|verification session object
-object PHAC01_CalibrationSession
+object EL3C_CalibrationSession
 {
   var 
   // Session creation timestamp 
@@ -50,22 +50,22 @@ object PHAC01_CalibrationSession
     el3cClearCalibrationTypeCheck(type);
     raw = [null, null];
     simulated = [null, null];
-    if( PHAC01_CalibrationType$$Illuminance == type )
+    if( EL3C_CalibrationType$$Illuminance == type )
     {
       splineClear = m_cur$calClear$calIlluminance;
       splineColor = m_cur$calColor$calIlluminance;
     }
-    else if( PHAC01_CalibrationType$$Luminance == type )
+    else if( EL3C_CalibrationType$$Luminance == type )
     {
       splineClear = m_cur$calClear$calLuminance;
       splineColor = m_cur$calColor$calLuminance;
     }
-    else if( PHAC01_CalibrationType$$Pulsation == type )
+    else if( EL3C_CalibrationType$$Pulsation == type )
       splineClear = m_cur$calClear$calPulsation;
     
     if( !splineClear#isEmpty() && splineClear$valid )
     {
-      if( PHAC01_CalibrationType$$Pulsation == type )
+      if( EL3C_CalibrationType$$Pulsation == type )
         raw[0] = rawData$kpi;
       else
         raw[0] = rawData$val;
@@ -246,7 +246,7 @@ var stream, session;
 {
   if( EsPath::fileExists(path, "") )
   {
-    session = new PHAC01_CalibrationSession();
+    session = new EL3C_CalibrationSession();
     stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, path);
     if( stream.firstRootObjectLocate() )
       stream.objectRead(session);
@@ -265,7 +265,7 @@ var spath = sessionPathGet(pathActive, idStr);
   // try to find existing active session file first
   if( spath.exists("") )
   {
-    session = new PHAC01_CalibrationSession();
+    session = new EL3C_CalibrationSession();
     stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, spath.pathGet(EsPathFlag$$Default, ""));
     if( stream.firstRootObjectLocate() )
     {
@@ -283,7 +283,7 @@ var spath = sessionPathGet(pathActive, idStr);
   response = device.settingsDownload();
   if( response[0] )
   {
-    session = new PHAC01_CalibrationSession(newMode, response[1], profile);
+    session = new EL3C_CalibrationSession(newMode, response[1], profile);
     activeSessionSave(pathActive, session);
   }
   
