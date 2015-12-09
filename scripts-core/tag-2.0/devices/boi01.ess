@@ -124,9 +124,11 @@ object BOI01 extends EsDeviceBase
   {
     if( result[0] )
     {
+//      EsScriptDebug::log("Enumerating: %s", absDir);
+    
       // start action progress
       task$text = EsStr::format(I"Enumerating: '%s'", absDir);
-      
+            
       while(true)
       {
         result = dirListGetNextItem();
@@ -146,6 +148,9 @@ object BOI01 extends EsDeviceBase
               continue;
             // append to the collection
             items += item;
+            
+//            EsScriptDebug::log("Enumerated: %s", item$name);
+            
             // handle progress notification
             task$text = EsStr::format(I"Found: '%s'", item$name);
           }
@@ -185,12 +190,21 @@ object BOI01 extends EsDeviceBase
     if( result[0] )
     {
       plgItems = result[1];
+
+      //EsScriptDebug::log("----Plugin Items----");
+
       // for each plugin dir enumerate its data dir
       foreach(plgItem in plgItems)
       {
         // fill-in plugin block info
         plgStr = plgItem$name;
         plgRec = deviceHubPluginFunctionalityRecordGet(m_fwId$devType, plgStr);
+
+        // EsScriptDebug::log("----Plugin Item----");
+        // EsScriptDebug::log("Name: %s, Len: %d", plgStr, plgStr.countGet());
+        // EsScriptDebug::log("Functionality:");
+        // EsScriptDebug::log(plgRec);
+
         if( plgRec#isEmpty() )
           plgDescr = EsStr::format(I"Unknown/unsupported plugin: '%s'", plgStr);
         else
@@ -201,14 +215,23 @@ object BOI01 extends EsDeviceBase
         if( !plgRec#isEmpty() )
         {
           plgDataDir = "/"+plgStr+"/DATA";
+          //EsScriptDebug::log("plgDataDir=%s", plgDataDir);
+          
           internalResult = dirItemsEnum(task, plgDataDir, [".", ".."], EsFsItemAttribute$$Directory);
           if( internalResult[0] )
           {
             plgDataTypeItems = internalResult[1];
+            
+            //EsScriptDebug::log("----Plugin Data types----");
+            
             // fill-in plugin data blocks
             foreach(plgDataTypeItem in plgDataTypeItems)
             {
               plgDataTypeStr = plgDataTypeItem$name;
+              
+              //EsScriptDebug::log("----Plugin Data type----");
+              //EsScriptDebug::log(plgDataTypeStr);
+                           
               plgTypeRec = deviceHubPluginDataTypeRecordGet(m_fwId$devType, plgStr, plgDataTypeStr);
               if( plgTypeRec#isEmpty() )
                 plgDataTypeDescr = EsStr::format(I"Unknown|unsupported plugin data type: '%s'", plgDataTypeStr);
@@ -285,13 +308,13 @@ object BOI01 extends EsDeviceBase
       try
       {
 //---- Debug code
-//        file = new EsFile(
-//          "D:/Users/vsevolod/Documents/boi_data_file"+EsPath::makeSafe(absFilePath)+".bin", 
-//          EsFileFlag$$Write
-//        );
-//        file.open();
-//        file.writeAllAsBinBuffer(result[1]);
-//        file.close();
+       // file = new EsFile(
+         // "D:/Users/vsevolod/Documents/boi_data_file"+EsPath::makeSafe(absFilePath)+".bin", 
+         // EsFileFlag$$Write
+       // );
+       // file.open();
+       // file.writeAllAsBinBuffer(result[1]);
+       // file.close();
 //---- Debug code end
         
         fparsed = binDataFileBufferParse(result[1]);

@@ -6,7 +6,7 @@
 enum EsBinDataFile 
 {
   PageSize       = 128;  // binary file page size in bytes
-  TagSize       = 8;    // file tag size in bytes
+  TagSize        = 8;    // file tag size in bytes
   HdrSize        = 16;    // file common header part size (tag+entrySize+entryCount)
   SpaceSize      = 110;  // page space available for data (128-EsBinDataFilePageHdr-CRC16)
 }
@@ -16,11 +16,11 @@ enum EsBinDataFile
 // standard file page tags: HDR_MAIN, HDR, DATA, 8 0s == EMPTY_PAGE
 const c_hdrMainTag             = "HDRMAIN ";
 const c_hdrMainAdditionalTag   = "HDRMAIN+";
-const c_hdrTag                = "HDR     ";
+const c_hdrTag                 = "HDR     ";
 const c_hdrAdditionalTag       = "HDR+    ";
 const c_dataTag                = "DATA    ";
 const c_dataAdditionalTag      = "DATA+   ";
-const c_emptyTag              = "\0\0\0\0\0\0\0\0";
+const c_emptyTag               = "\0\0\0\0\0\0\0\0";
 
 // tag class
 object EsBinDataFileTag
@@ -29,20 +29,20 @@ object EsBinDataFileTag
   
   // tag services
   //
-	/// To string conversion
-	function asString()
-	{
-		return EsStr::fromByteString(f_tagStr$buffer);
-	}
-	
-	/// From string conversion
-	function tagFromString(tagStr)
-	{
-	  if( EsBinDataFile$$TagSize != tagStr#countGet() )
+  /// To string conversion
+  function asString()
+  {
+    return EsStr::fromByteString(f_tagStr$buffer);
+  }
+  
+  /// From string conversion
+  function tagFromString(tagStr)
+  {
+    if( EsBinDataFile$$TagSize != tagStr#countGet() )
       throw EsStr::format("Tag string length must be %d symbols", EsBinDataFile$$TagSize);
     f_tagStr$buffer = EsStr::toByteString(tagStr);
-	}
-	
+  }
+  
   // string comparison
   function compare(tagStr)
   {
@@ -52,28 +52,28 @@ object EsBinDataFileTag
     return 0;
   }
   
-	/// Custom stream writer
-	function streamWrite(stream)
-	{
-		stream.valueWrite( asString() );
-	}
-	
-	/// Custom stream reader
-	function streamRead(stream)
-	{
-		tagFromString( stream.valueRead() );
-	}
-	
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite( asString() );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    tagFromString( stream.valueRead() );
+  }
+  
 /// Properties
-	// access tag as string
-	property tag;
-	read: { return asString(); }
-	write: { tagFromString(__value); }
+  // access tag as string
+  property tag;
+  read: { return asString(); }
+  write: { tagFromString(__value); }
   // predefined headers check
   property isHdrMain;
   read: { return 0 == compare(c_hdrMainTag); }
   property isHdrMainAdditional;
-	read: { return 0 == compare(c_hdrMainAdditionalTag); }  
+  read: { return 0 == compare(c_hdrMainAdditionalTag); }  
   property isHdr;
   read: { return 0 == compare(c_hdrTag); }
   property isHdrAdditional;
@@ -102,17 +102,17 @@ object EsBinDataFileIlluminanceEntry
     @label = "Pulsation, %";
   esI8      f_temp;
     @label = "T, °C";
-		
+    
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }
-	
-	property lux;
-	read: { return f_lux$value; }
-	
-	property kp;
-	read: { return f_kp$value; }
+  property ts;
+  read: { return f_ts$value; }
+  
+  property lux;
+  read: { return f_lux$value; }
+  
+  property kp;
+  read: { return f_kp$value; }
 }
 
 object  EsBinDataFileIlluminanceEntry2
@@ -121,40 +121,40 @@ object  EsBinDataFileIlluminanceEntry2
   esDT   f_ts;
     @label = "Timestamp";
   esF     f_luxOrg;
-		@label = "Original illuminance, lux";
-	esF     f_luxBgnd;
-		@label = "Background illuminance, lux";
-	esF     f_lux;
-		@label = "Original-background illuminance, lux";
+    @label = "Original illuminance, lux";
+  esF     f_luxBgnd;
+    @label = "Background illuminance, lux";
+  esF     f_lux;
+    @label = "Original-background illuminance, lux";
   esF      f_kpOrg;
-		@label = "Original pulsation, %";
+    @label = "Original pulsation, %";
   esF      f_kp;
-		@label = "Resulting pulsation, %";
+    @label = "Resulting pulsation, %";
   esU16    f_bgndDuration;
-		@label = "Duration of background measurement, s";
+    @label = "Duration of background measurement, s";
 
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }
+  property ts;
+  read: { return f_ts$value; }
 
-	property luxOrg;
-	read: { return f_luxOrg$value; }
+  property luxOrg;
+  read: { return f_luxOrg$value; }
 
-	property luxBgnd;
-	read: { return f_luxBgnd$value; }
-	
-	property lux;
-	read: { return f_lux$value; }
-	
-	property kpOrg;
-	read: { return f_kpOrg$value; }
+  property luxBgnd;
+  read: { return f_luxBgnd$value; }
+  
+  property lux;
+  read: { return f_lux$value; }
+  
+  property kpOrg;
+  read: { return f_kpOrg$value; }
 
-	property kp;
-	read: { return f_kp$value; }
+  property kp;
+  read: { return f_kp$value; }
 
-	property bgndExp;
-	read: { return f_bgndDuration$value; }	
+  property bgndExp;
+  read: { return f_bgndDuration$value; }  
 }
 
 /// PHA01-CDM
@@ -163,23 +163,23 @@ object EsBinDataFileLuminanceEntry
 {
   esDT   f_ts;
     @label = "Timestamp";
-  esF      f_cdm;
+  esF    f_cdm;
     @label = "Luminance, cd/m<sup>2</sup>";
-  esU16    f_kp;
+  esU16  f_kp;
     @label = "Pulsation, %";  
-  esI8      f_temp;
+  esI8   f_temp;
     @label = "T, °C";
-		
+    
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }
-	
-	property cdm;
-	read: { return f_cdm$value; }
-	
-	property kp;
-	read: { return f_kp$value; }		
+  property ts;
+  read: { return f_ts$value; }
+  
+  property cdm;
+  read: { return f_cdm$value; }
+  
+  property kp;
+  read: { return f_kp$value; }    
 }
 
 object EsBinDataFileLuminanceEntry2
@@ -187,21 +187,21 @@ object EsBinDataFileLuminanceEntry2
 {
   esDT   f_ts;
     @label = "Timestamp";
-  esF      f_cdm;
+  esF    f_cdm;
     @label = "Luminance, cd/m<sup>2</sup>";
-  esU16    f_kp;
+  esF    f_kp;
     @label = "Pulsation, %";  
 
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }
-	
-	property cdm;
-	read: { return f_cdm$value; }
-	
-	property kp;
-	read: { return f_kp$value; }		
+  property ts;
+  read: { return f_ts$value; }
+  
+  property cdm;
+  read: { return f_cdm$value; }
+  
+  property kp;
+  read: { return f_kp$value; }    
 }
 
 // PHA01-KEO
@@ -210,26 +210,26 @@ object EsBinDataFileDfEntry
 {
   esDT   f_ts;
     @label = "Timestamp";
-  esF      f_luxIndoors;
+  esF    f_luxIndoors;
     @label = "Indoors illuminance, lux";    
-  esF      f_luxOutdoors;
+  esF    f_luxOutdoors;
     @label = "Outdoors illuminance, lux";
-  esF      f_df;
+  esF    f_df;
     @label = "KEO, %";
 
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }
-	
-	property luxIndoors;
-	read: { return f_luxIndoors$value; }
-	
-	property luxOutdoors;
-	read: { return f_luxOutdoors$value; }
+  property ts;
+  read: { return f_ts$value; }
+  
+  property luxIndoors;
+  read: { return f_luxIndoors$value; }
+  
+  property luxOutdoors;
+  read: { return f_luxOutdoors$value; }
 
-	property df;
-	read: { return f_df$value; }
+  property df;
+  read: { return f_df$value; }
 }
 
 // MK01 appliance
@@ -238,55 +238,55 @@ object EsBinDataFileDfEntry
 object EsBinDataFileClimaticBaseEntry
   @help = "Basic climatic data";
 {
-  esDT   f_ts;
+  esDT    f_ts;
     @label = "Timestamp";
-  esU32    f_state;
+  esU32   f_state;
     @label = "Data state";
-  esF      f_ta;
+  esF     f_ta;
     @label = "Air T, °C";
-  esF      f_rh;
+  esF     f_rh;
     @label = "Relative humidity, %";
-  esF      f_td;
+  esF     f_td;
     @label = "Dew point, °C";
-  esF      f_tw;
+  esF     f_tw;
     @label = "Natural wet-bulb T, °C";
-  esF      f_p;
+  esF     f_p;
     @label = "Barometric pressure, Pa";
-		
+    
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }		
-	
-	/// Air temperature
-	property tA;
-	read: { return f_ta$value; }
-	property tAvalid;
-	read: { return !(f_state & ET01_Flag$$No_tA); }
-	
-	/// Relative humidity
-	property rH;
-	read: { return f_rh$value; }
-	property rHvalid;
-	read: { return !(f_state & ET01_Flag$$No_rH); }
-	
-	/// Dewpoint temperature
-	property tD;
-	read: { return f_td$value; }
-	property tDvalid;
-	read: { return !(f_state & ET01_Flag$$No_tD); }
-	
-	/// Wet thermometer temperature
-	property tW;
-	read: { return f_tw$value; }
-	property tWvalid;
-	read: { return !(f_state & ET01_Flag$$No_tW); }
+  property ts;
+  read: { return f_ts$value; }    
+  
+  /// Air temperature
+  property tA;
+  read: { return f_ta$value; }
+  property tAvalid;
+  read: { return !(f_state & ET01_Flag$$No_tA); }
+  
+  /// Relative humidity
+  property rH;
+  read: { return f_rh$value; }
+  property rHvalid;
+  read: { return !(f_state & ET01_Flag$$No_rH); }
+  
+  /// Dewpoint temperature
+  property tD;
+  read: { return f_td$value; }
+  property tDvalid;
+  read: { return !(f_state & ET01_Flag$$No_tD); }
+  
+  /// Wet thermometer temperature
+  property tW;
+  read: { return f_tw$value; }
+  property tWvalid;
+  read: { return !(f_state & ET01_Flag$$No_tW); }
 
-	/// Pressure
-	property p;
-	read: { return f_p$value; }
-	property pvalid;
-	read: { return !(f_state & ET01_Flag$$No_p); }
+  /// Pressure
+  property p;
+  read: { return f_p$value; }
+  property pvalid;
+  read: { return !(f_state & ET01_Flag$$No_p); }
 }
 
 // MK01-THV
@@ -295,85 +295,85 @@ object EsBinDataFileClimaticVelocityEntry
 {
   esDT   f_ts;
     @label = "Timestamp";
-  esU32     f_state;
+  esU32  f_state;
     @label = "Data state";
-  esF      f_ta;
+  esF    f_ta;
     @label = "Air T, °C";
-  esF      f_rh;
+  esF    f_rh;
     @label = "Relative humidity, %";
-  esF      f_td;
+  esF    f_td;
     @label = "Dew point, °C";
-  esF      f_tw;
+  esF    f_tw;
     @label = "Natural wet-bulb T, °C";
-  esF      f_tr;
-		@label = "Radiation temperature, when airflow is less than 1 m/s, °C";
-  esF      f_t0;
-		@label = "Resulting temperature, °C";
-	esF      f_w;
-		@label = "Heat ratiation density";
-	esF      f_u;		
-		@label = "Air velocity, m/s";
-	esF      f_p;
+  esF    f_tr;
+    @label = "Radiation temperature, when airflow is less than 1 m/s, °C";
+  esF    f_t0;
+    @label = "Resulting temperature, °C";
+  esF    f_w;
+    @label = "Heat ratiation density";
+  esF    f_u;   
+    @label = "Air velocity, m/s";
+  esF    f_p;
     @label = "Barometric pressure, Pa";
-		
+    
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }		
-	
-	/// Air temperature
-	property tA;
-	read: { return f_ta$value; }
-	property tAvalid;
-	read: { return !(f_state & ET01_Flag$$No_tA); }
-	
-	/// Relative humidity
-	property rH;
-	read: { return f_rh$value; }
-	property rHvalid;
-	read: { return !(f_state & ET01_Flag$$No_rH); }
-	
-	/// Dewpoint temperature
-	property tD;
-	read: { return f_td$value; }
-	property tDvalid;
-	read: { return !(f_state & ET01_Flag$$No_tD); }
-	
-	/// Wet thermometer temperature
-	property tW;
-	read: { return f_tw$value; }
-	property tWvalid;
-	read: { return !(f_state & ET01_Flag$$No_tW); }
-	
-	/// Radiation temperature when airflow is less than 1 m/s
-	property tR;
-	read: { return f_tr$value; }
-	property tRvalid;
-	read: { return !(f_state & ET01_Flag$$No_tR); }
+  property ts;
+  read: { return f_ts$value; }    
+  
+  /// Air temperature
+  property tA;
+  read: { return f_ta$value; }
+  property tAvalid;
+  read: { return !(f_state & ET01_Flag$$No_tA); }
+  
+  /// Relative humidity
+  property rH;
+  read: { return f_rh$value; }
+  property rHvalid;
+  read: { return !(f_state & ET01_Flag$$No_rH); }
+  
+  /// Dewpoint temperature
+  property tD;
+  read: { return f_td$value; }
+  property tDvalid;
+  read: { return !(f_state & ET01_Flag$$No_tD); }
+  
+  /// Wet thermometer temperature
+  property tW;
+  read: { return f_tw$value; }
+  property tWvalid;
+  read: { return !(f_state & ET01_Flag$$No_tW); }
+  
+  /// Radiation temperature when airflow is less than 1 m/s
+  property tR;
+  read: { return f_tr$value; }
+  property tRvalid;
+  read: { return !(f_state & ET01_Flag$$No_tR); }
 
-	/// Resulting temperature
-	property t0;
-	read: { return f_t0$value; }
-	property t0valid;
-	read: { return !(f_state & ET01_Flag$$No_t0); }
-	
-	/// Heat ratiation density
-	property w;
-	read: { return f_w$value; }
-	property wvalid;
-	read: { return !(f_state & ET01_Flag$$No_w); }
-	
-	/// Air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
-	property u;
-	read: { return f_u$value; }
-	property uvalid;
-	read: { return !(f_state & ET01_Flag$$No_u); }
+  /// Resulting temperature
+  property t0;
+  read: { return f_t0$value; }
+  property t0valid;
+  read: { return !(f_state & ET01_Flag$$No_t0); }
+  
+  /// Heat ratiation density
+  property w;
+  read: { return f_w$value; }
+  property wvalid;
+  read: { return !(f_state & ET01_Flag$$No_w); }
+  
+  /// Air velocity, valid if heaterTimer = 0 and mode id >= LiveUnlimited
+  property u;
+  read: { return f_u$value; }
+  property uvalid;
+  read: { return !(f_state & ET01_Flag$$No_u); }
 
-	/// Pressure
-	property p;
-	read: { return f_p$value; }
-	property pvalid;
-	read: { return !(f_state & ET01_Flag$$No_p); }		
+  /// Pressure
+  property p;
+  read: { return f_p$value; }
+  property pvalid;
+  read: { return !(f_state & ET01_Flag$$No_p); }    
 }
 
 // MK01-IDX
@@ -382,491 +382,491 @@ object EsBinDataFileClimaticIndexesEntry
 {
   esDT   f_ts;
     @label = "Timestamp";
-  esU32     f_state;
+  esU32  f_state;
     @label = "Data state";
-  esF      f_ta;
+  esF    f_ta;
     @label = "Air T, °C";
-  esF      f_rh;
+  esF    f_rh;
     @label = "Relative humidity, %";
-  esF      f_td;
+  esF    f_td;
     @label = "Dew point, °C";
-  esF      f_tw;
+  esF    f_tw;
     @label = "Natural wet-bulb T, °C";
-  esF      f_tg;
+  esF    f_tg;
     @label = "Globe thermometer T, °C";
-  esF      f_wbgt;
+  esF    f_wbgt;
     @label = "Wet bulb globe T, °C";
-  esF      f_wbgts;
+  esF    f_wbgts;
     @label = "Wet bulb globe solar T, °C";
-  esF      f_tr;
+  esF    f_tr;
     @label = "Mean radiant T, °C";
-  esF      f_w;
+  esF    f_w;
     @label = "Heat transfer rate, W/m²";
-  esF      f_p;
+  esF    f_p;
     @label = "Barometric pressure, Pa";
-		
+    
 /// Properties
 ///
-	property ts;
-	read: { return f_ts$value; }		
-	
-	/// Air temperature
-	property tA;
-	read: { return f_ta$value; }
-	property tAvalid;
-	read: { return !(f_state & ET01_Flag$$No_tA); }
-	
-	/// Relative humidity
-	property rH;
-	read: { return f_rh$value; }
-	property rHvalid;
-	read: { return !(f_state & ET01_Flag$$No_rH); }
-	
-	/// Dewpoint temperature
-	property tD;
-	read: { return f_td$value; }
-	property tDvalid;
-	read: { return !(f_state & ET01_Flag$$No_tD); }
-	
-	/// Wet thermometer temperature
-	property tW;
-	read: { return f_tw$value; }
-	property tWvalid;
-	read: { return !(f_state & ET01_Flag$$No_tW); }
-	
-	/// Temperature inside black sphere, valid if sphere is connected
-	property tG;
-	read: { return f_tg$value; }
-	property tGvalid;
-	read: { return !(f_state & ET01_Flag$$No_tG); }
+  property ts;
+  read: { return f_ts$value; }    
+  
+  /// Air temperature
+  property tA;
+  read: { return f_ta$value; }
+  property tAvalid;
+  read: { return !(f_state & ET01_Flag$$No_tA); }
+  
+  /// Relative humidity
+  property rH;
+  read: { return f_rh$value; }
+  property rHvalid;
+  read: { return !(f_state & ET01_Flag$$No_rH); }
+  
+  /// Dewpoint temperature
+  property tD;
+  read: { return f_td$value; }
+  property tDvalid;
+  read: { return !(f_state & ET01_Flag$$No_tD); }
+  
+  /// Wet thermometer temperature
+  property tW;
+  read: { return f_tw$value; }
+  property tWvalid;
+  read: { return !(f_state & ET01_Flag$$No_tW); }
+  
+  /// Temperature inside black sphere, valid if sphere is connected
+  property tG;
+  read: { return f_tg$value; }
+  property tGvalid;
+  read: { return !(f_state & ET01_Flag$$No_tG); }
 
-	/// Index WBGT, valid if sphere is connected
-	property wBgt;
-	read: { return f_wbgt$value; }
-	property wBgtvalid;
-	read: { return !(f_state & ET01_Flag$$No_wBgt); }
+  /// Index WBGT, valid if sphere is connected
+  property wBgt;
+  read: { return f_wbgt$value; }
+  property wBgtvalid;
+  read: { return !(f_state & ET01_Flag$$No_wBgt); }
 
-	/// Index WBGTs, valid if sphere is connected
-	property wBgts;
-	read: { return f_wbgts$value; }
-	property wBgtsvalid;
-	read: { return !(f_state & ET01_Flag$$No_wBgts); }
-	
-	/// Radiation temperature when airflow is less than 1 m/s
-	property tR;
-	read: { return f_tr$value; }
-	property tRvalid;
-	read: { return !(f_state & ET01_Flag$$No_tR); }
-	
-	/// Heat ratiation density
-	property w;
-	read: { return f_w$value; }
-	property wvalid;
-	read: { return !(f_state & ET01_Flag$$No_w); }
-	
-	/// Pressure
-	property p;
-	read: { return f_p$value; }
-	property pvalid;
-	read: { return !(f_state & ET01_Flag$$No_p); }		
+  /// Index WBGTs, valid if sphere is connected
+  property wBgts;
+  read: { return f_wbgts$value; }
+  property wBgtsvalid;
+  read: { return !(f_state & ET01_Flag$$No_wBgts); }
+  
+  /// Radiation temperature when airflow is less than 1 m/s
+  property tR;
+  read: { return f_tr$value; }
+  property tRvalid;
+  read: { return !(f_state & ET01_Flag$$No_tR); }
+  
+  /// Heat ratiation density
+  property w;
+  read: { return f_w$value; }
+  property wvalid;
+  read: { return !(f_state & ET01_Flag$$No_w); }
+  
+  /// Pressure
+  property p;
+  read: { return f_p$value; }
+  property pvalid;
+  read: { return !(f_state & ET01_Flag$$No_p); }    
 }
 
 /// OCTAVA P381_X
 object EsBinDataFileP381xGeomagneticEntry
-	@help = "Geomagnetic field";
+  @help = "Geomagnetic field";
 {
-  esDT   	f_ts;
-		@label = "Timestamp";
-  esU32 			f_duration;
-		@label = "Measurement duration, s";
-  esF 			f_mktlExt;
-		@label = "External field, mktl";
-  esDT 		f_extTs;
-		@label = "Timestamp of external field measurement";
-  esF 			f_mktlCur;
-		@label = "Current field, mktl";
-  esF 			f_mktlMin;
-		@label = "Minimum internal field, detected during measurement, mktl";
-  esF 			f_attCur; 
-		@label = "Current field attenuation";
-	esF 			f_attMax;
-		@label = "Maximum attenuation, detected during measurement";
-	
-	/// Properties
-	///	
-	if( 0 != f_mktlExt && 0 != f_extTs )
-	{
-		property bOutdoors;
-		read: { return f_mktlExt$value; }
-		
-		property tsOutdoors;
-		read: { return f_extTs$value; }
-		
-		property attCur;
-		read: { return f_attCur$value; }
-		
-		property attMax;
-		read: { return f_attMax$value; }
-	}	
-	
-	property ts;
-	read: { return f_ts$value; }
-	
-	/// Timestamp string
-	property tsStr;
-	read: { return f_ts.asString(); }	
-	
-	property duration;
-	read: { return f_duration$value; }
-	
-	property b;
-	read: { return f_mktlCur$value; }
-	
-	property bMin;
-	read: { return f_mktlMin$value; }
+  esDT    f_ts;
+    @label = "Timestamp";
+  esU32   f_duration;
+    @label = "Measurement duration, s";
+  esF     f_mktlExt;
+    @label = "External field, mktl";
+  esDT    f_extTs;
+    @label = "Timestamp of external field measurement";
+  esF     f_mktlCur;
+    @label = "Current field, mktl";
+  esF     f_mktlMin;
+    @label = "Minimum internal field, detected during measurement, mktl";
+  esF     f_attCur; 
+    @label = "Current field attenuation";
+  esF     f_attMax;
+    @label = "Maximum attenuation, detected during measurement";
+  
+  /// Properties
+  /// 
+  if( 0 != f_mktlExt && 0 != f_extTs )
+  {
+    property bOutdoors;
+    read: { return f_mktlExt$value; }
+    
+    property tsOutdoors;
+    read: { return f_extTs$value; }
+    
+    property attCur;
+    read: { return f_attCur$value; }
+    
+    property attMax;
+    read: { return f_attMax$value; }
+  } 
+  
+  property ts;
+  read: { return f_ts$value; }
+  
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); } 
+  
+  property duration;
+  read: { return f_duration$value; }
+  
+  property b;
+  read: { return f_mktlCur$value; }
+  
+  property bMin;
+  read: { return f_mktlMin$value; }
 }
 
 object EsBinDataFileP381xConstMagneticEntry
-	@help = "Constant magnetic field";
+  @help = "Constant magnetic field";
 {
   esDT   f_ts;
-		@label = "Timestamp";
-  esU32 		f_duration;
-		@label = "Measurement duration, s";
-  esF 		f_mktlCur;
-		@label = "Current field, mktl";
-  esF 		f_mktlMax;
-		@label = "Maximum field, detected during measurement, mktl";
-		
-	/// Properties
-	///	
-	property ts;
-	read: { return f_ts$value; }
-	
-	property duration;
-	read: { return f_duration$value; }
-	
-	property b;
-	read: { return f_mktlCur$value; }
-	
-	property bMax;
-	read: { return f_mktlMax$value; }		
+    @label = "Timestamp";
+  esU32  f_duration;
+    @label = "Measurement duration, s";
+  esF    f_mktlCur;
+    @label = "Current field, mktl";
+  esF    f_mktlMax;
+    @label = "Maximum field, detected during measurement, mktl";
+    
+  /// Properties
+  /// 
+  property ts;
+  read: { return f_ts$value; }
+  
+  property duration;
+  read: { return f_duration$value; }
+  
+  property b;
+  read: { return f_mktlCur$value; }
+  
+  property bMax;
+  read: { return f_mktlMax$value; }   
 }
 
 object EsBinDataFileP381x50hzMagneticEntry
-	@help = "50hz magnetic field";
+  @help = "50hz magnetic field";
 {
-  esDT  	f_ts;
-		@label = "Timestamp";
-  esU32 			f_duration;
-		@label = "Measurement duration, s";
-  esF 			f_mktlCur;
-		@label = "Current field, mktl";
-  esF 			f_mktlMax;
-		@label = "Maximum field, detected during measurement, mktl";
-		
-	/// Properties
-	///	
-	property ts;
-	read: { return f_ts$value; }
-	
-	property duration;
-	read: { return f_duration$value; }
-	
-	property b;
-	read: { return f_mktlCur$value; }
-	
-	property bMax;
-	read: { return f_mktlMax$value; }		
+  esDT    f_ts;
+    @label = "Timestamp";
+  esU32   f_duration;
+    @label = "Measurement duration, s";
+  esF     f_mktlCur;
+    @label = "Current field, mktl";
+  esF     f_mktlMax;
+    @label = "Maximum field, detected during measurement, mktl";
+    
+  /// Properties
+  /// 
+  property ts;
+  read: { return f_ts$value; }
+  
+  property duration;
+  read: { return f_duration$value; }
+  
+  property b;
+  read: { return f_mktlCur$value; }
+  
+  property bMax;
+  read: { return f_mktlMax$value; }   
 }
 
 /// OCTAVA P380E
 object EsBinDataFileP380eElectrostaticEntry
-	@help = "Electrostatic field";
+  @help = "Electrostatic field";
 {
-  esDT 		f_ts;
-		@label = "Timestamp";
-  esU32 			f_duration;
-		@label = "Measurement duration, s";
-  esF 			f_e;
-		@label = "Current field, V/m";
-  esF 			f_eMin;
-		@label = "Minimum field, detected during measurement, V/m";
-  esF 			f_eMax;
-		@label = "Maximum field, detected during measurement, V/m";
-		
-	/// Properties
-	///	
-	property ts;
-	read: { return f_ts$value; }
-	
-	property duration;
-	read: { return f_duration$value; }
-	
-	property e;
-	read: { return f_e$value; }
+  esDT    f_ts;
+    @label = "Timestamp";
+  esU32   f_duration;
+    @label = "Measurement duration, s";
+  esF     f_e;
+    @label = "Current field, V/m";
+  esF     f_eMin;
+    @label = "Minimum field, detected during measurement, V/m";
+  esF     f_eMax;
+    @label = "Maximum field, detected during measurement, V/m";
+    
+  /// Properties
+  /// 
+  property ts;
+  read: { return f_ts$value; }
+  
+  property duration;
+  read: { return f_duration$value; }
+  
+  property e;
+  read: { return f_e$value; }
 
-	property eMin;
-	read: { return f_eMin$value; }		
-	
-	property eMax;
-	read: { return f_eMax$value; }		
+  property eMin;
+  read: { return f_eMin$value; }    
+  
+  property eMax;
+  read: { return f_eMax$value; }    
 }
 
 /// RAD spectrum header
 object EsBinDataRadSpecHeader
-	@help = "RAD-01 spectrum header";
+  @help = "RAD-01 spectrum header";
 {
-	esDT f_ts;
-		@label = "Timestamp";
-	esU32 f_errs;
-		@label = "Latched errors at the beginning of measurements";
-	esU16 f_tPump;
-		@label = "Pumping duration, s";
-	esU16 f_tMsr;
-		@label = "Measurement duration, minutes";
-	esF f_na;
-		@label = "Activity in marked windows";
-	esU32 f_nt;
-		@label = "Thoron events";
-	esF f_temperature;
-		@label = "Chamber temperature, °C";
-	esF f_humidity;
-		@label = "Relative humidity, %";
-	esF f_pressure;
-		@label = "Pressure, mm Hg";
-	esU8 f_state;      
-		@label = "Radiometer peripheral state during measurement";
-	esU8 f_pumpSpeed;
-		@label = "Pump speed at which measurement was made";
-	esU8 f_markers[3];
-		@label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
-		
-	/// Properties
-	///
-	property ts;
-	read: { return f_ts$value; }
+  esDT f_ts;
+    @label = "Timestamp";
+  esU32 f_errs;
+    @label = "Latched errors at the beginning of measurements";
+  esU16 f_tPump;
+    @label = "Pumping duration, s";
+  esU16 f_tMsr;
+    @label = "Measurement duration, minutes";
+  esF f_na;
+    @label = "Activity in marked windows";
+  esU32 f_nt;
+    @label = "Thoron events";
+  esF f_temperature;
+    @label = "Chamber temperature, °C";
+  esF f_humidity;
+    @label = "Relative humidity, %";
+  esF f_pressure;
+    @label = "Pressure, mm Hg";
+  esU8 f_state;      
+    @label = "Radiometer peripheral state during measurement";
+  esU8 f_pumpSpeed;
+    @label = "Pump speed at which measurement was made";
+  esU8 f_markers[3];
+    @label = "3 spectrum markers, M0-M1-M2, used in activity measurements";
+    
+  /// Properties
+  ///
+  property ts;
+  read: { return f_ts$value; }
 }
 
 // ----------------------- Generalized page record
 object EsBinDataFilePage
 {
-	// member vars
-	var m_contentTagStr;
-	
-	// fields
+  // member vars
+  var m_contentTagStr;
+  
+  // fields
   EsBinDataFileTag f_tag;
   esU32 f_entrySize;
   esU32 f_entryCnt;
-	
+  
   if( f_tag$isHdrMain ||
       f_tag$isHdrMainAdditional ||
       f_tag$isHdr ||
       f_tag$isHdrAdditional )
   {
     EsBinDataFileTag f_contentTag;
-		
-    if( f_contentTag$tag in [		/// pha-01 tags
-																// old ones
-																"LUX     ", 
-																"CDM     ", 
-																"KEO     ",
-																// new ones
-																"PHA01LUX",
-																"PHA01CDM",
-																"PHA01KEO",
-																// mk-01 tags
-																// old ones
-																"TH      ", 
-																"THV     ", 
-																"IDX     ",
-																// new ones
-																"ET01TH  ",
-																"ET01THV ",
-																"ET01IDX ",
-																// OCTAVA
-																// OCTAVA P381x
-																"P381XGM ",
-																"P381XCM ",
-																"P381X50M",
-																// OCTAVA P380e
-																"P380EST ",
-																// Radon radiometer RAD01
-																"RAD01   "
-																] )
+    
+    if( f_contentTag$tag in [   /// pha-01 tags
+                                // old ones
+                                "LUX     ", 
+                                "CDM     ", 
+                                "KEO     ",
+                                // new ones
+                                "PHA01LUX",
+                                "PHA01CDM",
+                                "PHA01KEO",
+                                // mk-01 tags
+                                // old ones
+                                "TH      ", 
+                                "THV     ", 
+                                "IDX     ",
+                                // new ones
+                                "ET01TH  ",
+                                "ET01THV ",
+                                "ET01IDX ",
+                                // OCTAVA
+                                // OCTAVA P381x
+                                "P381XGM ",
+                                "P381XCM ",
+                                "P381X50M",
+                                // OCTAVA P380e
+                                "P380EST ",
+                                // Radon radiometer RAD01
+                                "RAD01   "
+                                ] )
     {
       EsFirmwareId f_hubId;
         @label = I"Hub ID";
       EsFirmwareId f_applId;
         @label = I"Appliance ID";
   
-			if( f_contentTag$tag in [	"KEO     ", 
-																"PHA01KEO"
-															] )
-			{
-				EsFirmwareId f_auxApplId;
-					@label = I"Aux. appliance ID";
-			}
-			else if( "RAD01   " == f_contentTag$tag )		
-			{
-				EsBinDataRadSpecHeader f_specHdr;
-					@label = I"RAD Spectrum header";
-			}
-		}
+      if( f_contentTag$tag in [ "KEO     ", 
+                                "PHA01KEO"
+                              ] )
+      {
+        EsFirmwareId f_auxApplId;
+          @label = I"Aux. appliance ID";
+      }
+      else if( "RAD01   " == f_contentTag$tag )   
+      {
+        EsBinDataRadSpecHeader f_specHdr;
+          @label = I"RAD Spectrum header";
+      }
+    }
   }
-	else if( f_tag$isData ||
-					 f_tag$isDataAdditional	)
-	{
-		//conditional data arrays
-		if( "LUX     " == m_contentTagStr )
-			EsBinDataFileIlluminanceEntry f_nodes[f_entryCnt];
-		else if( "PHA01LUX" == m_contentTagStr )
-			EsBinDataFileIlluminanceEntry2 f_nodes[f_entryCnt];
-		else if( "CDM     " ==  m_contentTagStr )
-			EsBinDataFileLuminanceEntry f_nodes[f_entryCnt];
-		else if( "PHA01CDM" ==  m_contentTagStr )
-			EsBinDataFileLuminanceEntry2 f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["KEO     ", "PHA01KEO"] )
-			EsBinDataFileDfEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["TH      ", "ET01TH  "] )
-			EsBinDataFileClimaticBaseEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["THV     ", "ET01THV "] )
-			EsBinDataFileClimaticVelocityEntry f_nodes[f_entryCnt];
-		else if( m_contentTagStr in ["IDX     ", "ET01IDX "] )
-			EsBinDataFileClimaticIndexesEntry f_nodes[f_entryCnt];
-		else if( "P381XGM " == m_contentTagStr )
-			EsBinDataFileP381xGeomagneticEntry f_nodes[f_entryCnt];
-		else if( "P381XCM " == m_contentTagStr )
-			EsBinDataFileP381xConstMagneticEntry f_nodes[f_entryCnt];
-		else if( "P381X50M" == m_contentTagStr )
-			EsBinDataFileP381x50hzMagneticEntry f_nodes[f_entryCnt];
-		else if( "P380EST " == m_contentTagStr )
-			EsBinDataFileP380eElectrostaticEntry f_nodes[f_entryCnt];
-		else if( "RAD01   " == m_contentTagStr )
-			esU16 f_nodes[f_entryCnt];
-	}
+  else if( f_tag$isData ||
+           f_tag$isDataAdditional )
+  {
+    //conditional data arrays
+    if( "LUX     " == m_contentTagStr )
+      EsBinDataFileIlluminanceEntry f_nodes[f_entryCnt];
+    else if( "PHA01LUX" == m_contentTagStr )
+      EsBinDataFileIlluminanceEntry2 f_nodes[f_entryCnt];
+    else if( "CDM     " == m_contentTagStr )
+      EsBinDataFileLuminanceEntry f_nodes[f_entryCnt];
+    else if( "PHA01CDM" == m_contentTagStr )
+      EsBinDataFileLuminanceEntry2 f_nodes[f_entryCnt];
+    else if( m_contentTagStr in ["KEO     ", "PHA01KEO"] )
+      EsBinDataFileDfEntry f_nodes[f_entryCnt];
+    else if( m_contentTagStr in ["TH      ", "ET01TH  "] )
+      EsBinDataFileClimaticBaseEntry f_nodes[f_entryCnt];
+    else if( m_contentTagStr in ["THV     ", "ET01THV "] )
+      EsBinDataFileClimaticVelocityEntry f_nodes[f_entryCnt];
+    else if( m_contentTagStr in ["IDX     ", "ET01IDX "] )
+      EsBinDataFileClimaticIndexesEntry f_nodes[f_entryCnt];
+    else if( "P381XGM " == m_contentTagStr )
+      EsBinDataFileP381xGeomagneticEntry f_nodes[f_entryCnt];
+    else if( "P381XCM " == m_contentTagStr )
+      EsBinDataFileP381xConstMagneticEntry f_nodes[f_entryCnt];
+    else if( "P381X50M" == m_contentTagStr )
+      EsBinDataFileP381x50hzMagneticEntry f_nodes[f_entryCnt];
+    else if( "P380EST " == m_contentTagStr )
+      EsBinDataFileP380eElectrostaticEntry f_nodes[f_entryCnt];
+    else if( "RAD01   " == m_contentTagStr )
+      esU16 f_nodes[f_entryCnt];
+  }
 
 /// Methods
 ///
 /// Custom stream writer
-	function streamWrite(stream)
-	{
-		if( !hasField("f_contentTag") )
-			stream.propertiesWrite(this);
-		stream.fieldsWrite(this);
-	}
-	
+  function streamWrite(stream)
+  {
+    if( !hasField("f_contentTag") )
+      stream.propertiesWrite(this);
+    stream.fieldsWrite(this);
+  }
+  
 /// Custom stream reader
-	function streamRead(stream)
-	{
-		stream.propertiesRead(this);
-		stream.fieldsRead(this);	
-	}
-	
+  function streamRead(stream)
+  {
+    stream.propertiesRead(this);
+    stream.fieldsRead(this);  
+  }
+  
 /// Properties
 ///
 /// Delegated from f_tag
   property isHdrMain;
   read: { return f_tag$isHdrMain; }
   property isHdrMainAdditional;
-	read: { return f_tag$isHdrMainAdditional; }  
+  read: { return f_tag$isHdrMainAdditional; }  
   property isHdr;
   read: { return f_tag$isHdr; }
   property isHdrAdditional;
   read: { return f_tag$isHdrAdditional; }
-	property isAnyHeader;
-	read: { return $isHdrMain || $isHdrMainAdditional || $isHdr || $isHdrAdditional; }
-	
+  property isAnyHeader;
+  read: { return $isHdrMain || $isHdrMainAdditional || $isHdr || $isHdrAdditional; }
+  
   property isData;
   read: { return f_tag$isData; }
   property isDataAdditional;
   read: { return f_tag$isDataAdditional; }  
-	property isAnyData;
-	read: { return $isData || $isDataAdditional; }
+  property isAnyData;
+  read: { return $isData || $isDataAdditional; }
 
   property empty;
   read: { return f_tag$empty; }
-	
-	property hubIdStr;
-	read: {
-		if( hasField("f_hubId") )
-			return fieldGet("f_hubId")#asString();
-	}
-	property applianceIdStr;
-	read: {
-	  if( hasField("f_applId") )
+  
+  property hubIdStr;
+  read: {
+    if( hasField("f_hubId") )
+      return fieldGet("f_hubId")#asString();
+  }
+  property applianceIdStr;
+  read: {
+    if( hasField("f_applId") )
       return fieldGet("f_applId")#asString();
   }
-	property auxApplianceIdStr;
-	read: {
-		if( hasField("f_auxApplId") )
-			return fieldGet("f_auxApplId")#asString();
-	}
-	
-	property entryCnt;
-	read: { return f_entryCnt#asULong(); }
-	property nodes;
-	read: { 
-		if( hasField("f_nodes") )
-			return fieldGet("f_nodes"); 
-	}
+  property auxApplianceIdStr;
+  read: {
+    if( hasField("f_auxApplId") )
+      return fieldGet("f_auxApplId")#asString();
+  }
+  
+  property entryCnt;
+  read: { return f_entryCnt#asULong(); }
+  property nodes;
+  read: { 
+    if( hasField("f_nodes") )
+      return fieldGet("f_nodes"); 
+  }
 
-	/// Content tag string
-	property contentTagStr; 
+  /// Content tag string
+  property contentTagStr; 
   @persistent;
-	read: 
-	{
-		if( hasField("f_contentTag") )
-			return fieldGet("f_contentTag")$tag;
-		else if( !m_contentTagStr#isEmpty() )
-			return m_contentTagStr#asString();
-		
-		return "";
-	}
-	write:
-	{
-		// NB! write only to the m_contentTagStr var, do not try to change f_contentTag field
-		m_contentTagStr = __value;
-	}
+  read: 
+  {
+    if( hasField("f_contentTag") )
+      return fieldGet("f_contentTag")$tag;
+    else if( !m_contentTagStr#isEmpty() )
+      return m_contentTagStr#asString();
+    
+    return "";
+  }
+  write:
+  {
+    // NB! write only to the m_contentTagStr var, do not try to change f_contentTag field
+    m_contentTagStr = __value;
+  }
 }
 
 // --------------- bin file parser functions
 //
 function binDataFileBufferParse(buff)
  var cs16calc = new EsChecksum16(), pageIdx, pagesCnt, 
-	pageBuff, pageBuffStart = 0, pageBuffEnd = EsBinDataFile$$PageSize, 
-	curContentTagStr, pg, result = []; //, df;
+  pageBuff, pageBuffStart = 0, pageBuffEnd = EsBinDataFile$$PageSize, 
+  curContentTagStr, pg, result = []; //, df;
 {
   if( !buff#isEmpty() )
   {
-		buff = buff#asBinBuffer();
+    buff = buff#asBinBuffer();
     pagesCnt = buff#countGet() / EsBinDataFile$$PageSize;
     for(pageIdx = 0; pageIdx < pagesCnt; ++pageIdx)
     {
-		  pageBuff = buff#sliceGet(pageBuffStart, pageBuffEnd);
-			cs16calc$buffer = pageBuff;
+      pageBuff = buff#sliceGet(pageBuffStart, pageBuffEnd);
+      cs16calc$buffer = pageBuff;
       if( 0 == cs16calc$value )
-			{
+      {
         //EsScriptDebug::log("Creating page: %d", pageIdx);
-				pg = new EsBinDataFilePage();
-				pg$contentTagStr = curContentTagStr;
+        pg = new EsBinDataFilePage();
+        pg$contentTagStr = curContentTagStr;
 
         // df = new EsFile("D:/Users/vsevolod/Documents/Projects/bigboi-1.0/scripts/page" + pageIdx + ".dat", EsFileFlag$$Write);
         // df.open();
         // df.writeAllAsBinBuffer(pageBuff);
         // df.close();
 
-				pg$buffer = pageBuff;
-				curContentTagStr = pg$contentTagStr;
+        pg$buffer = pageBuff;
+        curContentTagStr = pg$contentTagStr;
 
         //EsScriptDebug::log("Page parsed: %d '%s'", pageIdx, curContentTagStr);
 
-				result += pg;
-				pageBuffStart = pageBuffEnd;
-				pageBuffEnd += EsBinDataFile$$PageSize;
-			}
-			else
-				throw I"Data file page CRC is invalid";
+        result += pg;
+        pageBuffStart = pageBuffEnd;
+        pageBuffEnd += EsBinDataFile$$PageSize;
+      }
+      else
+        throw I"Data file page CRC is invalid";
     }
   }
   
