@@ -398,10 +398,6 @@ object EsBinDataFileClimaticIndexesEntry
     @label = "Wet bulb globe T, °C";
   esF    f_wbgts;
     @label = "Wet bulb globe solar T, °C";
-  esF    f_tr;
-    @label = "Mean radiant T, °C";
-  esF    f_w;
-    @label = "Heat transfer rate, W/m²";
   esF    f_p;
     @label = "Barometric pressure, Pa";
     
@@ -451,18 +447,6 @@ object EsBinDataFileClimaticIndexesEntry
   read: { return f_wbgts$value; }
   property wBgtsvalid;
   read: { return !(f_state & ET01_Flag$$No_wBgts); }
-  
-  /// Radiation temperature when airflow is less than 1 m/s
-  property tR;
-  read: { return f_tr$value; }
-  property tRvalid;
-  read: { return !(f_state & ET01_Flag$$No_tR); }
-  
-  /// Heat ratiation density
-  property w;
-  read: { return f_w$value; }
-  property wvalid;
-  read: { return !(f_state & ET01_Flag$$No_w); }
   
   /// Pressure
   property p;
@@ -790,17 +774,17 @@ object EsBinDataFilePage
   property hubIdStr;
   read: {
     if( hasField("f_hubId") )
-      return fieldGet("f_hubId")#asString();
+      return fieldGet("f_hubId")$fwIdStringEssential;
   }
   property applianceIdStr;
   read: {
     if( hasField("f_applId") )
-      return fieldGet("f_applId")#asString();
+      return fieldGet("f_applId")$fwIdStringEssential;
   }
   property auxApplianceIdStr;
   read: {
     if( hasField("f_auxApplId") )
-      return fieldGet("f_auxApplId")#asString();
+      return fieldGet("f_auxApplId")$fwIdStringEssential;
   }
   
   property entryCnt;

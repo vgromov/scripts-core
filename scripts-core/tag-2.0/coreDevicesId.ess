@@ -384,6 +384,15 @@ object EsFirmwareId
   property fwIdString;
   read: { return asString(); }
   
+  // Return just essential part of fw id string (short device type name + serial number)
+  property fwIdStringEssential;
+  read: { 
+    return asString(
+      EsFirmwareIdFmtFlag$$DescrShort|
+      EsFirmwareIdFmtFlag$$Serial
+    );
+  }
+  
   // read-only access to the dev id components
   property devType;
   read: { return f_devType$value; }

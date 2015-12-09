@@ -281,7 +281,7 @@ object EsDeviceBase
   new()
   {
     if( isRoot() ) 
-	    internalInit(null);
+      internalInit(null);
   }
   
   new( fwId )
