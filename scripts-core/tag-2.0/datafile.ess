@@ -234,6 +234,8 @@ object EsBinDataFileDfEntry
 
 // MK01 appliance
 //
+const c_pa2mmHg = 0.0075;
+
 // MK01-TH
 object EsBinDataFileClimaticBaseEntry
   @help = "Basic climatic data";
@@ -251,7 +253,7 @@ object EsBinDataFileClimaticBaseEntry
   esF     f_tw;
     @label = "Natural wet-bulb T, °C";
   esF     f_p;
-    @label = "Barometric pressure, Pa";
+    @label = "Barometric pressure, mmHg";
     
 /// Properties
 ///
@@ -282,9 +284,9 @@ object EsBinDataFileClimaticBaseEntry
   property tWvalid;
   read: { return !(f_state & ET01_Flag$$No_tW); }
 
-  /// Pressure
+  /// Pressure, mmHg
   property p;
-  read: { return f_p$value; }
+  read: { return f_p$value/c_pa2mmHg; }
   property pvalid;
   read: { return !(f_state & ET01_Flag$$No_p); }
 }
@@ -314,7 +316,7 @@ object EsBinDataFileClimaticVelocityEntry
   esF    f_u;   
     @label = "Air velocity, m/s";
   esF    f_p;
-    @label = "Barometric pressure, Pa";
+    @label = "Barometric pressure, mmHg";
     
 /// Properties
 ///
@@ -371,7 +373,7 @@ object EsBinDataFileClimaticVelocityEntry
 
   /// Pressure
   property p;
-  read: { return f_p$value; }
+  read: { return f_p$value/c_pa2mmHg; }
   property pvalid;
   read: { return !(f_state & ET01_Flag$$No_p); }    
 }
@@ -399,7 +401,7 @@ object EsBinDataFileClimaticIndexesEntry
   esF    f_wbgts;
     @label = "Wet bulb globe solar T, °C";
   esF    f_p;
-    @label = "Barometric pressure, Pa";
+    @label = "Barometric pressure, mmHg";
     
 /// Properties
 ///
@@ -450,7 +452,7 @@ object EsBinDataFileClimaticIndexesEntry
   
   /// Pressure
   property p;
-  read: { return f_p$value; }
+  read: { return f_p$value/c_pa2mmHg; }
   property pvalid;
   read: { return !(f_state & ET01_Flag$$No_p); }    
 }
