@@ -423,7 +423,7 @@ object EsFirmwareId
 }
 
 /// Try to read and return device firmware id object,
-/// using either standard (legacy) method, or the modern one
+/// using either standard method, or the dual one
 ///
 function deviceFwIdRead(rpcMaster, procedureType)
 var fwId, rpcResult;
@@ -453,13 +453,13 @@ function deviceFwIdRead(rpcMaster)
   return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_GET);
 }
 
-/// Try to read and return modern device firmware id object
+/// Try to read and return dual device firmware id object
 function deviceFwIdModernRead(rpcMaster)
 {
   return deviceFwIdRead(rpcMaster, EsRpcStdId$$FWID_MODERN_GET);
 }
 
-/// Try to read and return device firmware ID (in either legacy, or modern mode, depending on caps contents)
+/// Try to read and return device firmware ID (in single, or dual mode, depending on caps contents)
 function deviceKnownCapsFwIdRead(rpcMaster, caps)
 {
   if( caps#isEmpty() ) //< Nothing in caps, stick to generic routine
