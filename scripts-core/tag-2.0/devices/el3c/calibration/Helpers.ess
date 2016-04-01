@@ -23,7 +23,19 @@ function el3cUnitsGet(type)
 function el3ccreate(fwId)
 {
   if( EsDeviceType$$EL3C == fwId$devType )
-    return new EL3C(fwId);  
+    return new EL3C(fwId);
+}
+
+function el3ccreate(fwId, caps)
+var dev;
+{
+  if( EsDeviceType$$EL3C == fwId$devType )
+  {
+    dev = new EL3C(fwId);
+    dev.m_caps = caps;
+  }
+  
+  return dev;
 }
 
 function el3copmodeCheck(device)
