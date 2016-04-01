@@ -9,27 +9,8 @@ const c_el3c_unitCT = "K";
 // el3c-specific rpcs 
 enum EL3C_Rpid
 {
-  // Legacy-mode handlers. PHA-01 ids preserved
-  //
-  LegacyAutosaveIntervalSet = 2048, "VOID_Call_esU8|";
-  LegacyAutosaveIntervalGet = 2049, "esU8_Call|";
-  LegacyCalibrationGet      = 2051, "esBA_Call|";
-  LegacyOperationModeSet    = 2056, "VOID_Call_esU8|";
-  LegacyOperationModeGet    = 2057, "esU8_Call|";
-  LegacyLiveDataGet         = 2058, "esBA_Call|";
-  LegacyDataAtIdxGet        = 2060, "esBA_Call_esU16|";
-  LegacyDataClear           = 2061, "esBL_Call|";
-  LegacyLiveWithBgndStart   = 2073, "VOID_Call_esU16|";
-  LegacyBgndPeriodLeftGet   = 2074, "esU16_Call|";
-
-  // Native handlers
-  // 
-  // Following handlers are used both, in legacy and native modes
   DataCountGet              = 2059, "esU16_Call|Return count of data saved in autonomous mode";
   AllowChargingSet          = 2067, "VOID_Call_esBL|";
-
-  // Pure native handlers
-  //
   WorkmodeSet               = 2080, "VOID_Call_esU32|";
   WorkmodeGet               = 2081, "esU32_Call|";
   LiveDataGet               = 2082, "esBA_Call|";
@@ -57,17 +38,6 @@ enum EL3C_Defs
   BgndExposureMin = 3;
   BgndExposureMax = 60;
   BgndExposureDef = 5;
-}
-
-// photo appliance operation modes
-enum EL3C_LegacyOpMode 
-{
-  None          = 0, "NONE";
-  Idle          = 1, "IDLE operation";
-  Live          = 2, "LIVE operation";
-  Autonomous    = 3, "KEO operation";
-  LiveWoBgnd    = 4, "LIVE operation with background subtraction";
-  Oscilloscope  = 5, "OSCILLOSCOPE operation";
 }
 
 /// PHA Color device error flags and bit masks
@@ -122,44 +92,4 @@ enum EL3C_DataInvalid
   bgndTmo      = 0x00800000;  //(0x0080 << 16);
   xy           = 0x01000000;  //(0x0100 << 16);
   ct           = 0x02000000;  //(0x0200 << 16);
-}
-
-/// Normal opmode to Legacy opmode converter
-function EL3C_toLegacyOpmode(opmode)
-var om = (opmode & 0x0F), omm = (opmode & 0xF0), result = EL3C_LegacyOpMode$$None;
-{
-  if(EL3C_OpMode$$Idle == om)
-    result = EL3C_LegacyOpMode$$Idle;
-  else if( EL3C_OpMode$$Illuminance == om  ||
-           EL3C_OpMode$$Luminance == om )
-  {
-    if( omm & EL3C_OpModeModifier$$Autonomous )
-      result = EL3C_LegacyOpMode$$Autonomous;
-    else if( omm & EL3C_OpModeModifier$$BgndTrim )
-      result = EL3C_LegacyOpMode$$LiveWoBgnd;
-    else
-      result = EL3C_LegacyOpMode$$Live;
-  }
-  else if( EL3C_OpMode$$Oscilloscope == om )
-    result = EL3C_OpMode$$Oscilloscope;
-    
-  return result;
-}
-
-// Legacy opmode to normal opmode converter
-function EL3C_fromLegacyOpmode(legacyOpmode)
-var result = EL3C_OpMode$$None;
-{
-  if( EL3C_LegacyOpMode$$Idle == legacyOpmode )
-    result = EL3C_OpMode$$Idle;
-  else if( EL3C_LegacyOpMode$$Live == legacyOpmode )  
-    result = EL3C_OpMode$$Illuminance;
-  else if( EL3C_LegacyOpMode$$Autonomous == legacyOpmode )
-    result = EL3C_OpMode$$Illuminance|EL3C_OpModeModifier$$Autonomous;
-  else if( EL3C_LegacyOpMode$$LiveWoBgnd == legacyOpmode )
-    result = EL3C_OpMode$$Illuminance|EL3C_OpModeModifier$$BgndTrim;
-  else if( EL3C_LegacyOpMode$$Oscilloscope == legacyOpmode )
-    result = EL3C_OpMode$$Oscilloscope;
-    
-  return result;
 }

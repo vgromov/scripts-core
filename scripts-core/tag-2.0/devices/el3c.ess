@@ -4,7 +4,6 @@
 ##require("el3c/Consts.ess");
 ##require("el3c/CorMatrix.ess");
 ##require("el3c/FmtHelpers.ess");
-##require("el3c/Legacy.ess");
 ##require("el3c/Flags.ess");
 ##require("el3c/Data.ess");
 ##require("el3c/CalibrationAndSettings.ess");
@@ -60,7 +59,6 @@ object EL3C extends EsDeviceBase
     result += EsRpcStdId$$POWER_STATUS_GET;
     result += EsRpcStdId$$FINDME;
     result += EsRpcStdId$$SW_INFO_GET;
-    result += EsRpcStdId$$FWID_MODERN_GET;
     
     return result;
   }
@@ -75,19 +73,14 @@ object EL3C extends EsDeviceBase
       EL3C_Rpid$$WorkmodeGet == rpcId ||
       EL3C_Rpid$$BgndTmoGet == rpcId ||
       EL3C_Rpid$$AutosaveTmoGet == rpcId ||
-      EL3C_Rpid$$DataCountGet == rpcId ||
-      EL3C_Rpid$$LegacyOperationModeGet == rpcId ||
-      EL3C_Rpid$$LegacyBgndPeriodLeftGet == rpcId ||
-      EL3C_Rpid$$LegacyAutosaveIntervalGet == rpcId
+      EL3C_Rpid$$DataCountGet == rpcId
       )
     {
       result = rpcResult;
       
       // in addition, save currently active device opmode
       // it's vital for live data requests handling
-      if( EL3C_Rpid$$LegacyOperationModeGet == rpcId )
-        m_opMode = EL3C_fromLegacyOpmode(result);
-      else if( EL3C_Rpid$$WorkmodeGet == rpcId )
+      if( EL3C_Rpid$$WorkmodeGet == rpcId )
         m_opMode = result;
     }      
     else if( EL3C_Rpid$$CalibrationClearGet == rpcId )
@@ -117,25 +110,6 @@ object EL3C extends EsDeviceBase
     else if( EL3C_Rpid$$DataAtIdxGet == rpcId )
     {
       result = new EL3C_Data();
-      result$buffer = rpcResult#asBinBuffer();
-    }
-    else if( EL3C_Rpid$$LegacyLiveDataGet == rpcId )
-    {
-      if( EL3C_LegacyOpMode$$LiveWoBgnd == EL3C_toLegacyOpmode(m_opMode) )
-        result = new EL3C_LegacyDataWoBgnd();
-      else
-        result = new EL3C_LegacyData();
-        
-      result$buffer = rpcResult#asBinBuffer();
-    }
-    else if( EL3C_Rpid$$LegacyDataAtIdxGet == rpcId )
-    {
-      result = new EL3C_LegacyData();
-      result$buffer = rpcResult#asBinBuffer();
-    }
-    else if( EL3C_Rpid$$LegacyCalibrationGet == rpcId )
-    {
-      result = new EL3C_LegacyCalibrationData();
       result$buffer = rpcResult#asBinBuffer();
     }
     else 
