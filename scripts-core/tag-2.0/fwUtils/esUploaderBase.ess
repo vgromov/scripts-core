@@ -7,7 +7,7 @@ object EsUploaderBase
       m_preferredUploadBaud,
       m_savedBaud;
      
-  // Common channel power manipulators, t augmen entering boot mode
+  // Common channel power manipulators, to augment entering boot mode
   //
   function configurePowerOn(chnl)
   {
@@ -131,7 +131,7 @@ object EsUploaderBase
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
-      EsScriptDebug::log("Preparing for RPC-controlled communication");
+//      EsScriptDebug::log("Preparing for RPC-controlled communication");
       // Prepare for normal communications
       chnlPrepareForDefaultNormalComm(chnl);
       // Power device on in normal mode

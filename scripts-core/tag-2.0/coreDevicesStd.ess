@@ -106,7 +106,7 @@ enum EsHwConfigBitsStd
   BluetoothClassic  = 0x0001, "Classic Bluetooth";
   BluetoothLE       = 0x0002, "Bluetooth Low Energy";
   WiFi              = 0x0004, "Wi-Fi";
-  USB               = 0x0008, "USB slave";
+  USBSlave          = 0x0008, "USB slave";
   Accumulator       = 0x0010, "Rechargeable battery";
 }
 
