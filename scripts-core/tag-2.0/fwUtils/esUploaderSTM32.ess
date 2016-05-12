@@ -12,12 +12,10 @@ object EsUploaderStm32 extends EsUploaderBase
     progressTask.pulse("Shutting down device...");
 
     rpcMaster.activate();
-    // Imitate communication, to prevent device from power off immediately
-    rpcMaster.ping();
     // Command to power off the device
-    configurePowerOff(chnl);
     rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
+    configurePowerOff(chnl);
+//    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
     
     // Wait until device detects power off, and shuts down OK
     EsThreadWorker::sleep(2000);

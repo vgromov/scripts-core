@@ -77,7 +77,7 @@ object EsUploaderNXP extends EsUploaderBase
 		{
 			try
 			{
-        EsScriptDebug::log("Trying to enter boot with shutdown");
+        //EsScriptDebug::log("Trying to enter boot with shutdown");
         
         chnlPrepareForDefaultNormalComm(chnl);       
 				enterBootWithShutdown(progressTask, rpcMaster);
@@ -88,7 +88,7 @@ object EsUploaderNXP extends EsUploaderBase
 			}
 			catch
 			{
-        EsScriptDebug::log("Fail");
+        //EsScriptDebug::log("Fail");
         rpcMaster.deactivate();
       }
 		}
@@ -97,7 +97,7 @@ object EsUploaderNXP extends EsUploaderBase
 		{
 			try
 			{
-        EsScriptDebug::log("Trying to warm-boot");
+        //EsScriptDebug::log("Trying to warm-boot");
         
         chnlPrepareForDefaultNormalComm(chnl);
 				enterBootWithWarmBoot(progressTask, rpcMaster);
@@ -108,14 +108,14 @@ object EsUploaderNXP extends EsUploaderBase
 			}
 			catch
 			{
-        EsScriptDebug::log("Fail");      
+        //EsScriptDebug::log("Fail");      
         rpcMaster.deactivate();
       }
 		}
 		
 		if( supportsPowerCtl && !chnl$useRS232 )
 		{
-      EsScriptDebug::log("Trying to enter boot with natural power-off");
+      //EsScriptDebug::log("Trying to enter boot with natural power-off");
 			enterBootWithNaturalPowerOff(progressTask, rpcMaster);
       chnlPrepareForBootloader(chnl);
         

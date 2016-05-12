@@ -1,3 +1,5 @@
+const c_dumbShutdownTmo = 50;
+
 // Base uploader object implementation
 //
 object EsUploaderBase
@@ -11,15 +13,23 @@ object EsUploaderBase
   //
   function configurePowerOn(chnl)
   {
-    chnl.devicePowerSet(true);
-    EsThreadWorker::sleep(200);
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      //EsScriptDebug::log("configurePowerOn");
+      chnl.devicePowerSet(true);
+      EsThreadWorker::sleep(200);
+    }
   }
 
   function configurePowerOff(chnl)
   {
-    chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
-    chnl.devicePowerSet(false);
-    EsThreadWorker::sleep(500);
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      //EsScriptDebug::log("configurePowerOff");
+      chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
+      chnl.devicePowerSet(false);
+      EsThreadWorker::sleep(500);
+    }
   }
   
   function devicePowerOnInNormalMode(chnl)
@@ -83,6 +93,8 @@ object EsUploaderBase
   ///
   function completeUpload(chnl)
   {
+    //EsScriptDebug::log("Completing upload");
+  
     // Restore baud
     chnl.close();
     chnlPrepareForNormalComm(chnl);
@@ -102,7 +114,7 @@ object EsUploaderBase
 		progressTask.attachTo(__scriptHost$progressMonitor);
     progressTask.pulse("Checking empty device...");
 
-    EsScriptDebug::log("Preparing for default boot communication");
+    //EsScriptDebug::log("Preparing for default boot communication");
     // Prepare channel for bootloader communication
     chnlPrepareForBootloader(chnl);
     // power device normally
@@ -110,28 +122,49 @@ object EsUploaderBase
     
     // Check if we're in bootloader mode (empty chip), trying to sync with bootloader at once
     chnl.open();
-    EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
+    //EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
     deviceIsInBootMode = programmer.checkIfInBoot(chnl);
     chnl.close();  
     
     return deviceIsInBootMode;
   }  
+  
+  function deviceDumbShutdownWait(chnl, tmo)
+  var progressTask = new EsProgressMonitorTask("waitingForShutdownOnTmo");
+  {
+		progressTask.attachTo(__scriptHost$progressMonitor);
+    progressTask.initialize("Waiting for device to shut down on timeout...", tmo, tmo );
     
+    chnlPrepareForBootloader(chnl);
+    configurePowerOff(chnl);
+    
+    while( !__scriptHost$aborting && tmo > 0 )
+    {    
+      EsThreadWorker::sleep(1000);
+      --tmo;
+      progressTask$position = tmo;
+    }
+      
+    configurePowerOn(chnl);    
+  }
+  
   // Upload firmware 
   function upload(rpcMaster)
   var programmer = programmerCreate();
   var chnl = rpcMaster$channel, swInfo,
-    supportedRpcs, deviceIsInBootMode = false;
+    supportedRpcs, deviceIsInBootMode = false, alreadySynched = false;
   {  
     rpcMaster.deactivate();
     m_savedBaud = chnl$baud;
 
     deviceIsInBootMode = checkIfStartedInBoot(chnl, programmer);
+    alreadySynched = deviceIsInBootMode;
     
     // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
-//      EsScriptDebug::log("Preparing for RPC-controlled communication");
+      //EsScriptDebug::log("Preparing for RPC-controlled communication");
+
       // Prepare for normal communications
       chnlPrepareForDefaultNormalComm(chnl);
       // Power device on in normal mode
@@ -142,7 +175,8 @@ object EsUploaderBase
       
       try
       {
-//        EsScriptDebug::log("Getting implemented RPCs");
+        //EsScriptDebug::log("Getting implemented RPCs");
+        
         supportedRpcs = rpcMaster.getImplementedRPCs();
         // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
         if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
@@ -154,7 +188,7 @@ object EsUploaderBase
         }
         rpcMaster.deactivate();
         
-//        EsScriptDebug::log("Implemented RPCs acquired");
+        //EsScriptDebug::log("Implemented RPCs acquired");
       }
       catch
       {
@@ -163,20 +197,23 @@ object EsUploaderBase
         rpcMaster.deactivate();
       }
       
+      //EsScriptDebug::log("Trying to enter boot with RPC shutdown");
       deviceIsInBootMode = configureForBoot(programmer, rpcMaster, supportedRpcs);
     }
      
     chnl.close();
     if( !deviceIsInBootMode )
     {
-      chnlPrepareForBootloader(chnl);
-      devicePowerOnInBootMode(chnl);
+      //EsScriptDebug::log("Performing dumb shutdown");
+      deviceDumbShutdownWait(chnl, c_dumbShutdownTmo);
     }
     chnl.open();
 
     try
     {
-      programmer.program(chnl, deviceIsInBootMode);
+      //EsScriptDebug::log("programmer.program with alreadySynched=%s", alreadySynched ? "Yes" : "No");
+      
+      programmer.program(chnl, alreadySynched);
       completeUpload(chnl);
     }
     catch
