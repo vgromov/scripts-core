@@ -2,9 +2,9 @@
 // software information
 object EsSoftwareCrcInfo
 {
-  esU32 f_crcPrev; // previous CRC32 (as calculated by CRC32 IEEE 802.3)
+  esU32 f_crcPrev;  // previous CRC32 (as calculated by CRC32 IEEE 802.3)
   esU32 f_crcCur;   // current CRC32 (as calculated by CRC32 IEEE 802.3)
-  esDT f_ts;    // CRC change timestamp
+  esDT f_ts;        // CRC change timestamp
   
   property timestamp;
   read: { return f_ts; }
