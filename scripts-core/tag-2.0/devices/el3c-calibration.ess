@@ -241,7 +241,7 @@ function activeSessionSave(pathActive, session)
 var idStr = session$fwIdStr, spath = sessionPathGet(pathActive, idStr);
 var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, spath.pathGet(EsPathFlag$$Default, ""));
 {
-  EsScriptDebug::log("Active session saved");
+  //EsScriptDebug::log("Active session saved");
   stream.objectWrite(session);
   stream.save(spath.pathGet(EsPathFlag$$Default, ""));
 }
@@ -264,8 +264,8 @@ function activeSessionLoadOrCreate(pathActive, device, profile, newMode)
 var response, idStr = device$fwIdStr, stream, session;
 var spath = sessionPathGet(pathActive, idStr);
 {
-  EsScriptDebug::log("spath=%s", spath.pathGet(EsPathFlag$$Default, ""));
-  EsScriptDebug::log("spath exists? %s", spath.exists("") ? "yes" : "no");
+  //EsScriptDebug::log("spath=%s", spath.pathGet(EsPathFlag$$Default, ""));
+  //EsScriptDebug::log("spath exists? %s", spath.exists("") ? "yes" : "no");
 
   // try to find existing active session file first
   if( spath.exists("") )
@@ -274,7 +274,7 @@ var spath = sessionPathGet(pathActive, idStr);
     stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, spath.pathGet(EsPathFlag$$Default, ""));
     if( stream.firstRootObjectLocate() )
     {
-      EsScriptDebug::log("Session object located");
+      //EsScriptDebug::log("Session object located");
       
       stream.objectRead(session);
       if( session.m_bak.f_fwId != device$fwId )
