@@ -157,6 +157,7 @@ object EL3C_ClearProfileNode
   
   /// Node integration preferences
   property integrationType;
+  @persistent;
   read: { 
     if( !m_integrationType#isEmpty() )
       return m_integrationType;
