@@ -9,7 +9,8 @@ object EL3C_ClearProfileNode
       m_rawOsram,         // Raw uncalibrated value of OSRAM sensor used to calculated spline node
       m_rawMax4400x,      // Raw uncalibrated value of MAX4400x sensor used to calculated spline node
       m_verified,         // Calibrated value written during verification stage
-      m_system;           // System node marker - we may not delete these nodes
+      m_system,           // System node marker - we may not delete these nodes
+      m_integrationType;  // Integration type allowed for this profile node. Used for template profile nodes only. ignored otherwise.
     
   function compare(other)
   {
@@ -44,12 +45,13 @@ object EL3C_ClearProfileNode
     m_deviation = deviation#asDouble();  
   }  
     
-  new(ref, deviation)
+  new(ref, deviation, integrationType)
   {
     refValidate(ref);
     m_ref = ref#asDouble();
     deviationSet(deviation);
     m_system = false;
+    m_integrationType = integrationType;
   }
 
   /// Custom stream writer
@@ -153,6 +155,23 @@ object EL3C_ClearProfileNode
   property hasRawValues;
   read: { return $hasRawOsram || $hasRawMax4400x; }
   
+  /// Node integration preferences
+  property integrationType;
+  read: { 
+    if( !m_integrationType#isEmpty() )
+      return m_integrationType;
+    
+    return 3;
+  }
+  write: { 
+    if( __value > 3 ) 
+      m_integrationType = 3; //< All
+    else if( __value < 1 )
+      m_integrationType = 2; //< Slow only
+    else
+      m_integrationType = __value;
+  }
+  
   /// Return system flag
   property isSystem;
   read: { return m_system#asBool(); }
@@ -175,14 +194,26 @@ object EL3C_ClearCalibrationProfile
     if( type in [EL3C_CalibrationType$$Illuminance .. EL3C_CalibrationType$$Luminance] )
     {
       // Lux and Cdm will have at least one zero system point
-      result += new EL3C_ClearProfileNode(0, 0.1);
+      result += new EL3C_ClearProfileNode(
+        0, 
+        0.1, 
+        3     //< Integrate both
+      );
       result[0].m_system = true;
     }
     else
     {
       // Pulsation will always have 2 system points - 0 and 100%
-      result += new EL3C_ClearProfileNode(0, 0.1);
-      result += new EL3C_ClearProfileNode(100, 0.1);
+      result += new EL3C_ClearProfileNode(
+        0, 
+        0.1,
+        3     //< Integrate both
+      );
+      result += new EL3C_ClearProfileNode(
+        100, 
+        0.1,
+        1     //< Integrate fast only
+      );
       result[0].m_system = true;
       result[1].m_system = true;
       // Moreover, we can pre-set raw values for system nodes as well
@@ -424,10 +455,10 @@ object EL3C_ClearCalibrationProfile
   }
   
   /// Add node to profile
-  function nodeAdd(type, ref, deviation)
+  function nodeAdd(type, ref, deviation, integrationType)
   var newNode;
   {
-    newNode = new EL3C_ClearProfileNode(ref, deviation);
+    newNode = new EL3C_ClearProfileNode(ref, deviation, integrationType);
 
     el3cClearCalibrationTypeCheck(type);
     if( EL3C_CalibrationType$$Illuminance == type )
@@ -472,7 +503,7 @@ object EL3C_ClearCalibrationProfile
     splinesUpdate(type);      
   }
   
-  function nodeSet(type, idx, ref, deviation)
+  function nodeSet(type, idx, ref, deviation, integrationType)
   var nodes;
   {
     if( isSystemNode(type, idx) )
@@ -488,7 +519,7 @@ object EL3C_ClearCalibrationProfile
     else
     {
       nodeDelete(type, idx);
-      nodeAdd(type, ref, deviation);
+      nodeAdd(type, ref, deviation, integrationType);
     }
   }
  
