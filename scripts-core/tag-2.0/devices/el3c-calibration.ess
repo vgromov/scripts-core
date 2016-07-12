@@ -271,7 +271,11 @@ var spath = sessionPathGet(pathActive, idStr);
   if( spath.exists("") )
   {
     session = new EL3C_CalibrationSession();
-    stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, spath.pathGet(EsPathFlag$$Default, ""));
+    stream = new EsStreamXml(
+      EsStreamFlag$$Read|EsStreamFlag$$File|EsStreamFlag$$NonStrictProperties, 
+      spath.pathGet(EsPathFlag$$Default, "")
+    );
+
     if( stream.firstRootObjectLocate() )
     {
       //EsScriptDebug::log("Session object located");
