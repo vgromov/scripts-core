@@ -38,61 +38,6 @@ object EL3C_CalibrationSession
     // TODO:m_profileColor = 
   }
   
-  /// Clear calibration simulation. Calculate pair of calibrated values [clear, color],
-  /// taking raw data struct as input, and using dataType to specify which calibration spline
-  /// to use, and how to interpret input values
-  ///
-  function calibrationSimulationGet(rawData, type)
-  var splineClear, splineColor, result = [null, null], 
-      raw, simulated;
-  {
-    // Clear calibration simulation
-    el3cClearCalibrationTypeCheck(type);
-    raw = [null, null];
-    simulated = [null, null];
-    if( EL3C_CalibrationType$$Illuminance == type )
-    {
-      splineClear = m_cur$calClear$calIlluminance;
-      splineColor = m_cur$calColor$calIlluminance;
-    }
-    else if( EL3C_CalibrationType$$Luminance == type )
-    {
-      splineClear = m_cur$calClear$calLuminance;
-      splineColor = m_cur$calColor$calLuminance;
-    }
-    else if( EL3C_CalibrationType$$Pulsation == type )
-      splineClear = m_cur$calClear$calPulsation;
-    
-    if( !splineClear#isEmpty() && splineClear$valid )
-    {
-      if( EL3C_CalibrationType$$Pulsation == type )
-        raw[0] = rawData$kpi;
-      else
-        raw[0] = rawData$val;
-      
-      simulated[0] = splineClear.calculate( raw[0] );
-        
-      if( simulated[0] < 0 )
-        simulated[0] = 0;
-    }
-
-    if( !splineColor#isEmpty() && splineColor$valid )
-    {
-      raw[1] = rawData$white;
-      simulated[1] = splineColor.calculate( raw[1] );
-      
-      if( simulated[1] < 0 )
-        simulated[1] = 0;
-    }
-    
-    result[0] = raw;
-    result[1] = simulated;
-    
-    // TODO: color XYZ|CCT simulation
-    
-    return result;
-  }
-  
   /// Restore calibration from bak storage
   function settingsRestore(device)
   var response = device.settingsUpload(m_bak);  
