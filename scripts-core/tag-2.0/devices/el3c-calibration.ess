@@ -242,7 +242,11 @@ var spath = sessionPathGet(pathActive, idStr);
   response = device.settingsDownload();
   if( response[0] )
   {
-    session = new EL3C_CalibrationSession(newMode, response[1], profile);
+    session = new EL3C_CalibrationSession(
+      newMode, 
+      response[1], 
+      profile
+    );
     activeSessionSave(pathActive, session);
   }
   
