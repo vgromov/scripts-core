@@ -308,7 +308,7 @@ object EsMcuprogNxp
     chnl.open(); //< Just in case...
     ok = syncWithBootloader(chnl, 20, false);
     
-    EsScriptDebug::log("In Boot: %s", ok);
+//    EsScriptDebug::log("In Boot: %s", ok);
     
     return ok;
   }
@@ -323,7 +323,7 @@ object EsMcuprogNxp
     m_regex$pattern = requestStr+"(?:\r|\n)\n?OK\r\n";
     m_regex$text = EsStr::fromByteString(response);
 
-    EsScriptDebug::log("OSC response: '%s'", m_regex$text);
+//    EsScriptDebug::log("OSC response: '%s'", m_regex$text);
 
     if( !m_regex$matches )
       throw "No answer on 'Oscillator' command";
