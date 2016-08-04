@@ -244,7 +244,7 @@ object EsMcuprogStm32
         cnt = m_response[0]+1;  
         m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
 
-        //EsScriptDebug::log("bootcodeVerAndCmdsRead: '%s'", m_response);
+        EsScriptDebug::log("bootcodeVerAndCmdsRead: '%s'", m_response);
 
         if( cnt == m_response#countGet() )
         {
@@ -610,7 +610,7 @@ object EsMcuprogStm32
     dbRec, idRec, idRecs, dbRecs = [],
     blIdAddr, blId, size, sizeAddr;  
   {
-    //EsScriptDebug::log("identify");
+    EsScriptDebug::log("identify, tmo = %d ms", tmo);
   
     // Read bootcode version and available commands
     progressTask.pulse("Reading bootloader information...");
