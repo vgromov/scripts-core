@@ -1,5 +1,7 @@
 const c_dumbShutdownTmo = 50;
 
+const ES_EVTC_FWUPLOADER = "ES_EVTC_FWUPLOADER";
+
 // Base uploader object implementation
 //
 object EsUploaderBase
@@ -7,8 +9,29 @@ object EsUploaderBase
   var m_moniker, 
       m_defaultBaud,
       m_preferredUploadBaud,
-      m_savedBaud;
+      m_savedBaud,
+      m_cancelled,
+      m_evtHandler;
      
+  new()
+  {
+    m_cancelled = false;
+    m_evtHandler = EsEventHandler::createAsync(
+      this,
+      ES_EVTC_FWUPLOADER
+    );
+    m_evtHandler$active = false;
+  }  
+    
+  // Event handling
+  function onEvent(evt)
+  {
+    if( ES_EVTC_FWUPLOADER == evt$category && 
+        0 == evt$id 
+    )
+      m_cancelled = true;
+  }
+    
   // Common channel power manipulators, to augment entering boot mode
   //
   function configurePowerOn(chnl)
@@ -72,6 +95,7 @@ object EsUploaderBase
   ///
   function chnlPrepareForBootloader(chnl)
   {
+    //EsScriptDebug::log("chnlPrepareForBootloader");
     chnl$baud = m_preferredUploadBaud;  
   }
     
@@ -79,6 +103,7 @@ object EsUploaderBase
   // using default baudrate
   function chnlPrepareForDefaultNormalComm(chnl)
   {
+    //EsScriptDebug::log("chnlPrepareForDefaultNormalComm");
     chnl$baud = m_defaultBaud;
   }  
 
@@ -86,6 +111,7 @@ object EsUploaderBase
   // using saved baudrate
   function chnlPrepareForNormalComm(chnl)
   {
+    //EsScriptDebug::log("chnlPrepareForNormalComm");
     chnl$baud = m_savedBaud;
   }  
   
@@ -133,17 +159,22 @@ object EsUploaderBase
   var progressTask = new EsProgressMonitorTask("waitingForShutdownOnTmo");
   {
 		progressTask.attachTo(__scriptHost$progressMonitor);
-    progressTask.initialize("Waiting for device to shut down on timeout...", tmo, tmo );
+    progressTask.initialize("Waiting for device to shut down on timeout...", tmo*1000, tmo*1000 );
     
     chnlPrepareForBootloader(chnl);
     configurePowerOff(chnl);
     
-    while( !__scriptHost$aborting && tmo > 0 )
+    m_cancelled = false;
+    m_evtHandler$active = true;
+    while( !__scriptHost$aborting && tmo > 0 && !m_cancelled )
     {    
-      EsThreadWorker::sleep(1000);
-      --tmo;
+      EsThreadWorker::sleep(100);
+      m_evtHandler.eventProcess();
+
+      tmo -= 100;
       progressTask$position = tmo;
     }
+    m_evtHandler$active = false;
       
     configurePowerOn(chnl);    
   }

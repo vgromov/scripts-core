@@ -127,17 +127,29 @@ object EsMcuprogStm32
 
     if( m_response.countGet() )
     {
-      // EsScriptDebug::log("ACK or NACK response: %0X", m_response[0]);  
+      //EsScriptDebug::log("ACK or NACK response: %0X", m_response[0]);  
       // Define ACK and NACK values to be used in BL, the first time known ACK is read
-      if( m_ack#isEmpty() && 
-          m_response[0] in c_stm32ACKs )
-      {
-        m_ack = m_response[0];
-        if( c_stm32ACKs[0] == m_ack )
-          m_nack = c_stm32NACKs[0];
+      if( m_ack#isEmpty() )
+      {      
+        if( m_response[0] in c_stm32ACKs )
+        {
+          m_ack = m_response[0];
+          if( c_stm32ACKs[0] == m_ack )
+            m_nack = c_stm32NACKs[0];
+          else
+            m_nack = c_stm32NACKs[1];
+        }
+        else if( m_response[0] in c_stm32NACKs )
+        {
+          m_nack = m_response[0];
+          if( c_stm32NACKs[0] == m_nack )
+            m_ack = c_stm32ACKs[0];
+          else
+            m_ack = c_stm32ACKs[1];
+        }
         else
-          m_nack = c_stm32NACKs[1];
-          
+          throw "Could not determine ACK and NACK control. Unknown MCU response.";
+        
         //EsScriptDebug::log("ACK: 0x%0X, NACK: 0x%0X", m_ack, m_nack);  
       }
               
@@ -177,10 +189,11 @@ object EsMcuprogStm32
       chnl.reset();
       
       if( 1 == chnl.bytesPut(m_request, 100) &&
-          EsStm32response$$ACK == ackOrNackRead(chnl, 1000) )
+          EsStm32response$$None != ackOrNackRead(chnl, 500) 
+      )
       {
         // Skip any extra IN bytes which device may send after entering BL
-        while( chnl.bytesGet(1, 100) );
+//        while( chnl.bytesGet(100, 100) );
         
         m_synched = true;
         break;
@@ -234,25 +247,27 @@ object EsMcuprogStm32
   
   /// Read BL code version and available commands
   function bootcodeVerAndCmdsRead(chnl, tmo)
-  var cnt;
+  var cnt, stat;
   {
-    if( EsStm32response$$ACK == cmdWrite(chnl, 0x00, tmo) )
+    stat = cmdWrite(chnl, 0x00, tmo);
+    if( EsStm32response$$ACK != stat )
+      return stat;
+      
+    m_response = chnl.bytesGet(1, tmo);
+     
+    if( m_response.countGet() )
     {
-      m_response = chnl.bytesGet(1, tmo);
-      if( m_response.countGet() )
+      cnt = m_response[0]+1;  
+      m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
+
+      //EsScriptDebug::log("bootcodeVerAndCmdsRead: '%s'", m_response);
+
+      if( cnt == m_response#countGet() )
       {
-        cnt = m_response[0]+1;  
-        m_response = chnl.bytesGet(cnt, tmo + chnl.txTimeEstimateGet(cnt));
-
-        EsScriptDebug::log("bootcodeVerAndCmdsRead: '%s'", m_response);
-
-        if( cnt == m_response#countGet() )
-        {
-          m_bootVer = m_response[0];
-          m_cmdsAvail = m_response#sliceGet(1, cnt);
-          
-          return ackOrNackRead(chnl, tmo);
-        }
+        m_bootVer = m_response[0];
+        m_cmdsAvail = m_response#sliceGet(1, cnt);
+        
+        return ackOrNackRead(chnl, tmo);
       }
     }
     
@@ -610,7 +625,7 @@ object EsMcuprogStm32
     dbRec, idRec, idRecs, dbRecs = [],
     blIdAddr, blId, size, sizeAddr;  
   {
-    EsScriptDebug::log("identify, tmo = %d ms", tmo);
+    //EsScriptDebug::log("identify, tmo = %d", tmo);
   
     // Read bootcode version and available commands
     progressTask.pulse("Reading bootloader information...");
@@ -701,7 +716,7 @@ object EsMcuprogStm32
   ///  
   function bootConnectAndIdentify(chnl, tmo)
   {
-    //EsScriptDebug::log("bootConnectAndIdentify");
+    //EsScriptDebug::log("bootConnectAndIdentify, tmo = %d", tmo);
   
     // Reset our internal status vars
     reset();
@@ -821,11 +836,11 @@ object EsMcuprogStm32
     err;
   {
     if( !isAlreadySynched )
-      bootConnectAndIdentify(chnl, 2000);
+      bootConnectAndIdentify(chnl, 500);
     else
     {
       m_synched = isAlreadySynched;
-      identify(chnl, 2000);
+      identify(chnl, 500);
     }
     
     progressTask = new EsProgressMonitorTask("firmwareProgramming");

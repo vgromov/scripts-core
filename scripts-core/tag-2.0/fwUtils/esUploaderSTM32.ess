@@ -6,25 +6,6 @@
 
 object EsUploaderStm32 extends EsUploaderBase
 {
-  function enterBootWithShutdown(progressTask, rpcMaster)
-  var chnl = rpcMaster$channel;
-  {
-    progressTask.pulse("Shutting down device...");
-
-    rpcMaster.activate();
-    // Command to power off the device
-    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
-    configurePowerOff(chnl);
-//    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
-    
-    // Wait until device detects power off, and shuts down OK
-    EsThreadWorker::sleep(2000);
-    
-    configurePowerOn(chnl);
-
-    rpcMaster.deactivate();
-  }
-  
   /// Base class overrides
   ///
   function programmerCreate()
@@ -41,7 +22,7 @@ object EsUploaderStm32 extends EsUploaderBase
     EsUploaderBase::chnlPrepareForBootloader(chnl);
     chnl$parity = EsEkonnectIoParity$$Even;  
   }
-    
+
   function chnlPrepareForDefaultNormalComm(chnl)
   {
     EsUploaderBase::chnlPrepareForDefaultNormalComm(chnl);
@@ -55,6 +36,25 @@ object EsUploaderStm32 extends EsUploaderBase
     EsUploaderBase::chnlPrepareForNormalComm(chnl);
     chnl$parity = EsEkonnectIoParity$$None;
   }  
+  
+  function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
+  {
+    progressTask.pulse("Shutting down device...");
+
+    rpcMaster.activate();
+    // Command to power off the device
+    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    configurePowerOff(chnl);
+//    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
+    
+    // Wait until device detects power off, and shuts down OK
+    EsThreadWorker::sleep(2000);
+    chnlPrepareForBootloader(chnl);
+    configurePowerOn(chnl);
+
+    rpcMaster.deactivate();
+  }
   
   // Configure and enter boot mode, before programming device with ISP
   function configureForBoot(programmer, rpcMaster, supportedRpcs)
