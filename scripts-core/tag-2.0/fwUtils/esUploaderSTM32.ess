@@ -17,23 +17,23 @@ object EsUploaderStm32 extends EsUploaderBase
     );
   }
   
-  function chnlPrepareForBootloader(chnl)
+  function doChnlPrepareForBootloader(chnl)
   {
-    EsUploaderBase::chnlPrepareForBootloader(chnl);
+    EsUploaderBase::doChnlPrepareForBootloader(chnl);
     chnl$parity = EsEkonnectIoParity$$Even;  
   }
 
-  function chnlPrepareForDefaultNormalComm(chnl)
+  function doChnlPrepareForDefaultNormalComm(chnl)
   {
-    EsUploaderBase::chnlPrepareForDefaultNormalComm(chnl);
+    EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
     chnl$parity = EsEkonnectIoParity$$None;
   }  
 
   // Restore channel settings, appicable for normal (ES-RPC) communications,
   // using saved baudrate
-  function chnlPrepareForNormalComm(chnl)
+  function doChnlPrepareForNormalComm(chnl)
   {
-    EsUploaderBase::chnlPrepareForNormalComm(chnl);
+    EsUploaderBase::doChnlPrepareForNormalComm(chnl);
     chnl$parity = EsEkonnectIoParity$$None;
   }  
   

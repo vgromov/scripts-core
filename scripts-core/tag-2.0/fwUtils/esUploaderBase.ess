@@ -93,26 +93,76 @@ object EsUploaderBase
   /// This method prepares channel for bootloader communications, if needed.
   /// Some bootloaders may use non-default parity, byte size, etc.
   ///
-  function chnlPrepareForBootloader(chnl)
+  function doChnlPrepareForBootloader(chnl)
   {
-    //EsScriptDebug::log("chnlPrepareForBootloader");
+    //EsScriptDebug::log("doChnlPrepareForBootloader");
     chnl$baud = m_preferredUploadBaud;  
+  }
+  
+  function chnlPrepareForBootloader(chnl)
+  var reopen = chnl.isOpen();
+  {
+    try
+    {
+      chnl.close();
+      doChnlPrepareForBootloader(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
   }
     
   // Restore channel settings, appicable for normal (ES-RPC) communications,
   // using default baudrate
-  function chnlPrepareForDefaultNormalComm(chnl)
-  {
-    //EsScriptDebug::log("chnlPrepareForDefaultNormalComm");
+  //
+  function doChnlPrepareForDefaultNormalComm(chnl)
+  {  
+    //EsScriptDebug::log("doChnlPrepareForDefaultNormalComm");
     chnl$baud = m_defaultBaud;
-  }  
+  }
+    
+  function chnlPrepareForDefaultNormalComm(chnl)
+  var reopen = chnl.isOpen();
+  {
+    try
+    {
+      chnl.close();
+      doChnlPrepareForDefaultNormalComm(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
+  }
 
   // Restore channel settings, appicable for normal (ES-RPC) communications,
   // using saved baudrate
-  function chnlPrepareForNormalComm(chnl)
+  //
+  function doChnlPrepareForNormalComm(chnl)
   {
     //EsScriptDebug::log("chnlPrepareForNormalComm");
     chnl$baud = m_savedBaud;
+  }  
+  
+  function chnlPrepareForNormalComm(chnl)
+  var reopen = chnl.isOpen();
+  {
+    try
+    {
+      chnl.close();
+      doChnlPrepareForNormalComm(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
   }  
   
   /// Method to be called upon firmware upload completion
@@ -121,9 +171,7 @@ object EsUploaderBase
   {
     //EsScriptDebug::log("Completing upload");
   
-    // Restore baud
-    chnl.close();
-    chnlPrepareForNormalComm(chnl);
+    chnlPrepareForDefaultNormalComm(chnl);
     // restore normal power
     devicePowerOnInNormalMode(chnl);
   }
@@ -141,6 +189,7 @@ object EsUploaderBase
     progressTask.pulse("Checking empty device...");
 
     //EsScriptDebug::log("Preparing for default boot communication");
+    chnl.close();
     // Prepare channel for bootloader communication
     chnlPrepareForBootloader(chnl);
     // power device normally
