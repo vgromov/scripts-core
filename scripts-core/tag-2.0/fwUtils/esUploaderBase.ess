@@ -51,7 +51,7 @@ object EsUploaderBase
       //EsScriptDebug::log("configurePowerOff");
       chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
       chnl.devicePowerSet(false);
-      EsThreadWorker::sleep(500);
+      EsThreadWorker::sleep(1000);
     }
   }
   

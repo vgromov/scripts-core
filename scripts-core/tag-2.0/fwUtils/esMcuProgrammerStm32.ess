@@ -189,7 +189,7 @@ object EsMcuprogStm32
       chnl.reset();
       
       if( 1 == chnl.bytesPut(m_request, 100) &&
-          EsStm32response$$None != ackOrNackRead(chnl, 500) 
+          EsStm32response$$None != ackOrNackRead(chnl, 1000) 
       )
       {
         // Skip any extra IN bytes which device may send after entering BL
@@ -836,11 +836,11 @@ object EsMcuprogStm32
     err;
   {
     if( !isAlreadySynched )
-      bootConnectAndIdentify(chnl, 500);
+      bootConnectAndIdentify(chnl, 1000);
     else
     {
       m_synched = isAlreadySynched;
-      identify(chnl, 500);
+      identify(chnl, 1000);
     }
     
     progressTask = new EsProgressMonitorTask("firmwareProgramming");
