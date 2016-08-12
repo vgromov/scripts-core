@@ -38,14 +38,22 @@ var dev;
   return dev;
 }
 
-function el3copmodeCheck(device)
-var result;
+function el3copmodeCheck(device, opmode)
+var result, opmodeNeeded;
 {
   result = device.rpcCall(EL3C_Rpid$$WorkmodeGet, null);
   if( result[0] )
   {
     if( !(result[1] in [EL3C_OpMode$$Illuminance .. EL3C_OpMode$$Luminance]) )
-      result = device.rpcCall(EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Illuminance);
+      opmodeNeeded = EL3C_OpMode$$Illuminance;
+    
+    if( !opmode#isEmpty() && 
+        (opmode in [EL3C_OpMode$$Illuminance .. EL3C_OpMode$$Luminance])
+    )
+      opmodeNeeded = opmode;
+      
+    if( opmodeNeeded != result[1] )  
+      result = device.rpcCall(EL3C_Rpid$$WorkmodeSet, opmodeNeeded);
     
     return result[0];
   }
