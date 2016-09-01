@@ -438,7 +438,7 @@ object EsDeviceBase
     if( !batchItem#isIndexed() )
       throw I"Device io batch item must be of indexed type";
     
-    if( 2 != batchItem.countGet() )
+    if( 2 > batchItem.countGet() )
       throw I"Wrong device io batch item member count.";
   }
   
@@ -481,6 +481,10 @@ object EsDeviceBase
         onIoSuccess();
         // 5) handle its result - call result handler, if registered for rpcId
         rpcResult = rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+        if( batchItem.countGet() > 2 && !batchItem[2]#isEmpty() )
+          EsThreadWorker::sleep(
+            batchItem[2]
+          );
    
         stepResult = [];
         stepResult += true; stepResult#append(rpcResult);

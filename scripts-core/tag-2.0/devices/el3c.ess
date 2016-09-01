@@ -185,6 +185,11 @@ object EL3C extends EsDeviceBase
       throw "Could not upload incompatible device settings";
     
     settings.crcUpdate();
+
+    batchItem += EL3C_Rpid$$WorkmodeSet;
+    batchItem += EL3C_OpMode$$Idle;
+    batch#append(batchItem);
+    batchItem = [];
     
     batchItem += EL3C_Rpid$$AutosaveTmoSet;
     batchItem += settings.f_autosaveInterval;
