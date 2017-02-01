@@ -1,22 +1,43 @@
-echo OFF
+rem echo OFF
 rem Find scripting console
 set CURPATH=%cd%
-set ESSCON1=d:\Programs\Eco-Electronics\ess-console\ess-console.exe
-set ESSCON2=%CURPATH%\..\bin\Win32\Debug\ess-console_ecc18.exe
-set ESSCON3=%CURPATH%\..\bin\Win32\Release\ess-console_ecc18.exe
 
-if exist "%ESSCON1%" (
+for /r "D:\Programs\Eco-Electronics" %%a in (*) do (
+  if "%%~nxa"=="ess-console.exe" (
+    set ESSCON1=%%~dpnxa
+    goto essc_found
+  )
+)
+
+for /r "%ProgramFiles%" %%a in (*) do (
+  if "%%~nxa"=="ess-console.exe" (
+    set ESSCON2=%%~dpnxa
+    goto essc_found
+  )
+)
+
+set ESSCON3=%CURPATH%\..\bin\Win32\Debug\ess-console_ecc18.exe
+set ESSCON4=%CURPATH%\..\bin\Win32\Release\ess-console_ecc18.exe
+
+:essc_found
+
+if defined ESSCON1 (
 	set ESSCON="%ESSCON1%"
 	goto main
 ) 
 
-if exist "%ESSCON2%" (
+if defined ESSCON2 (
 	set ESSCON="%ESSCON2%"
 	goto main
 ) 
 
 if exist "%ESSCON3%" (  
 	set ESSCON="%ESSCON3%"
+	goto main
+)	
+
+if exist "%ESSCON4%" (  
+	set ESSCON="%ESSCON4%"
 	goto main
 )	
 
