@@ -44,6 +44,10 @@ for /r "%ProgramFiles%\ECO-E" %%a in (*) do (
   )
 )
 
+echo Could not find ESS scripting console executable
+goto exit
+
+
 :essc_found
 
 if exist "%ESSCON1%" (
@@ -55,9 +59,6 @@ if exist "%ESSCON2%" (
 	set ESSCON="%ESSCON2%"
 	goto main
 ) 
-
-echo Could not find ESS scripting console executable
-goto exit
 
 :main
 rem Check if compiled binary present, and if not, compile it
