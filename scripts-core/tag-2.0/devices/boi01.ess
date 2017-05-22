@@ -121,14 +121,20 @@ object BOI01 extends EsDeviceBase
 ///
   function dirItemsEnum(task, absDir, excludeNames, includeAttrs)
   var result = dirListStart(absDir), item, items = [];
+  var subtask;
   {
     if( result[0] )
     {
 //      EsScriptDebug::log("Enumerating: %s", absDir);
+      subtask = new EsProgressMonitorTask( 
+        EsPath::makeSafe(absDir),  
+        EsStr::format(
+          I"Enumerating: '%s'", 
+          absDir
+        )
+      );
+      subtask.attachTo(task);
     
-      // start action progress
-      task$text = EsStr::format(I"Enumerating: '%s'", absDir);
-            
       while(true)
       {
         result = dirListGetNextItem();
@@ -152,14 +158,14 @@ object BOI01 extends EsDeviceBase
 //            EsScriptDebug::log("Enumerated: %s", item$name);
             
             // handle progress notification
-            task$text = EsStr::format(I"Found: '%s'", item$name);
+            subtask$text = EsStr::format(I"Found: '%s'", item$name);
           }
         }
         else
           break;
       }
       // end action progress
-      task.end( EsStr::format(I"Enumerated: '%s'", absDir) );
+      subtask.end( EsStr::format(I"Enumerated: '%s'", absDir) );
     }
     
     return result;
@@ -182,10 +188,11 @@ object BOI01 extends EsDeviceBase
     dataBlocks, dataBlock = ["", null], 
     deviceDataBlocks, deviceDataBlock = ["", null],
     deviceSessions, deviceSession = ["", "", 0],
-    task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) ) ,
+    task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) ),
     internalResult, result;
   {
     task.attachTo(__scriptHost$progressMonitor);
+    task$text = I"Enumerating saved data...";
     result = dirItemsEnum(task, "/", [".", ".."], EsFsItemAttribute$$Directory);
     if( result[0] )
     {
@@ -255,7 +262,13 @@ object BOI01 extends EsDeviceBase
                     deviceSessions = [];
                     // enumerate device sessions
                     plgDeviceSessionsDir = plgDataTypeDir+"/"+deviceSerial;
-                    internalResult = dirItemsEnum(task, plgDeviceSessionsDir, [".", "..", "LISTING.DAT"], null);
+                    internalResult = dirItemsEnum(
+                      task, 
+                      plgDeviceSessionsDir, 
+                      [".", "..", "LISTING.DAT"], 
+                      null
+                    );
+                    
                     if( internalResult[0] )
                     {
                       plgSessionItems = internalResult[1];

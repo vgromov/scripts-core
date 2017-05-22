@@ -696,7 +696,7 @@ object EsDeviceBase
   function fileRead(fileAbsPath)
   var bs = EsStr::toByteString(fileAbsPath), fsResult, 
       f = EsVar::as(EsVariantType$$VAR_BIN_BUFFER), 
-      chunks, chunk, result, task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) );
+      chunks, chunk, result, task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) + EsPath::makeSafe(fileAbsPath) );
   {
     // send zero-terminated buffer, including terminating 0
     bs += B'\0';
