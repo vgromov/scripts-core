@@ -189,17 +189,26 @@ object BOI01 extends EsDeviceBase
     deviceDataBlocks, deviceDataBlock = ["", null],
     deviceSessions, deviceSession = ["", "", 0],
     task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) ),
-    internalResult, result;
+    internalResult, result, itemIdx = 0;
   {
     task.attachTo(__scriptHost$progressMonitor);
     task$text = I"Enumerating saved data...";
-    result = dirItemsEnum(task, "/", [".", ".."], EsFsItemAttribute$$Directory);
+    
+    result = dirItemsEnum(
+      task, 
+      "/", 
+      [".", ".."], 
+      EsFsItemAttribute$$Directory
+    );
+    
     if( result[0] )
     {
       plgItems = result[1];
-
+      
+      task$position = 0;
+      task$range = plgItems#countGet();
+      
       //EsScriptDebug::log("----Plugin Items----");
-
       // for each plugin dir enumerate its data dir
       foreach(plgItem in plgItems)
       {
@@ -304,6 +313,8 @@ object BOI01 extends EsDeviceBase
         
         pluginBlock[1] = dataBlocks;
         pluginBlocks#append(pluginBlock);
+        
+        task$position = ++itemIdx;
       }
     }
     result[1] = pluginBlocks;
