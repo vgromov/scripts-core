@@ -40,6 +40,14 @@ enum EL3C_Defs
   BgndExposureDef = 5;
 }
 
+/// Device-specific HW config info flags
+enum EL3C_HwCfgCustom {
+  SFH5711      = 0x00000001;
+  MAX4400      = 0x00000002;
+  OPT3001      = 0x00000004;
+  AS7261       = 0x00000008;
+}
+
 /// PHA Color device error flags and bit masks
 enum EL3C_Error
 {

@@ -321,24 +321,106 @@ object EL3C_Data
 ///
 object EL3C_RawData
 {
+  var m_hwCfgCustom;
+  
   EL3C_Health f_errors; ///< Device error flags
   esF   f_val;          ///< Measured raw value (either illuminance or luminance, depending on mode flag)
   esF   f_kp;           ///< Pulsation coefficient, in %
   esF   f_kpi;          ///< Pulsation coefficient, in %
-  esU32 f_cntClear;     ///< How many input points were used in clear sensor data calculation
-  esF   f_c;            ///< Clear channel of color sensor
-  esF   f_r;            ///< Red channel of color sensor
-  esF   f_g;            ///< Green channel of color sensor
-  esF   f_b;            ///< Blue channel of color sensor
-  esU16 f_att;          ///< Currently used attenuation value 1|4|16|256
-  esU16 f_cntColor;     ///< How many input points were used to calculate color node  
+  esU32 f_cntAnl;       ///< How many input points were used in clear sensor data calculation
+  
+  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
+  {
+    esF   f_valDig;     ///< Digital sensor data
+    esU32 f_cntDig;     ///< How many input points were used to calculate digital node   
+  }
+  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) ) //< Either no digital sensor flags, or MAX is specified
+  {
+    esF   f_c;            ///< Clear channel of color sensor
+    esF   f_r;            ///< Red channel of color sensor
+    esF   f_g;            ///< Green channel of color sensor
+    esF   f_b;            ///< Blue channel of color sensor
+    esU16 f_att;          ///< Currently used attenuation value 1|4|16|256
+    esU16 f_cntColor;     ///< How many input points were used to calculate color node  
+  }
+  
+  new()
+  {
+    m_hwCfgCustom = 0;
+  }
+
+  new(hwCfg)
+  {
+    m_hwCfgCustom = hwCfg$value;
+  }
+  
+  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
+  {
+    function asString()
+    {
+      return EsStr::format(
+        "<B><U>Fast sensor:</U></B>"
+        "<UL>"
+        "<LI><B>Val:</B> %0.2f</LI>"
+        "<LI><B>K<SUB>p</SUB>:</B> %0.1f</LI>"
+        "<LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI>"
+        "<LI><B>Cnt:</B> %d</LI>"
+        "</UL>"
+        "<B><U>Slow sensor:</U></B>"
+        "<UL>"
+        "<LI><B>Val:</B> %0.2f</LI>"
+        "<LI><B>Cnt:</B> %d</LI>"
+        "</UL>",
+        propertyGet("val"),
+        propertyGet("kp"),
+        propertyGet("kpi"),
+        propertyGet("cntAnl"),
+        propertyGet("valDig"),
+        propertyGet("cntDig")
+      );    
+    }
+  }
+  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) ) //< Either no digital sensor flags, or MAX is specified
+  {  
+    function asString()
+    {
+      return EsStr::format(
+        "<B><U>Fast sensor:</U></B>"
+        "<UL>"
+        "<LI><B>Val:</B> %0.2f</LI>"
+        "<LI><B>K<SUB>p</SUB>:</B> %0.1f</LI>"
+        "<LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI>"
+        "<LI><B>Cnt:</B> %d</LI>"
+        "</UL>"
+        "<B><U>Slow sensor:</U></B>"
+        "<UL>"
+        "<LI><B>C:</B> %d</LI>"
+        "<LI><B>R:</B> %d</LI>"
+        "<LI><B>G:</B> %d</LI>"
+        "<LI><B>B:</B> %d</LI>"
+        "<LI><B>Att:</B> %d</LI>"
+        "<LI><B>Cnt:</B> %d</LI>"
+        "</UL>",
+        propertyGet("val"),
+        propertyGet("kp"),
+        propertyGet("kpi"),
+        propertyGet("cntAnl"),
+        propertyGet("white"),
+        propertyGet("red"),
+        propertyGet("green"),
+        propertyGet("blue"),
+        propertyGet("att"),
+        propertyGet("cntColor")
+      );
+    }
+  }
   
   /// Data access properties
   ///
-  /// system error flags
+  /// System error flags
   property errors;
   read: { return f_errors; }
-  /// measured clear sensor value
+  /// Measured analog sensor value
   property val;
   read: { return f_val$value; }
   /// Pulsation (modulation) coefficient, in % 
@@ -347,28 +429,49 @@ object EL3C_RawData
   /// Pulsation (integral) coefficient, in %           
   property kpi;
   read: { return f_kpi$value; }
-  /// How many input points were used in clear sensor data calculation
+  /// How many input points were used in analog sensor data calculation
+  property cntAnl;
+  read: { return f_cntAnl$value; }
+  /// Backward compatibility
   property cntClear;
-  read: { return f_cntClear$value; }
-  /// Clear channel of color sensor
-  property white;
-  read: { return f_c$value; }
-  /// Red channel of color sensor
-  property red;
-  read: { return f_r$value; }
-  /// Green channel of color sensor
-  property green;
-  read: { return f_g$value; }            
-  /// Blue channel of color sensor
-  property blue;
-  read: { return f_b$value; }            
-  /// Currently used attenuation value 1|4|16|256
-  property att;
-  read: { return f_att$value; }
-  /// How many input points were used to calculate color node          
-  property cntColor;
-  read: { return f_cntColor$value; } 
-  /// Low light checking
-  property isLowLight;
-  read: { return f_c < 2000 || f_val < 10; }        
+  read: { return $cntAnl; }
+  
+  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
+  {
+    /// Measured digital sensor value
+    property valDig;
+    read: { return f_valDig$value; }
+    /// How many input points were used in digital sensor data calculation
+    property cntDig;
+    read: { return f_cntDig$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_valDig < 200 || f_val < 10; }        
+  }
+  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) )
+  {
+    /// Clear channel of color sensor
+    property white;
+    read: { return f_c$value; }
+    /// Red channel of color sensor
+    property red;
+    read: { return f_r$value; }
+    /// Green channel of color sensor
+    property green;
+    read: { return f_g$value; }            
+    /// Blue channel of color sensor
+    property blue;
+    read: { return f_b$value; }            
+    /// Currently used attenuation value 1|4|16|256
+    property att;
+    read: { return f_att$value; }
+    /// How many input points were used to calculate color node          
+    property cntColor;
+    read: { return f_cntColor$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_c < 2000 || f_val < 10; }        
+  }
 }

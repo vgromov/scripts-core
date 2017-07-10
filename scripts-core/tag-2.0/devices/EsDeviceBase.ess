@@ -67,6 +67,7 @@ object EsDeviceBase
   var 
     m_fwInitialized,
     m_countryCode,
+    m_hwInfo,
 /// Device id. Null, if never identified
     m_fwId,
 /// Device RPC capabilities. Null, if never contacted     
@@ -322,6 +323,7 @@ object EsDeviceBase
         handlingResult = new EsSoftwareInfo();
         handlingResult$buffer = rpcResult;
         m_countryCode = handlingResult$fwInfo$countryCode;
+        m_hwInfo = handlingResult$fwInfo$hwConfigInfo.clone();
       }
       else if(EsRpcStdId$$POWER_STATUS_GET == rpcId && rpcResult#countGet() )
       {
@@ -763,6 +765,8 @@ object EsDeviceBase
   {
     stream.valueWrite("id", m_fwId);
     stream.valueWrite("caps", m_caps);
+    stream.valueWrite("countryCode", m_countryCode);
+    stream.valueWrite("hwInfo", m_hwInfo);
   }
   
   function streamRead(stream)
@@ -775,6 +779,9 @@ object EsDeviceBase
     // If canabilities is somehow read empty|null, re-assign defaults to them
     if( m_caps#isEmpty() || 0 == m_caps#countGet() )
       m_caps = defCaps;
+      
+    m_countryCode = stream.valueRead("countryCode", 643/*3166-1, Russia, by default*/);
+    m_hwInfo = stream.valueRead("hwInfo", null);
   }
   
 /// Properties:
@@ -836,4 +843,8 @@ object EsDeviceBase
 /// Return device country code (Russia, by default)
   property countryCode;
   read: { return m_countryCode; }
+  
+/// Return HW config info object, if any was received in SW info get RPC call
+  property hwInfo;
+  read: { return m_hwInfo; }
 }

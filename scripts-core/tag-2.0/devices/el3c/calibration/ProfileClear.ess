@@ -6,8 +6,8 @@ object EL3C_ClearProfileNode
 {
   var m_ref,              // Reference value
       m_deviation,        // Allowed deviation form reference value
-      m_rawOsram,         // Raw uncalibrated value of OSRAM sensor used to calculated spline node
-      m_rawMax4400x,      // Raw uncalibrated value of MAX4400x sensor used to calculated spline node
+      m_rawAnl,           // Raw uncalibrated value of Analog sensor used to calculated spline node
+      m_rawDig,           // Raw uncalibrated value of Digital sensor used to calculated spline node
       m_verified,         // Calibrated value written during verification stage
       m_system,           // System node marker - we may not delete these nodes
       m_integrationType;  // Integration type allowed for this profile node. Used for template profile nodes only. ignored otherwise.
@@ -36,7 +36,12 @@ object EL3C_ClearProfileNode
   
   function deviationValidate(deviation)
   {
-    EsNumericCheck::checkRangeFloat(0, 0.9, deviation, I"Reference deviation");
+    EsNumericCheck::checkRangeFloat(
+      0, 
+      0.9, 
+      deviation, 
+      I"Reference deviation"
+    );
   }
     
   function deviationSet(deviation)
@@ -73,6 +78,7 @@ object EL3C_ClearProfileNode
   @persistent;
   read: { return m_ref; }
   write: { refValidate(__value); m_ref = __value#asDouble(); }
+  
   /// reference formatted string
   property refStr;
   read: { return EL3C_ValueFmt( m_ref ); }    
@@ -82,6 +88,7 @@ object EL3C_ClearProfileNode
   @persistent;
   read: { return m_deviation; }
   write: { deviationValidate(__value); m_deviation = __value#asDouble(); }
+  
   /// Reference node deviation ratio, 0..0.9 (0..90%)
   property deviationStr;
   read: { return EsStr::format("%0.1f %%", m_deviation*100.); }
@@ -89,6 +96,7 @@ object EL3C_ClearProfileNode
   /// Reference node calculated minimum
   property refMin;
   read: { return m_ref*(1.-m_deviation); }
+  
   /// Reference node calculated minimum string
   property refMinStr;
   read: { return EL3C_ValueFmt( $refMin ); }
@@ -96,39 +104,58 @@ object EL3C_ClearProfileNode
   /// Reference node calculated maximum
   property refMax;
   read: { return m_ref*(1.+m_deviation); }
+  
   /// Reference node calculated maximum string
   property refMaxStr;
   read: { return EL3C_ValueFmt( $refMax ); }
 
-  /// Raw uncalibrated OSRAM value
-  property rawOsram;
+  /// Raw uncalibrated analog value
+  ///
+  property rawAnl;
   @persistent;
-  read: { return m_rawOsram; }
-  write: { m_rawOsram = __value; }
-  
-  /// Raw uncalibrated value string
-  property rawOsramStr;
-  read: { 
-    if(m_rawOsram#isEmpty()) 
-      return "";
-    else 
-      EL3C_ValueFmt(m_rawOsram); 
-  }
+  read: { return m_rawAnl; }
+  write: { m_rawAnl = __value; }
 
-  /// Raw uncalibrated MAX4400x value
-  property rawMax4400x;
-  @persistent;
-  read: { return m_rawMax4400x; }
-  write: { m_rawMax4400x = __value; }
+  /// Backward compatibility property
+  property rawOsram;
+  read: { return $rawAnl; }
+  write: { $rawAnl = __value; }
   
   /// Raw uncalibrated value string
-  property rawMax4400xStr;
+  property rawAnlStr;
   read: { 
-    if(m_rawMax4400x#isEmpty()) 
+    if(m_rawAnl#isEmpty()) 
       return "";
     else 
-      EL3C_ValueFmt(m_rawMax4400x); 
+      EL3C_ValueFmt(m_rawAnl); 
   }
+  
+  /// Analog - Backward compatibility
+  property rawOsramStr;
+  read: { return $rawAnlStr; }
+
+  /// Raw uncalibrated digital value
+  property rawDig;
+  @persistent;
+  read: { return m_rawDig; }
+  write: { m_rawDig = __value; }
+  
+  /// Raw uncalibrated digital value string
+  property rawDigStr;
+  read: { 
+    if(m_rawDig#isEmpty()) 
+      return "";
+    else 
+      EL3C_ValueFmt(m_rawDig); 
+  }
+  
+  /// Digital - Backward compatibility
+  property rawMax4400x;
+  read: { return $rawDig; }
+  write: { $rawDig = __value; }
+  
+  property rawMax4400xStr;
+  read: { return $rawDigStr; }
  
   /// Calibrated verified value
   property verified;
@@ -146,14 +173,21 @@ object EL3C_ClearProfileNode
   }
  
   /// Node was used in calibration - it has raw value set
-  property hasRawOsram;
-  read: { return !m_rawOsram#isEmpty(); }
+  property hasRawAnl;
+  read: { return !m_rawAnl#isEmpty(); }
   
-  property hasRawMax4400x;
-  read: { return !m_rawMax4400x#isEmpty(); }
-  
+  property hasRawDig;
+  read: { return !m_rawDig#isEmpty(); }
+
   property hasRawValues;
-  read: { return $hasRawOsram || $hasRawMax4400x; }
+  read: { return $hasRawAnl || $hasRawDig; }
+  
+  /// Backward compatibility
+  property hasRawOsram;
+  read: { return $hasRawAnl; }
+
+  property hasRawMax4400x;
+  read: { return $hasRawDig; }
   
   /// Node integration preferences
   property integrationType;
@@ -218,8 +252,8 @@ object EL3C_ClearCalibrationProfile
       result[0].m_system = true;
       result[1].m_system = true;
       // Moreover, we can pre-set raw values for system nodes as well
-      result[0]$rawOsram = 0;
-      result[1]$rawOsram = 100;
+      result[0]$rawAnl = 0;
+      result[1]$rawAnl = 100;
     }
     
     return result;
@@ -232,14 +266,14 @@ object EL3C_ClearCalibrationProfile
     {
       // Reset values for zero or 100% points to default
       if( EsUtils::areEqualFloats(0., node$ref) )
-        node$rawOsram = 0;
+        node$rawAnl = 0;
       else if( EsUtils::areEqualFloats(100., node$ref) )
-        node$rawOsram = 100;
+        node$rawAnl = 100;
     }
     else
-      node$rawOsram = null;
+      node$rawAnl = null;
 
-    node$rawMax4400x = null;
+    node$rawDig = null;
     node.m_verified = null;
   } 
    
@@ -269,28 +303,28 @@ object EL3C_ClearCalibrationProfile
   }
   
   /// Get all profile nodes of specific kind, which have raw data assigned
-  function nodesWithRawDataGet(type, isOsram)
+  function nodesWithRawDataGet(type, isAnl)
   var nodes = nodesGet(type), node, result = [];
   {
     foreach(node in nodes)
     {
-      if( isOsram )
+      if( isAnl )
       {
-        if( node$hasRawOsram )
+        if( node$hasRawAnl )
           result += node;
       }
-      else if( node$hasRawMax4400x )
+      else if( node$hasRawDig )
           result += node;
     }
     
     return result;
   }
   
-  /// Calculate fitting spline nodes for specified node types, and sensor kind (osram|max4400x)
+  /// Calculate fitting spline nodes for specified node types, and sensor kind (anl|dig)
   /// If fitting spline could not be calculated, an empty value is returned
   ///
-  function fittingSplineCalculate(type, isOsram)
-  var node, nodes = nodesWithRawDataGet(type, isOsram), constraint = [],
+  function fittingSplineCalculate(type, isAnl)
+  var node, nodes = nodesWithRawDataGet(type, isAnl), constraint = [],
     fit, fitc = [], pfit, x = [], y = [], coeffs;
   {
     if( nodes#countGet() >= 2 && nodes#countGet() <= 8 )
@@ -299,7 +333,7 @@ object EL3C_ClearCalibrationProfile
       
       foreach(node in nodes)
       {
-        x += isOsram ? node$rawOsram : node$rawMax4400x;
+        x += isAnl ? node$rawAnl : node$rawDig;
         y += node$ref;
       }
       
@@ -340,38 +374,38 @@ object EL3C_ClearCalibrationProfile
     
   // Update linked splines of specific type
   function splinesUpdate(type)
-  var nodesOsram, splineOsram, nodesMax, splineMax;
+  var nodesAnl, splineAnl, nodesDig, splineDig;
   {
     if( !m_linkedSettings#isEmpty() )
     {
       if( type != EL3C_CalibrationType$$Pulsation )
       {
-        nodesOsram = fittingSplineCalculate(type, true);
-        nodesMax = fittingSplineCalculate(type, false);
+        nodesAnl = fittingSplineCalculate(type, true);
+        nodesDig = fittingSplineCalculate(type, false);
         
         if( type == EL3C_CalibrationType$$Illuminance )
         {
-          splineOsram = m_linkedSettings$calClear$calIlluminance;
-          splineMax = m_linkedSettings$calColor$calIlluminance;
+          splineAnl = m_linkedSettings$calClear$calIlluminance;
+          splineDig = m_linkedSettings$calColor$calIlluminance;
         }
         else
         {
-          splineOsram = m_linkedSettings$calClear$calLuminance;
-          splineMax = m_linkedSettings$calColor$calLuminance;
+          splineAnl = m_linkedSettings$calClear$calLuminance;
+          splineDig = m_linkedSettings$calColor$calLuminance;
         }
       }
       else
       {
-        nodesOsram = fittingSplineCalculate(type, true);
-        splineOsram = m_linkedSettings$calClear$calPulsation;
+        nodesAnl = fittingSplineCalculate(type, true);
+        splineAnl = m_linkedSettings$calClear$calPulsation;
       }
       
-      //EsScriptDebug::log(nodesOsram);
-      splineOsram.fromMathNodes(nodesOsram);
-      if( !splineMax#isEmpty() )
+      //EsScriptDebug::log(nodesAnl);
+      splineAnl.fromMathNodes(nodesAnl);
+      if( !splineDig#isEmpty() )
       {
-        //EsScriptDebug::log(nodesMax);
-        splineMax.fromMathNodes(nodesMax);
+        //EsScriptDebug::log(nodesDig);
+        splineDig.fromMathNodes(nodesDig);
       }
     }
   }
@@ -444,7 +478,10 @@ object EL3C_ClearCalibrationProfile
   function nodeRawDataReset(type, idx)
   var nodes = nodesGet(type);
   {
-    intenralNodeRawDataReset(nodes[idx], type);
+    intenralNodeRawDataReset(
+      nodes[idx], 
+      type
+    );
     
     splinesUpdate(type);    
   }  
@@ -459,7 +496,11 @@ object EL3C_ClearCalibrationProfile
   function nodeAdd(type, ref, deviation, integrationType)
   var newNode;
   {
-    newNode = new EL3C_ClearProfileNode(ref, deviation, integrationType);
+    newNode = new EL3C_ClearProfileNode(
+      ref, 
+      deviation, 
+      integrationType
+    );
 
     el3cClearCalibrationTypeCheck(type);
     if( EL3C_CalibrationType$$Illuminance == type )
@@ -519,8 +560,17 @@ object EL3C_ClearCalibrationProfile
     }  
     else
     {
-      nodeDelete(type, idx);
-      nodeAdd(type, ref, deviation, integrationType);
+      nodeDelete(
+        type, 
+        idx
+      );
+      
+      nodeAdd(
+        type, 
+        ref, 
+        deviation, 
+        integrationType
+      );
     }
   }
  
@@ -531,9 +581,9 @@ object EL3C_ClearCalibrationProfile
     if( 0 == idx && EL3C_CalibrationType$$Pulsation == type )
       throw I"Zero node for Pulsation calibration must not be changed";
     
-    node$rawOsram = rawVals[0];
+    node$rawAnl = rawVals[0];
     if( EL3C_CalibrationType$$Pulsation != type )
-      node$rawMax4400x = rawVals[1];
+      node$rawDig = rawVals[1];
         
     // If we're setting raw values for default zero node in either Illuminance
     // or Luminance, we may automatically set thte same values for other type
@@ -546,8 +596,8 @@ object EL3C_ClearCalibrationProfile
         else if( EL3C_CalibrationType$$Luminance == type )
           node = nodeGet(EL3C_CalibrationType$$Illuminance, 0);
        
-        node$rawOsram = rawVals[0];
-        node$rawMax4400x = rawVals[1];
+        node$rawAnl = rawVals[0];
+        node$rawDig = rawVals[1];
       }
     }
       
@@ -557,19 +607,49 @@ object EL3C_ClearCalibrationProfile
   /// Custom stream writer
   function streamWrite(stream)
   {    
-    stream.valueWrite("name", m_name);
-    stream.valueWrite("lux", m_lux);
-    stream.valueWrite("cdm", m_cdm);
-    stream.valueWrite("kp", m_kp);
+    stream.valueWrite(
+      "name", 
+      m_name
+    );
+    
+    stream.valueWrite(
+      "lux", 
+      m_lux
+    );
+    
+    stream.valueWrite(
+      "cdm", 
+      m_cdm
+    );
+    
+    stream.valueWrite(
+      "kp", 
+      m_kp
+    );
   }
   
 /// Custom stream reader
   function streamRead(stream)
   {
-    m_name = stream.valueRead("name", "Profile");
-    m_lux = stream.valueRead("lux", defaultNodesCreate(EL3C_CalibrationType$$Illuminance));
-    m_cdm = stream.valueRead("cdm", defaultNodesCreate(EL3C_CalibrationType$$Luminance));
-    m_kp = stream.valueRead("kp", defaultNodesCreate(EL3C_CalibrationType$$Pulsation));
+    m_name = stream.valueRead(
+      "name", 
+      "Profile"
+    );
+    
+    m_lux = stream.valueRead(
+      "lux", 
+      defaultNodesCreate(EL3C_CalibrationType$$Illuminance)
+    );
+    
+    m_cdm = stream.valueRead(
+      "cdm", 
+      defaultNodesCreate(EL3C_CalibrationType$$Luminance)
+    );
+    
+    m_kp = stream.valueRead(
+      "kp", 
+      defaultNodesCreate(EL3C_CalibrationType$$Pulsation)
+    );
   }
 
 /// Properties
@@ -621,8 +701,10 @@ var stream = new EsStreamXml(EsStreamFlag$$Write|EsStreamFlag$$File, "");
     throw "Could not write incompatible object as profile";
 
   if( !profile$isOk )
-    throw EsStr::format("Could not write incomplete profile '%s'. Valid profile should contain at least one node for each data type",
-      profile$name);
+    throw EsStr::format(
+      "Could not write incomplete profile '%s'. Valid profile should contain at least one node for each data type",
+      profile$name
+    );
     
   stream.objectWrite(profile);  
   stream.save(path);

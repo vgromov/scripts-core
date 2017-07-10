@@ -299,7 +299,7 @@ object EsFwInfo
   read: { return f_countryCode$value; }
   
   property hwConfigInfo;
-  read: { return f_hwConfig$value; }
+  read: { return f_hwConfig; }
 }
 
 /// 192-byte Software information block now includes universal 64 bit firmware information block

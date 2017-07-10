@@ -35,7 +35,11 @@ object EL3C extends EsDeviceBase
   function fwIdAssert(fwId)
   {
     EsDeviceBase::fwIdAssert(fwId);
-    fwIdValidate(fwId, EsDeviceType$$EL3C, "EL3C");
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$EL3C, 
+      "EL3C"
+    );
   }
 
   function fwIdDefaultSet()
@@ -104,7 +108,7 @@ object EL3C extends EsDeviceBase
     }
     else if( EL3C_Rpid$$RawDataGet == rpcId )
     {
-      result = new EL3C_RawData(); 
+      result = new EL3C_RawData( $hwInfo$custom ); 
       result$buffer = rpcResult#asBinBuffer();
     }
     else if( EL3C_Rpid$$DataAtIdxGet == rpcId )
