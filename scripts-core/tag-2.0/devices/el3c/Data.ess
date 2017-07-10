@@ -329,7 +329,10 @@ object EL3C_RawData
   esF   f_kpi;          ///< Pulsation coefficient, in %
   esU32 f_cntAnl;       ///< How many input points were used in clear sensor data calculation
   
-  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
+  if( 
+    !m_hwCfgCustom#isEmpty() && 
+    (m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001) 
+  )
   {
     esF   f_valDig;     ///< Digital sensor data
     esU32 f_cntDig;     ///< How many input points were used to calculate digital node   
@@ -360,7 +363,13 @@ object EL3C_RawData
     property isLowLight;
     read: { return f_valDig < 200 || f_val < 10; }        
   }
-  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) ) //< Either no digital sensor flags, or MAX is specified
+  else if( 
+    !m_hwCfgCustom#isEmpty() && 
+    (
+      0 == m_hwCfgCustom || 
+      (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400)
+    )
+  ) //< Either no digital sensor flags, or MAX is specified
   {
     esF   f_c;            ///< Clear channel of color sensor
     esF   f_r;            ///< Red channel of color sensor
@@ -413,7 +422,7 @@ object EL3C_RawData
 
   new(hwCfgCustom)
   {
-    m_hwCfgCustom = hwCfgCustom$value;
+    m_hwCfgCustom = hwCfgCustom;
   }
   
   /// Data access properties

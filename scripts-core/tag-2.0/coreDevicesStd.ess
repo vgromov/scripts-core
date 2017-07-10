@@ -118,6 +118,15 @@ object EsHwConfigInfo
   esU16 f_standard;
   esU16 f_custom;
   
+  function asString()
+  {
+    return EsStr::format(
+      "0x%08X:0x%08X",
+      f_standard,
+      f_custom
+    );
+  }
+  
 /// Properties 
   property standard;
   read: { return f_standard#asULong(); }
