@@ -108,7 +108,7 @@ object EL3C extends EsDeviceBase
     }
     else if( EL3C_Rpid$$RawDataGet == rpcId )
     {
-      result = new EL3C_RawData( $hwInfo$custom ); 
+      result = new EL3C_RawData( m_hwInfo$custom ); 
       result$buffer = rpcResult#asBinBuffer();
     }
     else if( EL3C_Rpid$$DataAtIdxGet == rpcId )

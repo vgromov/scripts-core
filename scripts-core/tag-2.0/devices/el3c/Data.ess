@@ -28,127 +28,127 @@ object EL3C_Data
   esU16 f_bgndEta;          ///< Bgnd measurement countdown, in seconds
   
   /// Properties
-	///
+  ///
   
-	/// Timestamp
-	property ts;
-	read: { return f_ts$value; }
-	/// Timestamp string
-	property tsStr;
-	read: { return f_ts.asString(); }	
-	
-	/// Errors
-	property errors;
-	read: { return f_errors; }
-	
-	/// Data flags
-	property flags;
-	read: { return f_flags; }
-	
-	property isLowLight;
-	read: { return f_flags$isLowLight; }
-	
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
+  
+  /// Errors
+  property errors;
+  read: { return f_errors; }
+  
+  /// Data flags
+  property flags;
+  read: { return f_flags; }
+  
+  property isLowLight;
+  read: { return f_flags$isLowLight; }
+  
   /// Value
   property val;
   read: { return f_val$value; }
   
-	/// Value string components property
-	property valStrMulti;
-	read: 
-	{
+  /// Value string components property
+  property valStrMulti;
+  read: 
+  {
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valvalid);
-		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valvalid);
-	}
+      return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valvalid);
+  }
   
-	/// Value string
-	property valStr;
-	read: { return EL3C_fromStrMulti( $valStrMulti ); }
-	
+  /// Value string
+  property valStr;
+  read: { return EL3C_fromStrMulti( $valStrMulti ); }
+  
   /// Original value
   property valOrg;
   read: { return f_valOrg$value; }
   
-	/// Value string components property
-	property valOrgStrMulti;
-	read: 
-	{
+  /// Value string components property
+  property valOrgStrMulti;
+  read: 
+  {
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgvalid);
-		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgvalid);
-	}
+      return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgvalid);
+  }
   
-	/// Value string
-	property valOrgStr;
-	read: { return EL3C_fromStrMulti( $valOrgStrMulti ); }
-	
+  /// Value string
+  property valOrgStr;
+  read: { return EL3C_fromStrMulti( $valOrgStrMulti ); }
+  
   /// Pulsation (Modulation) coefficient, in %
   property kp;
   read: { return f_kp$value; }
   
-	/// pulsation string components
-	property kpStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpvalid ); }
+  /// pulsation string components
+  property kpStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpvalid ); }
   
-	/// pulsation string
-	property kpStr;
+  /// pulsation string
+  property kpStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }  
   
   /// Original Pulsation (Modulation) coefficient, in %
   property kpOrg;
   read: { return f_kpOrg$value; }
   
-	/// pulsation string components
-	property kpOrgStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgvalid ); }
+  /// pulsation string components
+  property kpOrgStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgvalid ); }
   
-	/// pulsation string
-	property kpOrgStr;
+  /// pulsation string
+  property kpOrgStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
   
   /// Pulsation (Integral) coefficient, in %
   property kpi;
   read: { return f_kpi$value; }
   
-	/// pulsation string components
-	property kpiStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpivalid ); }
+  /// pulsation string components
+  property kpiStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpivalid ); }
   
-	/// pulsation string
-	property kpiStr;
+  /// pulsation string
+  property kpiStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpiStrMulti ); }  
   
   /// Original Pulsation (Integral) coefficient, in %
   property kpiOrg;
   read: { return f_kpiOrg$value; }
   
-	/// pulsation string components
-	property kpiOrgStrMulti;
-	read: {	return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgvalid ); }
+  /// pulsation string components
+  property kpiOrgStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgvalid ); }
   
-	/// pulsation string
-	property kpiOrgStr;
+  /// pulsation string
+  property kpiOrgStr;
   read: { return EL3C_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
   
   /// Measured Background value
   property valBgnd;
   read: { return f_bgnd$value; }
   
-	/// Value string components property
-	property valBgndStrMulti;
-	read: 
-	{
+  /// Value string components property
+  property valBgndStrMulti;
+  read: 
+  {
     if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
-			return EL3C_strMultiGet( $valBgnd, c_el3c_unitE, f_flags$valBgndvalid);
-		else if( EL3C_OpMode$$Luminance == f_flags$opmode )
-			return EL3C_strMultiGet( $valBgnd, c_el3c_unitL, f_flags$valBgndvalid);
-	}
+      return EL3C_strMultiGet( $valBgnd, c_el3c_unitE, f_flags$valBgndvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $valBgnd, c_el3c_unitL, f_flags$valBgndvalid);
+  }
   
-	/// Value string
-	property valBgndStr;
-	read: { return EL3C_fromStrMulti( $valBgndStrMulti ); } 
+  /// Value string
+  property valBgndStr;
+  read: { return EL3C_fromStrMulti( $valBgndStrMulti ); } 
   
   /// CIE x component
   property cie_x;
@@ -201,7 +201,7 @@ object EL3C_Data
   read: { return f_bgndTmo$value; }
   
   /// Background integration ETA
-	property bgndEta;  
+  property bgndEta;  
   read: { return f_bgndEta$value; }
     
   /// Overall validation checking
@@ -218,8 +218,8 @@ object EL3C_Data
       return 0 == f_bgndEta &&
         f_flags$valvalid &&
         f_flags$valOrgvalid &&
-				f_flags$valBgndvalid &&
-				f_flags$bgndExpvalid;
+        f_flags$valBgndvalid &&
+        f_flags$bgndExpvalid;
     }
   }
   
@@ -246,7 +246,7 @@ object EL3C_Data
   property isBgndTrimming;
   read: { return f_flags$isBgndTrimming; }
   
-	/// Return true if opmode contains Autonomous modifier
+  /// Return true if opmode contains Autonomous modifier
   property isAutonomous;
   read: { return f_flags$isAutonomous; }
   
@@ -260,61 +260,61 @@ object EL3C_Data
   
   /// Return data validity flags
   ///
-	property valvalid;
-	read: { return f_flags$valvalid; }
-	
-	property valOrgvalid;
-	read: { 
+  property valvalid;
+  read: { return f_flags$valvalid; }
+  
+  property valOrgvalid;
+  read: { 
     return f_flags$isBgndTrimming && 
       0 == f_bgndEta &&
       f_flags$valOrgvalid; 
   }
-	
-	property kpvalid;
-	read: { return f_flags$kpvalid; }
-	
-	property kpOrgvalid;
-	read: { 
+  
+  property kpvalid;
+  read: { return f_flags$kpvalid; }
+  
+  property kpOrgvalid;
+  read: { 
     return f_flags$isBgndTrimming && 
       0 == f_bgndEta &&
       f_flags$kpOrgvalid; 
   }
-	
-	property kpivalid;
-	read: { return f_flags$kpivalid; }
   
-	property kpiOrgvalid;
-	read: { 
+  property kpivalid;
+  read: { return f_flags$kpivalid; }
+  
+  property kpiOrgvalid;
+  read: { 
     return f_flags$isBgndTrimming && 
       0 == f_bgndEta &&
       f_flags$kpiOrgvalid; 
   }
   
-	property valBgndvalid;
-	read: { 
+  property valBgndvalid;
+  read: { 
     return f_flags$isBgndTrimming && 
       0 == f_bgndEta &&
       f_flags$valBgndvalid; 
   }
   
-	property bgndExpvalid;
-	read: { 
+  property bgndExpvalid;
+  read: { 
     return f_flags$isBgndTrimming && 
       0 == f_bgndEta &&
       f_flags$bgndExpvalid; 
   }
   
-	property xyvalid;
-	read: { return f_flags$xyvalid; }
+  property xyvalid;
+  read: { return f_flags$xyvalid; }
 
-	property cie_xvalid;
-	read: { return f_flags$xyvalid; }
+  property cie_xvalid;
+  read: { return f_flags$xyvalid; }
 
-	property cie_yvalid;
-	read: { return f_flags$xyvalid; }
+  property cie_yvalid;
+  read: { return f_flags$xyvalid; }
   
- 	property ctvalid;
-	read: { return f_flags$ctvalid; }  
+   property ctvalid;
+  read: { return f_flags$ctvalid; }  
 }
 
 /// Raw data structure, used in calibration process
@@ -333,6 +333,32 @@ object EL3C_RawData
   {
     esF   f_valDig;     ///< Digital sensor data
     esU32 f_cntDig;     ///< How many input points were used to calculate digital node   
+
+    function asString()
+    {
+      return "<B><U>Fast sensor:</U></B><UL><LI><B>Val:</B> " + EsStr::format("%0.2f", propertyGet("val")) +
+        "</LI><LI><B>K<SUB>p</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kp")) + 
+        "</LI><LI><B>K<SUB>pi</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kpi")) + 
+        "</LI><LI><B>Cnt:</B> " + propertyGet("cntAnl") + 
+        "</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>C:</B> " + propertyGet("white") + 
+        "</LI><LI><B>R:</B> " + propertyGet("red") + 
+        "</LI><LI><B>G:</B> " + propertyGet("green") + 
+        "</LI><LI><B>B:</B> " + propertyGet("blue") + 
+        "</LI><LI><B>Att:</B> " + propertyGet("att") +
+        "</LI><LI><B>Cnt:</B> " + propertyGet("cntColor") +
+        "</LI></UL>";
+    }
+
+    /// Measured digital sensor value
+    property valDig;
+    read: { return f_valDig$value; }
+    /// How many input points were used in digital sensor data calculation
+    property cntDig;
+    read: { return f_cntDig$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_valDig < 200 || f_val < 10; }        
   }
   else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) ) //< Either no digital sensor flags, or MAX is specified
   {
@@ -342,35 +368,11 @@ object EL3C_RawData
     esF   f_b;            ///< Blue channel of color sensor
     esU16 f_att;          ///< Currently used attenuation value 1|4|16|256
     esU16 f_cntColor;     ///< How many input points were used to calculate color node  
-  }
-  
-  new()
-  {
-    m_hwCfgCustom = 0;
-  }
 
-  new(hwCfg)
-  {
-    m_hwCfgCustom = hwCfg$value;
-  }
-  
-  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
-  {
     function asString()
     {
       return EsStr::format(
-        "<B><U>Fast sensor:</U></B>"
-        "<UL>"
-        "<LI><B>Val:</B> %0.2f</LI>"
-        "<LI><B>K<SUB>p</SUB>:</B> %0.1f</LI>"
-        "<LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI>"
-        "<LI><B>Cnt:</B> %d</LI>"
-        "</UL>"
-        "<B><U>Slow sensor:</U></B>"
-        "<UL>"
-        "<LI><B>Val:</B> %0.2f</LI>"
-        "<LI><B>Cnt:</B> %d</LI>"
-        "</UL>",
+        "<B><U>Fast sensor:</U></B><UL><LI><B>Val:</B> %0.2f</LI><LI><B>K<SUB>p</SUB>:</B> %0.1f</LI><LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI><LI><B>Cnt:</B> %d</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>Val:</B> %0.2f</LI><LI><B>Cnt:</B> %d</LI></UL>",
         propertyGet("val"),
         propertyGet("kp"),
         propertyGet("kpi"),
@@ -379,40 +381,39 @@ object EL3C_RawData
         propertyGet("cntDig")
       );    
     }
+
+    /// Clear channel of color sensor
+    property white;
+    read: { return f_c$value; }
+    /// Red channel of color sensor
+    property red;
+    read: { return f_r$value; }
+    /// Green channel of color sensor
+    property green;
+    read: { return f_g$value; }            
+    /// Blue channel of color sensor
+    property blue;
+    read: { return f_b$value; }            
+    /// Currently used attenuation value 1|4|16|256
+    property att;
+    read: { return f_att$value; }
+    /// How many input points were used to calculate color node          
+    property cntColor;
+    read: { return f_cntColor$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_c < 2000 || f_val < 10; }
   }
-  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) ) //< Either no digital sensor flags, or MAX is specified
-  {  
-    function asString()
-    {
-      return EsStr::format(
-        "<B><U>Fast sensor:</U></B>"
-        "<UL>"
-        "<LI><B>Val:</B> %0.2f</LI>"
-        "<LI><B>K<SUB>p</SUB>:</B> %0.1f</LI>"
-        "<LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI>"
-        "<LI><B>Cnt:</B> %d</LI>"
-        "</UL>"
-        "<B><U>Slow sensor:</U></B>"
-        "<UL>"
-        "<LI><B>C:</B> %d</LI>"
-        "<LI><B>R:</B> %d</LI>"
-        "<LI><B>G:</B> %d</LI>"
-        "<LI><B>B:</B> %d</LI>"
-        "<LI><B>Att:</B> %d</LI>"
-        "<LI><B>Cnt:</B> %d</LI>"
-        "</UL>",
-        propertyGet("val"),
-        propertyGet("kp"),
-        propertyGet("kpi"),
-        propertyGet("cntAnl"),
-        propertyGet("white"),
-        propertyGet("red"),
-        propertyGet("green"),
-        propertyGet("blue"),
-        propertyGet("att"),
-        propertyGet("cntColor")
-      );
-    }
+  
+  new()
+  {
+    m_hwCfgCustom = 0;
+  }
+
+  new(hwCfgCustom)
+  {
+    m_hwCfgCustom = hwCfgCustom$value;
   }
   
   /// Data access properties
@@ -435,43 +436,4 @@ object EL3C_RawData
   /// Backward compatibility
   property cntClear;
   read: { return $cntAnl; }
-  
-  if( m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001 )
-  {
-    /// Measured digital sensor value
-    property valDig;
-    read: { return f_valDig$value; }
-    /// How many input points were used in digital sensor data calculation
-    property cntDig;
-    read: { return f_cntDig$value; }
-    
-    /// Low light checking
-    property isLowLight;
-    read: { return f_valDig < 200 || f_val < 10; }        
-  }
-  else if( 0 == m_hwCfgCustom || (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400) )
-  {
-    /// Clear channel of color sensor
-    property white;
-    read: { return f_c$value; }
-    /// Red channel of color sensor
-    property red;
-    read: { return f_r$value; }
-    /// Green channel of color sensor
-    property green;
-    read: { return f_g$value; }            
-    /// Blue channel of color sensor
-    property blue;
-    read: { return f_b$value; }            
-    /// Currently used attenuation value 1|4|16|256
-    property att;
-    read: { return f_att$value; }
-    /// How many input points were used to calculate color node          
-    property cntColor;
-    read: { return f_cntColor$value; }
-    
-    /// Low light checking
-    property isLowLight;
-    read: { return f_c < 2000 || f_val < 10; }        
-  }
 }
