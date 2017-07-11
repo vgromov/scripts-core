@@ -1,15 +1,16 @@
 /// EL3C Calibration and settings data blocks
 ///
 ##require("calibration/Consts.ess");
+##require("calibration/Pre.1.5.ess");
 
 function el3cClearCalibrationTypeCheck(type)
 {
   if( !(type in [EL3C_CalibrationType$$Illuminance .. EL3C_CalibrationType$$Pulsation]) )
-    throw "Clear calibration type is out of bounds";
+    throw "Analog calibration type is out of bounds";
 }
 
-/// Clear calibration data
-object EL3C_CalibrationClear
+/// Analog calibration data
+object EL3C_CalibrationAnl
 {
   EsSpline f_csIllum;    ///< Clear illuminance calibration
   EsSpline f_csLum;      ///< Clear luminance calibration
@@ -64,17 +65,11 @@ object EL3C_CalibrationClear
   read: { return f_csKp; }
 }
 
-/// Color calibration data
-object EL3C_CalibrationColor
+/// Digital calibration data
+object EL3C_CalibrationDig
 {
-  var m_acfCrcInvalid;
-  
-  EL3C_CorMatrix f_ccm;       ///< XYZ color space correlation matrix
-  EL3C_CorMatrix f_tcm;       ///< Color temperature correlation matrix
-  EsSpline f_ccIllum;         ///< Clear channel illuminance calibration
-  EsSpline f_ccLum;           ///< Clear channel luminance calibration
-  esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
-  esU8 f_acfCrc;              ///< ACF vector crc8 field
+  EsSpline f_illum;         ///< Digital channel illuminance calibration
+  EsSpline f_lum;           ///< Digital channel luminance calibration
   
   // We should have separate initialization 
   // method to work-around cases, when this object is used as filed
@@ -82,9 +77,8 @@ object EL3C_CalibrationColor
   // 
   function init()
   {
-    m_acfCrcInvalid = true;
-    f_ccIllum$maxLen = 8;
-    f_ccLum$maxLen = 8;
+    f_illum$maxLen = 8;
+    f_lum$maxLen = 8;
   }  
   
   /// Default constructor
@@ -93,63 +87,11 @@ object EL3C_CalibrationColor
     init();
   }
   
-  /// Calculate CRC8 of ACF block
-  function acfCrcCalc()
-  var crc = new EsCRC8(f_acf#asBinBuffer(), 0xAB);
-  {
-    return crc;
-  }
-  
-  /// Update ACF block crc if neccessary
-  function acfCrcUpdate()
-  {
-    if( m_acfCrcInvalid )
-    {
-      f_acfCrc = acfCrcCalc()$value;
-      m_acfCrcInvalid = false;
-    }
-  }
-  
-  /// Check if CRC of ACF block is OK
-  function acfCrcIsOk()
-  var crc;
-  {
-    acfCrcUpdate();
-    crc = new EsCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
-    return 0 == crc$value;
-  }
-  
   /// Update CRC of all blocks, if needed
   function crcUpdate()
   {
-    f_ccm.crcUpdate();
-    f_tcm.crcUpdate();
-    f_ccIllum.crcUpdate();
-    f_ccLum.crcUpdate();
-    acfCrcUpdate();    
-  }
-  
-  /// ACF block item get
-  function acfGet(idx)
-  {
-    return f_acf[idx]$value;
-  }
-  
-  /// ACF block item set
-  function acfSet(idx, val)
-  {
-    f_acf[idx] = val$value;
-    m_acfCrcInvalid = true;
-  }
-  
-  /// Calculate color space coordinates [x, y], given input vector [c, r, g, b]
-  function calibratedXyCalculate(val)
-  {
-  }
-
-  /// Calculate color temperature (K), given input vector [c, r, g, b]
-  function calibratedColorTemperatureCalculate(val)
-  {
+    f_illum.crcUpdate();
+    f_lum.crcUpdate();
   }
  
   /// Properties
@@ -159,38 +101,26 @@ object EL3C_CalibrationColor
   property crcIsOk;
   read: 
   { 
-    return acfCrcIsOk() && 
-      f_ccm$crcIsOk && f_tcm$crcIsOk &&
-       f_ccIllum$crcIsOk && f_ccLum$crcIsOk;
+    return f_illum$crcIsOk && f_lum$crcIsOk;
   }
   
   /// Overall validity check
   property valid;
-  read: { return f_ccIllum$valid && f_ccLum$valid; }
-  
-  /// Access Color space Correlation matrix  
-  property ccm;
-  read: { return f_ccm; }
-  
-  /// Access Color temperature Correlation matrix  
-  property tcm;
-  read: { return f_tcm; }
+  read: { return f_illum$valid && f_lum$valid; }
   
   /// Illuminance calibration access
   property calIlluminance;
-  read: { return f_ccIllum; }
+  read: { return f_illum; }
   
   /// Luminance calibration access
   property calLuminance;
-  read: { return f_ccLum; }
+  read: { return f_lum; }
 }
 
 /// EL3C device settings
 object EL3C_Settings
 {
-  var m_prevType,
-      m_calClear,
-      m_calClearColor;
+  var m_prevType;
   
   // settings block
   EsFirmwareId f_fwId;
@@ -203,12 +133,189 @@ object EL3C_Settings
   esU16 f_bgndExp;
     @default = EL3C_Defs$$BgndExposureDef;
     @restriction = [EL3C_Defs$$BgndExposureMin..EL3C_Defs$$BgndExposureMax];
+
+  if( f_fwId$ver < "1.5" )
+  {
+    var m_calClear,
+      m_calColor;  
   
-  // Clear calibration data
-  EL3C_CalibrationClear f_calClear;    
-  
-  // Color calibration data
-  EL3C_CalibrationColor f_calColor;    
+    // Clear calibration data
+    EL3C_CalibrationClear f_calClear;    
+    
+    // Color calibration data
+    EL3C_CalibrationColor f_calColor;
+    
+    function calInit()
+    {
+      f_calClear.init();
+      f_calColor.init();
+    }
+    
+    // Return clear clibration spline by data type
+    function calClearGet(type)
+    {
+      el3cClearCalibrationTypeCheck(type);
+      if( EL3C_CalibrationType$$Illuminance == type )
+        return f_calClear$calIlluminance;
+      else if( EL3C_CalibrationType$$Luminance == type )  
+        return f_calClear$calLuminance;
+      else if( EL3C_CalibrationType$$Pulsation == type ) 
+        return f_calClear$calPulsation;
+    }
+    
+    function calAnlGet(type)
+    {
+      return calClearGet(type);
+    }
+
+    // Return clear calibration splines for color sensor
+    function calColorClearGet(type)
+    {
+      el3cClearCalibrationTypeCheck(type);
+      if( EL3C_CalibrationType$$Illuminance == type )
+        return f_calColor$calIlluminance;
+      else if( EL3C_CalibrationType$$Luminance == type )  
+        return f_calColor$calLuminance;
+    }
+    
+    function calDigGet(type)
+    {
+      return calColorClearGet(type);
+    }
+    
+    function calCacheClear(type)
+    {
+      if( m_prevType != type )
+      {
+        m_prevType = type;
+        m_calClear = calClearGet(type);
+        m_calColor = calColorClearGet(type);
+      }
+    }
+    
+    /// Calculate calibrated value
+    function calibratedClearValueCalculate(type, val)
+    { 
+      calCacheClear(type);
+      return m_calClear.calculate(val);
+    }
+    
+    function calAnlValCalculate(type, val)
+    {
+      return calibratedClearValueCalculate(type, val);
+    }
+    
+    function calibratedColorClearValueCalculate(type, val)
+    { 
+      calCacheClear(type);
+      return m_calColor.calculate(val);
+    }
+    
+    function calDigValCalculate(type, val)
+    {
+      return calibratedColorClearValueCalculate(type, val);
+    }
+    
+    /// Update CRC data in clear and color calibrations
+    function crcUpdate()
+    {
+      f_calClear.crcUpdate();
+      f_calColor.crcUpdate();
+    }
+    
+    property calClear;
+    read: { return f_calClear; }
+
+    property calAnl;
+    read: { return $calClear; }
+    
+    property calColor;
+    read: { return f_calColor; }
+    
+    property calDig;
+    read: { return $calColor; }
+
+    property crcIsOk;
+    read: { return f_calClear$crcIsOk && f_calColor$crcIsOk; }
+  }
+  else
+  {
+    var m_calAnl,
+      m_calDig;  
+
+      // Clear calibration data
+    EL3C_CalibrationAnl f_calAnl;    
+    
+    // Color calibration data
+    EL3C_CalibrationDig f_calDig;    
+
+    function calInit()
+    {
+      f_calAnl.init();
+      f_calDig.init();
+    }
+    
+    // Return analog clibration spline by data type
+    function calAnlGet(type)
+    {
+      el3cClearCalibrationTypeCheck(type);
+      if( EL3C_CalibrationType$$Illuminance == type )
+        return f_calAnl$calIlluminance;
+      else if( EL3C_CalibrationType$$Luminance == type )  
+        return f_calAnl$calLuminance;
+      else if( EL3C_CalibrationType$$Pulsation == type ) 
+        return f_calAnl$calPulsation;
+    }
+
+    // Return clear calibration splines for color sensor
+    function calDigGet(type)
+    {
+      el3cClearCalibrationTypeCheck(type);
+      if( EL3C_CalibrationType$$Illuminance == type )
+        return f_calDig$calIlluminance;
+      else if( EL3C_CalibrationType$$Luminance == type )  
+        return f_calDig$calLuminance;
+    }
+    
+    function calCacheClear(type)
+    {
+      if( m_prevType != type )
+      {
+        m_prevType = type;
+        m_calAnl = calAnlGet(type);
+        m_calDig = calDigGet(type);
+      }
+    }
+    
+    /// Calculate calibrated value
+    function calAnlValCalculate(type, val)
+    { 
+      calCacheClear(type);
+      return m_calAnl.calculate(val);
+    }
+    
+    function calDigValCalculate(type, val)
+    { 
+      calCacheClear(type);
+      return m_calDig.calculate(val);
+    }
+    
+    /// Update CRC data in clear and color calibrations
+    function crcUpdate()
+    {
+      f_calAnl.crcUpdate();
+      f_calDig.crcUpdate();
+    }
+    
+    property calAnl;
+    read: { return f_calAnl; }
+    
+    property calDig;
+    read: { return f_calDig; }
+
+    property crcIsOk;
+    read: { return f_calAnl$crcIsOk && f_calDig$crcIsOk; }    
+  }
   
   if( f_fwId$ver > "1.0" )
   {
@@ -220,68 +327,18 @@ object EL3C_Settings
   new()
   {
     f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$EL3C) );
-    f_calClear.init();
-    f_calColor.init();
+    call(
+      "calInit"
+    );
   }
   
   new(fwId)
   {
     fwIdValidate(fwId, EsDeviceType$$EL3C, "EL3C settings");
     f_fwId.copyFrom(fwId);
-    f_calClear.init();
-    f_calColor.init();
-  }
-  
-  // Return clear clibration spline by data type
-  function calClearGet(type)
-  {
-    el3cClearCalibrationTypeCheck(type);
-    if( EL3C_CalibrationType$$Illuminance == type )
-      return f_calClear$calIlluminance;
-    else if( EL3C_CalibrationType$$Luminance == type )  
-      return f_calClear$calLuminance;
-    else if( EL3C_CalibrationType$$Pulsation == type ) 
-      return f_calClear$calPulsation;
-  }
-
-  // Return clear calibration splines for color sensor
-  function calColorClearGet(type)
-  {
-    el3cClearCalibrationTypeCheck(type);
-    if( EL3C_CalibrationType$$Illuminance == type )
-      return f_calColor$calIlluminance;
-    else if( EL3C_CalibrationType$$Luminance == type )  
-      return f_calColor$calLuminance;
-  }
-  
-  function clearCalibrationCache(type)
-  {
-    if( m_prevType != type )
-    {
-      m_prevType = type;
-      m_calClear = calClearGet(type);
-      m_calClearColor = calColorClearGet(type);
-    }
-  }
-  
-  /// Calculate calibrated value
-  function calibratedClearValueCalculate(type, val)
-  { 
-    clearCalibrationCache(type);
-    return m_calClear.calculate(val);
-  }
-  
-  function calibratedColorClearValueCalculate(type, val)
-  { 
-    clearCalibrationCache(type);
-    return m_calClearColor.calculate(val);
-  }
-  
-  /// Update CRC data in clear and color calibrations
-  function crcUpdate()
-  {
-    f_calClear.crcUpdate();
-    f_calColor.crcUpdate();
+    call(
+      "calInit"
+    );
   }
   
   /// Propertires
@@ -302,13 +359,4 @@ object EL3C_Settings
   property bgndExposure;
   read: { return f_bgndExp$value; }
   write: { f_bgndExp = __value; }
-  
-  property calClear;
-  read: { return f_calClear; }
-  
-  property calColor;
-  read: { return f_calColor; }
-  
-  property crcIsOk;
-  read: { return f_calClear$crcIsOk && f_calColor$crcIsOk; }
 }

@@ -1,0 +1,178 @@
+// Pre - 1.5 FW calibration structures
+
+/// Clear calibration data
+object EL3C_CalibrationClear
+{
+  EsSpline f_csIllum;    ///< Clear illuminance calibration
+  EsSpline f_csLum;      ///< Clear luminance calibration
+  EsSpline f_csKp;       ///< Clear pulsation calibration  
+  
+  // We should have separate initialization 
+  // method to work-around cases, when this object is used as filed
+  // in other compound object(s), and default ctors are not being called for fields
+  // 
+  function init()
+  {
+    f_csIllum$maxLen = 8;
+    f_csLum$maxLen = 8;
+    f_csKp$maxLen = 8;
+  }
+  
+  /// Default constructor
+  new()
+  {
+    init();
+  }  
+  
+  /// Update all crc blocks if needed
+  function crcUpdate()
+  {
+    f_csIllum.crcUpdate();
+    f_csLum.crcUpdate();
+    f_csKp.crcUpdate();
+  }
+  
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+  property crcIsOk;
+  read: { return f_csIllum$crcIsOk && f_csLum$crcIsOk && f_csKp$crcIsOk; }
+  
+  /// Overall validity check
+  property valid;
+  read: { return f_csIllum$valid && f_csLum$valid && f_csKp$valid; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_csIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_csLum; }
+  
+  /// Pulsation calibration
+  property calPulsation;
+  read: { return f_csKp; }
+}
+
+/// Color calibration data, legacy object for pre-1.5 firmware
+object EL3C_CalibrationColor
+{
+  var m_acfCrcInvalid;
+  
+  EL3C_CorMatrix f_ccm;       ///< XYZ color space correlation matrix
+  EL3C_CorMatrix f_tcm;       ///< Color temperature correlation matrix
+  EsSpline f_ccIllum;         ///< Clear channel illuminance calibration
+  EsSpline f_ccLum;           ///< Clear channel luminance calibration
+  esF f_acf[3];               ///< Color sensor attenuation correction factors for attenuation coefficients > 1
+  esU8 f_acfCrc;              ///< ACF vector crc8 field
+  
+  // We should have separate initialization 
+  // method to work-around cases, when this object is used as filed
+  // in other compound object(s), and default ctors are not being called for fields
+  // 
+  function init()
+  {
+    m_acfCrcInvalid = true;
+    f_ccIllum$maxLen = 8;
+    f_ccLum$maxLen = 8;
+  }  
+  
+  /// Default constructor
+  new()
+  {
+    init();
+  }
+  
+  /// Calculate CRC8 of ACF block
+  function acfCrcCalc()
+  var crc = new EsCRC8(f_acf#asBinBuffer(), 0xAB);
+  {
+    return crc;
+  }
+  
+  /// Update ACF block crc if neccessary
+  function acfCrcUpdate()
+  {
+    if( m_acfCrcInvalid )
+    {
+      f_acfCrc = acfCrcCalc()$value;
+      m_acfCrcInvalid = false;
+    }
+  }
+  
+  /// Check if CRC of ACF block is OK
+  function acfCrcIsOk()
+  var crc;
+  {
+    acfCrcUpdate();
+    crc = new EsCRC8(f_acfCrc#asBinBuffer(), f_acfCrc$value);
+    return 0 == crc$value;
+  }
+  
+  /// Update CRC of all blocks, if needed
+  function crcUpdate()
+  {
+    f_ccm.crcUpdate();
+    f_tcm.crcUpdate();
+    f_ccIllum.crcUpdate();
+    f_ccLum.crcUpdate();
+    acfCrcUpdate();    
+  }
+  
+  /// ACF block item get
+  function acfGet(idx)
+  {
+    return f_acf[idx]$value;
+  }
+  
+  /// ACF block item set
+  function acfSet(idx, val)
+  {
+    f_acf[idx] = val$value;
+    m_acfCrcInvalid = true;
+  }
+  
+  /// Calculate color space coordinates [x, y], given input vector [c, r, g, b]
+  function calibratedXyCalculate(val)
+  {
+  }
+
+  /// Calculate color temperature (K), given input vector [c, r, g, b]
+  function calibratedColorTemperatureCalculate(val)
+  {
+  }
+ 
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+  property crcIsOk;
+  read: 
+  { 
+    return acfCrcIsOk() && 
+      f_ccm$crcIsOk && f_tcm$crcIsOk &&
+       f_ccIllum$crcIsOk && f_ccLum$crcIsOk;
+  }
+  
+  /// Overall validity check
+  property valid;
+  read: { return f_ccIllum$valid && f_ccLum$valid; }
+  
+  /// Access Color space Correlation matrix  
+  property ccm;
+  read: { return f_ccm; }
+  
+  /// Access Color temperature Correlation matrix  
+  property tcm;
+  read: { return f_tcm; }
+  
+  /// Illuminance calibration access
+  property calIlluminance;
+  read: { return f_ccIllum; }
+  
+  /// Luminance calibration access
+  property calLuminance;
+  read: { return f_ccLum; }
+}

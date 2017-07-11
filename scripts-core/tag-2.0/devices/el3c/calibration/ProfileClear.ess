@@ -385,19 +385,19 @@ object EL3C_ClearCalibrationProfile
         
         if( type == EL3C_CalibrationType$$Illuminance )
         {
-          splineAnl = m_linkedSettings$calClear$calIlluminance;
-          splineDig = m_linkedSettings$calColor$calIlluminance;
+          splineAnl = m_linkedSettings$calAnl$calIlluminance;
+          splineDig = m_linkedSettings$calDig$calIlluminance;
         }
         else
         {
-          splineAnl = m_linkedSettings$calClear$calLuminance;
-          splineDig = m_linkedSettings$calColor$calLuminance;
+          splineAnl = m_linkedSettings$calAnl$calLuminance;
+          splineDig = m_linkedSettings$calDig$calLuminance;
         }
       }
       else
       {
         nodesAnl = fittingSplineCalculate(type, true);
-        splineAnl = m_linkedSettings$calClear$calPulsation;
+        splineAnl = m_linkedSettings$calAnl$calPulsation;
       }
       
       //EsScriptDebug::log(nodesAnl);

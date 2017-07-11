@@ -87,14 +87,22 @@ object EL3C extends EsDeviceBase
       if( EL3C_Rpid$$WorkmodeGet == rpcId )
         m_opMode = result;
     }      
-    else if( EL3C_Rpid$$CalibrationClearGet == rpcId )
+    else if( rpcId in [EL3C_Rpid$$CalibrationClearGet, EL3C_Rpid$$CalibrationAnlGet] )
     {
-      result = new EL3C_CalibrationClear();
+      if( m_fwId$ver < "1.5" )
+        result = new EL3C_CalibrationClear();
+      else
+        result = new EL3C_CalibrationAnl();
+        
       result$buffer = rpcResult#asBinBuffer();
     }
-    else if( EL3C_Rpid$$CalibrationColorGet == rpcId )
+    else if( rpcId in [EL3C_Rpid$$CalibrationColorGet, EL3C_Rpid$$CalibrationDigGet] )
     {
-      result = new EL3C_CalibrationColor();
+      if( m_fwId$ver < "1.5" )
+        result = new EL3C_CalibrationColor();
+      else
+        result = new EL3C_CalibrationDig();
+      
       result$buffer = rpcResult#asBinBuffer();      
     }
     else if( EL3C_Rpid$$LiveDataGet == rpcId )
@@ -165,17 +173,34 @@ object EL3C extends EsDeviceBase
     else
       return rpcResult;      
       
-    rpcResult = rpcCall(EL3C_Rpid$$CalibrationClearGet, null);
-    if( rpcResult[0] )
-      settings.f_calClear.copyFrom( rpcResult[1] );
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationClearGet, null);
+      if( rpcResult[0] )
+        settings.f_calClear.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationColorGet, null);
+      if( rpcResult[0] )
+        settings.f_calColor.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
     else
-      return rpcResult;
-    
-    rpcResult = rpcCall(EL3C_Rpid$$CalibrationColorGet, null);
-    if( rpcResult[0] )
-      settings.f_calColor.copyFrom( rpcResult[1] );
-    else
-      return rpcResult;
+    {
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationAnlGet, null);
+      if( rpcResult[0] )
+        settings.f_calAnl.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationDigGet, null);
+      if( rpcResult[0] )
+        settings.f_calDig.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
     
     rpcResult = [];
     rpcResult += true;
@@ -208,16 +233,33 @@ object EL3C extends EsDeviceBase
     batch#append(batchItem);
     batchItem = [];
         
-    batchItem += EL3C_Rpid$$CalibrationClearSet;
-    batchItem += settings.f_calClear;
-    batch#append(batchItem);
-    batchItem = [];
-    //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
-    
-    batchItem += EL3C_Rpid$$CalibrationColorSet;
-    batchItem += settings.f_calColor;
-    batch#append(batchItem);
-    batchItem = [];
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      batchItem += EL3C_Rpid$$CalibrationClearSet;
+      batchItem += settings.f_calClear;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
+      
+      batchItem += EL3C_Rpid$$CalibrationColorSet;
+      batchItem += settings.f_calColor;
+      batch#append(batchItem);
+      batchItem = [];
+    }
+    else
+    {
+      batchItem += EL3C_Rpid$$CalibrationAnlSet;
+      batchItem += settings.f_calAnl;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Anl calibration size: %d", settings.f_calAnl$size);
+      
+      batchItem += EL3C_Rpid$$CalibrationDigSet;
+      batchItem += settings.f_calDig;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Dig calibration size: %d", settings.f_calDig$size);
+    }
     
     batch = rpcBatchCall(batch);
     //EsScriptDebug::log(batch);

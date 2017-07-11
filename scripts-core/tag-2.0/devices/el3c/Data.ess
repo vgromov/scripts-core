@@ -343,18 +343,15 @@ object EL3C_RawData
         "</LI><LI><B>K<SUB>p</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kp")) + 
         "</LI><LI><B>K<SUB>pi</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kpi")) + 
         "</LI><LI><B>Cnt:</B> " + propertyGet("cntAnl") + 
-        "</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>C:</B> " + propertyGet("white") + 
-        "</LI><LI><B>R:</B> " + propertyGet("red") + 
-        "</LI><LI><B>G:</B> " + propertyGet("green") + 
-        "</LI><LI><B>B:</B> " + propertyGet("blue") + 
-        "</LI><LI><B>Att:</B> " + propertyGet("att") +
-        "</LI><LI><B>Cnt:</B> " + propertyGet("cntColor") +
+        "</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>C:</B> " + propertyGet("valDig") + 
+        "</LI><LI><B>Cnt:</B> " + propertyGet("cntDig") +
         "</LI></UL>";
     }
 
     /// Measured digital sensor value
     property valDig;
     read: { return f_valDig$value; }
+    
     /// How many input points were used in digital sensor data calculation
     property cntDig;
     read: { return f_cntDig$value; }
@@ -413,6 +410,10 @@ object EL3C_RawData
     /// Low light checking
     property isLowLight;
     read: { return f_c < 2000 || f_val < 10; }
+    
+    /// Compatibility property
+    property valDig;
+    read: { return $white; }    
   }
   
   new()
@@ -442,7 +443,4 @@ object EL3C_RawData
   /// How many input points were used in analog sensor data calculation
   property cntAnl;
   read: { return f_cntAnl$value; }
-  /// Backward compatibility
-  property cntClear;
-  read: { return $cntAnl; }
 }

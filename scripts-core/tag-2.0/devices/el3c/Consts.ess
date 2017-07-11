@@ -15,10 +15,18 @@ enum EL3C_Rpid
   WorkmodeGet               = 2081, "esU32_Call|";
   LiveDataGet               = 2082, "esBA_Call|";
   RawDataGet                = 2083, "esBA_Call|";
+  
+  // HW 1 and FW Pre 1.5
   CalibrationClearGet       = 2084, "esBA_Call|";
   CalibrationClearSet       = 2085, "VOID_Call_esBA|";
   CalibrationColorGet       = 2086, "esBA_Call|";
   CalibrationColorSet       = 2087, "VOID_Call_esBA|";
+  // HW 2 and FW >= 1.5 
+  CalibrationAnlGet         = 2084, "esBA_Call|";
+  CalibrationAnlSet         = 2085, "VOID_Call_esBA|";
+  CalibrationDigGet         = 2086, "esBA_Call|";
+  CalibrationDigSet         = 2087, "VOID_Call_esBA|";
+  
   BgndTmoGet                = 2088, "esU16_Call|";
   BgndTmoSet                = 2089, "VOID_Call_esU16|";
   AutosaveTmoGet            = 2090, "esU16_Call|";
