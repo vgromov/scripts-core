@@ -358,7 +358,7 @@ object EL3C_RawData
     
     /// Low light checking
     property isLowLight;
-    read: { return f_valDig < 200 || f_val < 10; }        
+    read: { return f_valDig < 4 || f_val < 10; }        
   }
   else if( 
     !m_hwCfgCustom#isEmpty() && 
@@ -411,9 +411,12 @@ object EL3C_RawData
     property isLowLight;
     read: { return f_c < 2000 || f_val < 10; }
     
-    /// Compatibility property
+    /// Compatibility properties
     property valDig;
     read: { return $white; }    
+
+    property cntDig;
+    read: { return $cntColor; }    
   }
   
   new()

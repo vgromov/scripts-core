@@ -110,13 +110,13 @@ object EL3C extends EsDeviceBase
       result = new EL3C_Data(); 
       result$buffer = rpcResult#asBinBuffer();
       
-      //EsScriptDebug::log("EL3C_Data received (size=%d)", result$size);
+      //EsScriptDebug::log("EL3C_Data received (size=%d)", rpcResult#asBinBuffer()#countGet());
     
       m_opMode = result$opmode | result$opmodeModifier;
     }
     else if( EL3C_Rpid$$RawDataGet == rpcId )
     {
-      EsScriptDebug::log("EL3C_RawData received (size=%d)", result$size);
+      EsScriptDebug::log("EL3C_RawData received (size=%d)", rpcResult#asBinBuffer()#countGet());
       EsScriptDebug::log("Initializing EL3C_RawData with m_hwInfo, custom HW mask=0x%08X", m_hwInfo$custom);
 
       result = new EL3C_RawData( m_hwInfo$custom ); 

@@ -145,6 +145,9 @@ object EsSpline
   /// Set new nodes count with length checking
   function countSet(newCount)
   { 
+    if( newCount#isEmpty() )
+      newCount = 0;
+      
     maxLenCheck(newCount);
   
     f_cnt = newCount;
