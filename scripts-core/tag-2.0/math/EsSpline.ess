@@ -121,9 +121,12 @@ object EsSpline
     return false;
   }
   
-  /// Check len agains maximum length restriction
+  /// Check len against maximum length restriction
   function maxLenCheck(len)
   {
+    if( m_maxLen#isEmpty() ) //< May happen during implicit creation from stream with dynamic layout objects
+      return;
+    
     if( len > m_maxLen )
       throw EsStr::format(I"Spline length must not exceed %u, requested %u", m_maxLen, len);
   }
