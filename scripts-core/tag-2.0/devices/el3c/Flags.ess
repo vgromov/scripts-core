@@ -4,6 +4,7 @@
 /// EL3C Health state object
 object EL3C_Health
 {
+  var m_verStr;
   esU32 f_errors;
   /// Constructor
   new(health)
@@ -24,13 +25,26 @@ object EL3C_Health
       result += EL3C_Error$$RTC_Invalid$$label;
     if(f_errors & EL3C_Error$$Storage)
       result += EL3C_Error$$Storage$$label;
-    if(f_errors & EL3C_Error$$ClearNoCal)
-      result += EL3C_Error$$ClearNoCal$$label;
-    if(f_errors & EL3C_Error$$ColorNoCal)
-      result += EL3C_Error$$ColorNoCal$$label;
-    if(f_errors & EL3C_Error$$MAX4400x)
-      result += EL3C_Error$$MAX4400x$$label;
-  
+    
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      if(f_errors & EL3C_Error$$ClearNoCal)
+        result += EL3C_Error$$ClearNoCal$$label;
+      if(f_errors & EL3C_Error$$ColorNoCal)
+        result += EL3C_Error$$ColorNoCal$$label;
+      if(f_errors & EL3C_Error$$ColorNoSensor)
+        result += EL3C_Error$$ColorNoSensor$$label;
+    }
+    else
+    {
+      if(f_errors & EL3C_Error$$AnlNoCal)
+        result += EL3C_Error$$AnlNoCal$$label;
+      if(f_errors & EL3C_Error$$DigNoCal)
+        result += EL3C_Error$$DigNoCal$$label;
+      if(f_errors & EL3C_Error$$DigNoSensor)
+        result += EL3C_Error$$DigNoSensor$$label;
+    }
+    
     return result;
   }
   /// Return health errors as string
@@ -41,27 +55,58 @@ object EL3C_Health
 	
 	/// Properties
 	///
+  property verStr;
+  read: { return m_verStr; }
+  write: { m_verStr = __value#asString(); }
+  
 	property errors;
 	read: { return f_errors$value; }
   /// return true if health critical error was latched
   property hasCriticalError;
-  read: { return 0 != (f_errors & 
-                                ( EL3C_Error$$I2C|
-                                  EL3C_Error$$RTC|
-                                  EL3C_Error$$Storage|
-                                  EL3C_Error$$MAX4400x 
-                                )
-                      ); 
-        }
+  read: { 
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      return 0 != (f_errors & 
+                                    ( EL3C_Error$$I2C|
+                                      EL3C_Error$$RTC|
+                                      EL3C_Error$$Storage|
+                                      EL3C_Error$$ColorNoSensor 
+                                    )
+                          ); 
+    }
+    else
+    {
+      return 0 != (f_errors & 
+                                    ( EL3C_Error$$I2C|
+                                      EL3C_Error$$RTC|
+                                      EL3C_Error$$Storage|
+                                      EL3C_Error$$DigNoSensor 
+                                    )
+                          ); 
+    }
+  }
   /// return true if health non-critical error was latched
   property hasNonCriticalError;
-  read: { return 0 != (f_errors & 
-                                ( EL3C_Error$$RTC_Invalid|
-                                  EL3C_Error$$ClearNoCal|
-                                  EL3C_Error$$ColorNoCal
-                                )
-                      );        
-        }
+  read: { 
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      return 0 != (f_errors & 
+                    ( EL3C_Error$$RTC_Invalid|
+                      EL3C_Error$$ClearNoCal|
+                      EL3C_Error$$ColorNoCal
+                    )
+      );        
+    }
+    else
+    {
+      return 0 != (f_errors & 
+                    ( EL3C_Error$$RTC_Invalid|
+                      EL3C_Error$$AnlNoCal|
+                      EL3C_Error$$DigNoCal
+                    )
+      );        
+    }
+  }
 	// Return true if error flags contain warnings			
 	property hasWarning;
 	read: { return 0 != (f_errors & EL3C_Error$$PwrCritical); }
@@ -75,7 +120,7 @@ object EL3C_Health
   read: { return errorsAsStrings(); }
 }
 
-/// PHA Color data flags|state helper object
+/// EL3C Color data flags|state helper object
 ///
 object EL3C_DataFlags
 {

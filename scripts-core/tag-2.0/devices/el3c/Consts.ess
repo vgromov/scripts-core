@@ -59,14 +59,22 @@ enum EL3C_HwCfgCustom {
 /// PHA Color device error flags and bit masks
 enum EL3C_Error
 {
-  PwrCritical  = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
-  RTC          = 0x00000002, "RTC error";                           ///< RTC initialization error
-  RTC_Invalid  = 0x00000004, "RTC date time corrupt";               ///< RTC date time value is invalid
-  Storage      = 0x00000008, "Storage initialization error";        ///< Storage stream could not be opened
-  ClearNoCal   = 0x00000010, "Clear sensor calibration is missing"; ///< Clear sensor calibration is missing or invalid
-  ColorNoCal   = 0x00000020, "Color sensor calibration is missing"; ///< Color sensor calibration is missing or invalid
-  MAX4400x     = 0x00000040, "Color sensor does not respond";       ///< Color sensor MAX4400x does not respond
-  I2C          = 0x00000080, "I2C bus error";                       ///< Error condition latched on I2C bus     
+  PwrCritical   = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
+  RTC           = 0x00000002, "RTC error";                           ///< RTC initialization error
+  RTC_Invalid   = 0x00000004, "RTC date time corrupt";               ///< RTC date time value is invalid
+  Storage       = 0x00000008, "Storage initialization error";        ///< Storage stream could not be opened
+
+  // Pre-1.5 error flags
+  ClearNoCal    = 0x00000010, "Clear sensor calibration is missing"; ///< Clear sensor calibration is missing or invalid
+  ColorNoCal    = 0x00000020, "Color sensor calibration is missing"; ///< Color sensor calibration is missing or invalid
+  ColorNoSensor = 0x00000040, "Color sensor does not respond";       ///< Color sensor does not respond
+
+  // >= 1.5 error flags
+  AnlNoCal      = 0x00000010, "Analog Clear sensor calibration is missing"; ///< Analog clear sensor calibration is missing or invalid
+  DigNoCal      = 0x00000020, "Digital Clear sensor calibration is missing"; ///< Digital clear sensor calibration is missing or invalid
+  DigNoSensor   = 0x00000040, "Digital sensor does not respond";     ///< Digital clear sensor does not respond
+
+  I2C           = 0x00000080, "I2C bus error";                       ///< Error condition latched on I2C bus     
 }
 
 /// PHA Color operation modes

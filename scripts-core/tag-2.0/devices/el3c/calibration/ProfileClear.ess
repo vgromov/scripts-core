@@ -115,11 +115,6 @@ object EL3C_ClearProfileNode
   @persistent;
   read: { return m_rawAnl; }
   write: { m_rawAnl = __value; }
-
-  /// Backward compatibility property
-  property rawOsram;
-  read: { return $rawAnl; }
-  write: { $rawAnl = __value; }
   
   /// Raw uncalibrated value string
   property rawAnlStr;
@@ -129,10 +124,6 @@ object EL3C_ClearProfileNode
     else 
       EL3C_ValueFmt(m_rawAnl); 
   }
-  
-  /// Analog - Backward compatibility
-  property rawOsramStr;
-  read: { return $rawAnlStr; }
 
   /// Raw uncalibrated digital value
   property rawDig;
@@ -148,14 +139,6 @@ object EL3C_ClearProfileNode
     else 
       EL3C_ValueFmt(m_rawDig); 
   }
-  
-  /// Digital - Backward compatibility
-  property rawMax4400x;
-  read: { return $rawDig; }
-  write: { $rawDig = __value; }
-  
-  property rawMax4400xStr;
-  read: { return $rawDigStr; }
  
   /// Calibrated verified value
   property verified;
@@ -181,13 +164,6 @@ object EL3C_ClearProfileNode
 
   property hasRawValues;
   read: { return $hasRawAnl || $hasRawDig; }
-  
-  /// Backward compatibility
-  property hasRawOsram;
-  read: { return $hasRawAnl; }
-
-  property hasRawMax4400x;
-  read: { return $hasRawDig; }
   
   /// Node integration preferences
   property integrationType;
@@ -682,7 +658,13 @@ var profile = new EL3C_ClearCalibrationProfile("DefaultProfile");
 /// Profile files manipulation
 ///
 function profileClearLoad(path)
-var stream = new EsStreamXml(EsStreamFlag$$Read|EsStreamFlag$$File, path);
+var stream = new EsStreamXml(
+  EsStreamFlag$$Read|
+  EsStreamFlag$$File|
+  EsStreamFlag$$NonStrictProperties|
+  EsStreamFlag$$NonStrictFields, 
+  path
+);
 var profile;
 {
   if( stream.firstRootObjectLocate() )
