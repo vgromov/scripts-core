@@ -7,24 +7,29 @@
 ##require("devices/p3_81_1_2.ess");
 ##require("devices/p3_80E.ess");
 ##require("devices/el3c.ess");
+##require("devices/radexAq.ess");
 
 /// Create device instance provided fwId, created and initialized elsewhere
 function devicesDeviceCreate(fwId)
   @help = "Create device instance, provided device fwId, created and initialized|loaded elsewhere";
 var type = fwId$devType;	
 {
-	if( type in [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1] )
+	switch( type )
+  {
+  case [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1]:
 		return new BOI01(fwId);
-	else if( type in [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1] )
+	case [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1]:
 		return new PHA01(fwId);  
-	else if( EsDeviceType$$ET == type )
+	case EsDeviceType$$ET:
     return new ET01(fwId);
-  else if( type in [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812] )
+  case [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812]:
     return new P3_81_1_2(fwId);
-  else if( EsOctavaDeviceType$$P380E == type )
+  case EsOctavaDeviceType$$P380E:
     return new P3_80E(fwId);
-  else if( EsDeviceType$$EL3C == type )
+  case EsDeviceType$$EL3C:
     return new EL3C(fwId);
+  case EsQuartaDeviceType$$RADEXAQ:
+    return new RADEX_AQ(fwId);
   
   /// Otherwise, return default 'Anonymous' device object
   return new EsDeviceBase(fwId);
