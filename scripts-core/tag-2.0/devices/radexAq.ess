@@ -1,0 +1,295 @@
+// Scripting device support for pha-01 photo-appliance
+##require("EsDeviceBase.ess");
+##require("radexAq/Consts.ess");
+##require("radexAq/FmtHelpers.ess");
+##require("radexAq/Flags.ess");
+##require("radexAq/Data.ess");
+
+/// RADEX_AQ device object
+object RADEX_AQ extends EsDeviceBase
+@nomarshal;
+{
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in RADEX_AQ_Rpid )
+      return RADEX_AQ_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in RADEX_AQ_Rpid )
+      return rpcSigGet(RADEX_AQ_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$RADEXAQ, 
+      "RADEX_AQ"
+    );
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$RADEXAQ);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + RADEX_AQ_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$SHUTDOWN;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    
+    return result;
+  }
+  
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new RADEX_AQ_Health(rpcResult);    // use RADEX_AQ health implementation instead of unparsed standard one
+    // Group all simple no-objects responses into one branch
+    else if( 
+      RADEX_AQ_Rpid$$WorkmodeGet == rpcId ||
+      RADEX_AQ_Rpid$$BgndTmoGet == rpcId ||
+      RADEX_AQ_Rpid$$AutosaveTmoGet == rpcId ||
+      RADEX_AQ_Rpid$$DataCountGet == rpcId
+      )
+    {
+      result = rpcResult;
+      
+      // in addition, save currently active device opmode
+      // it's vital for live data requests handling
+      if( RADEX_AQ_Rpid$$WorkmodeGet == rpcId )
+        m_opMode = result;
+    }      
+    else if( rpcId in [RADEX_AQ_Rpid$$CalibrationClearGet, RADEX_AQ_Rpid$$CalibrationAnlGet] )
+    {
+      if( m_fwId$ver < "1.5" )
+        result = new RADEX_AQ_CalibrationClear();
+      else
+        result = new RADEX_AQ_CalibrationAnl();
+        
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( rpcId in [RADEX_AQ_Rpid$$CalibrationColorGet, RADEX_AQ_Rpid$$CalibrationDigGet] )
+    {
+      if( m_fwId$ver < "1.5" )
+        result = new RADEX_AQ_CalibrationColor();
+      else
+        result = new RADEX_AQ_CalibrationDig();
+      
+      result$buffer = rpcResult#asBinBuffer();      
+    }
+    else if( RADEX_AQ_Rpid$$LiveDataGet == rpcId )
+    {
+      result = new RADEX_AQ_Data(); 
+      result$buffer = rpcResult#asBinBuffer();
+      result$errors$verStr = m_fwId$ver;
+      
+      //EsScriptDebug::log("RADEX_AQ_Data received (size=%d)", rpcResult#asBinBuffer()#countGet());
+    
+      m_opMode = result$opmode | result$opmodeModifier;
+    }
+    else if( RADEX_AQ_Rpid$$RawDataGet == rpcId )
+    {
+      //EsScriptDebug::log("RADEX_AQ_RawData received (size=%d)", rpcResult#asBinBuffer()#countGet());
+      //EsScriptDebug::log("Initializing RADEX_AQ_RawData with m_hwInfo, custom HW mask=0x%08X", m_hwInfo$custom);
+
+      result = new RADEX_AQ_RawData( m_hwInfo$custom ); 
+      result$buffer = rpcResult#asBinBuffer();
+      result$errors$verStr = m_fwId$ver;
+    }
+    else if( RADEX_AQ_Rpid$$DataAtIdxGet == rpcId )
+    {
+      result = new RADEX_AQ_Data();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    internalInit(null);    
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+  }
+  
+  /// RADEX_AQ custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload()
+  var settings = new RADEX_AQ_Settings(m_fwId), rpcResult;
+  {
+    // Download software info
+    rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+    if( rpcResult[0] )
+    {
+      settings.f_swInfo.copyFrom( rpcResult[1] );
+    }
+    else
+      return rpcResult;
+    
+    rpcResult = rpcCall(RADEX_AQ_Rpid$$AutosaveTmoGet, null);
+    if( rpcResult[0] )
+      settings.f_autosaveInterval = rpcResult[1];
+    else
+      return rpcResult;
+      
+    rpcResult = rpcCall(RADEX_AQ_Rpid$$BgndTmoGet, null);
+    if( rpcResult[0] )
+      settings.f_bgndExp = rpcResult[1];
+    else
+      return rpcResult;      
+      
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      rpcResult = rpcCall(RADEX_AQ_Rpid$$CalibrationClearGet, null);
+      if( rpcResult[0] )
+        settings.f_calClear.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(RADEX_AQ_Rpid$$CalibrationColorGet, null);
+      if( rpcResult[0] )
+        settings.f_calColor.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    else
+    {
+      rpcResult = rpcCall(RADEX_AQ_Rpid$$CalibrationAnlGet, null);
+      if( rpcResult[0] )
+        settings.f_calAnl.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(RADEX_AQ_Rpid$$CalibrationDigGet, null);
+      if( rpcResult[0] )
+        settings.f_calDig.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+  
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [], batchItem = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    settings.crcUpdate();
+
+    batchItem += RADEX_AQ_Rpid$$WorkmodeSet;
+    batchItem += RADEX_AQ_OpMode$$Idle;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += RADEX_AQ_Rpid$$AutosaveTmoSet;
+    batchItem += settings.f_autosaveInterval;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += RADEX_AQ_Rpid$$BgndTmoSet;
+    batchItem += settings.f_bgndExp;
+    batch#append(batchItem);
+    batchItem = [];
+        
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      batchItem += RADEX_AQ_Rpid$$CalibrationClearSet;
+      batchItem += settings.f_calClear;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
+      
+      batchItem += RADEX_AQ_Rpid$$CalibrationColorSet;
+      batchItem += settings.f_calColor;
+      batch#append(batchItem);
+      batchItem = [];
+    }
+    else
+    {
+      batchItem += RADEX_AQ_Rpid$$CalibrationAnlSet;
+      batchItem += settings.f_calAnl;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Anl calibration size: %d", settings.f_calAnl$size);
+      
+      batchItem += RADEX_AQ_Rpid$$CalibrationDigSet;
+      batchItem += settings.f_calDig;
+      batch#append(batchItem);
+      batchItem = [];
+      //EsScriptDebug::log("Dig calibration size: %d", settings.f_calDig$size);
+    }
+    
+    batch = rpcBatchCall(batch);
+    //EsScriptDebug::log(batch);
+    
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batchItem += true;
+      batchItem += null; // nothing is returned
+    }
+    else
+    {
+      batchItem += false;
+      batchItem += "Device settings upload fail";
+    }
+    batch = [];
+    batch#append(batchItem);
+    
+    return batch;
+  }
+  
+  /// Properties
+  ///
+  
+  /// countryCode reader override
+  function countryCode_read()
+  {
+    return ;
+  }
+  
+  /// Currently active opmode
+  property opmode;
+  read: { return m_opMode; }
+  
+  /// Opmode string
+  property opmodeStr;
+  read:
+  var helper = new RADEX_AQ_DataFlags(m_opMode);
+  { 
+    return helper$opmodeStr + "; " + helper$opmodeModifierStr;
+  }
+}

@@ -12,15 +12,15 @@
 /// Create device instance provided fwId, created and initialized elsewhere
 function devicesDeviceCreate(fwId)
   @help = "Create device instance, provided device fwId, created and initialized|loaded elsewhere";
-var type = fwId$devType;	
+var type = fwId$devType;  
 {
-	switch( type )
+  switch( type )
   {
   case [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1]:
-		return new BOI01(fwId);
-	case [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1]:
-		return new PHA01(fwId);  
-	case EsDeviceType$$ET:
+    return new BOI01(fwId);
+  case [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1]:
+    return new PHA01(fwId);  
+  case EsDeviceType$$ET:
     return new ET01(fwId);
   case [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812]:
     return new P3_81_1_2(fwId);
@@ -30,6 +30,7 @@ var type = fwId$devType;
     return new EL3C(fwId);
   case EsQuartaDeviceType$$RADEXAQ:
     return new RADEX_AQ(fwId);
+  }
   
   /// Otherwise, return default 'Anonymous' device object
   return new EsDeviceBase(fwId);

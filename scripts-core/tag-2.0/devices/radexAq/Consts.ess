@@ -1,0 +1,57 @@
+/// RADEX_AQ contants
+///
+
+const c_RADEX_AQ_unitDust = "mg/m<sup>3</sup>";
+const c_RADEX_AQ_unitTemp = ["°C", "°F"];
+const c_RADEX_AQ_unitHumidity = "%";
+
+// RADEX_AQ-specific rpcs 
+enum RADEX_AQ_Rpid
+{
+  LiveDataGet               = 2052, "esBA_Call|";
+  DataCountGet              = 2054, "esU16_Call|Return count of saved data nodes";
+  DataDelete                = 2055, "esBL_Call|Delete all saved data nodes";
+  DataGetAtIdx              = 2056, "esBA_Call_esU16|Request saved data node at specified index";
+  SettingsGet               = 2057, "esBA_Call|Get device settigns";
+  SettingsSet               = 2058, "VOID_Call_esBA|Set device settings";
+}
+
+// Settings defaults
+//
+
+// Dust type awareness
+enum RADEX_AQ_Dust
+{
+  Type0         = 0, I"Dust type 0";
+  Type1         = 1, I"Dust type 1";
+  Type2         = 2, I"Dust type 2";
+  Type3         = 3, I"Dust type 3";
+  Type4         = 4, I"Dust type 4";
+  Type5         = 5, I"Dust type 5";
+  Type6         = 6, I"Dust type 6";
+  Type7         = 7, I"Dust type 7";
+}
+
+// Val defaults
+enum RADEX_AQ_Defs
+{
+  // Measurement period, s
+  MsrPeriodMin  = 60;
+  MsrPeriodMax  = 86400;
+  MsrPeriodDef  = 60;
+  
+  // Screen update period, s
+  ScrUpdateMin  = 5;
+  ScrUpdateMax  = 240;
+  ScrUpdateDef  = 10;
+  
+  // Backlight duration, saved
+  BcklTmoMin    = 60;
+  BcklTmoMax    = 3600;
+  BcklTmoDef    = 60;
+  
+  // Dust concentration alert, mg/m^3
+  DustAlertMin  = 0.001;
+  DustAlertMax  = 1;
+  DustAlertDef  = 0.01;
+}

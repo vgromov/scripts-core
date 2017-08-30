@@ -1,0 +1,151 @@
+/// RADEX_AQ Calibration and settings data blocks
+///
+
+object RADEX_AQ_Cfg
+{
+  RADEX_AQ_Flags f_flags;
+  RADEX_AQ_Screens f_screens;
+  esU32 f_screenChangeTmo;
+  esU32 f_bcklTmo;
+  esU32 f_msrPeriod;
+  esU8  f_dustType;
+  esF   f_alertThreshold;
+  esU8  f_lang[4];
+  esU16 f_dummy;
+  
+  // Flags 
+  property flags;
+  @label = I"Configuration flags";
+  read: { return f_flags.clone(); }
+  write: {  
+    if( !__value#isEmpty() )
+    {
+      if( __value#isNumeric() )
+        f_flags$value = __value;
+      else
+        f_flags$value = __value$value;
+    }
+  }
+  
+  // Screens
+  property screens;
+  @label = I"Screens configuration";
+  read: { return f_screens.clone(); }
+  write: {  
+    if( !__value#isEmpty() )
+    {
+      if( __value#isNumeric() )
+        f_screens$value = __value;
+      else
+        f_screens$value = __value$value;
+    }
+  }  
+  
+  // Screen change timeout, if enabled in configuration flags
+  property screenChangeTmo;
+  @label = I"Screen timeout";
+  @help = I"Screen sequence change timeout, [s]";
+  @restriction = [RADEX_AQ_Defs$$ScrUpdateMin .. RADEX_AQ_Defs$$ScrUpdateMax];
+  @default = RADEX_AQ_Defs$$ScrUpdateDef;
+  read: { return f_screenChangeTmo$value; }
+  write: { f_screenChangeTmo$value = __value; }
+  
+  // Backlight OFF timeout, if not set continuous in config flags
+  property bcklTmo;
+  @label = I"Backlight timeout";
+  @help = I"Screen backlight timeout, [s]";
+  @restriction = [RADEX_AQ_Defs$$BcklTmoMin .. RADEX_AQ_Defs$$BcklTmoMax];
+  @default = RADEX_AQ_Defs$$BcklTmoDef;
+  read: { return f_bcklTmo$value; }
+  write: { f_bcklTmo$value = __value; }
+  
+  // Measurement period, if not set to continuous in config flags
+  property msrPeriod;
+  @label = I"Measurement period";
+  @help = I"Measurement period, [s]";
+  @restriction = [RADEX_AQ_Defs$$MsrPeriodMin .. RADEX_AQ_Defs$$MsrPeriodMax];
+  @default = RADEX_AQ_Defs$$MsrPeriodDef;
+  read: { return f_msrPeriod$value; }
+  write: { f_msrPeriod$value = __value; }
+  
+  // Concentration alert threshold
+  property alertThreshold;
+  @label = I"Dust alert threshold";
+  @help = I"Dust alert threshold, [mg/m^3]";
+  @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
+  @default = RADEX_AQ_Defs$$DustAlertDef;
+  read: { return f_alertThreshold$value; }
+  write: { f_alertThreshold$value = __value; }
+
+  // Dust type awareness
+  property dustType;
+  @label = I"Dust type";
+  @help = I"Dust type awareness selection";
+  @restriction = RADEX_AQ_Dust;
+  @default = RADEX_AQ_Dust$$Type0;
+  read: { return f_dustType$value; }
+  write: { f_dustType$value = __value; }
+
+  // Language code selector
+  property lang;
+  @label = I"Language";
+  @help = I"Device language selection";
+  read: { return EsStr::fromByteString(f_lang$buffer, EsStrByteEncoding$$CP1251); }
+  write: 
+  var idx = 0, ch, str = "";
+  {
+    f_lang$buffer = B"\0\0\0\0";
+    if( !__value#isEmpty() )
+    {
+      str = __value#asString();
+      foreach( ch in str )
+      {
+        f_lang[idx++] = ch;
+        if( idx >= 4 )
+          break;
+      }
+    }
+  }
+}
+
+/// RADEX_AQ device settings
+object RADEX_AQ_Settings
+{
+  EsFirmwareId f_fwId;
+  EsSoftwareInfo f_swInfo
+  RADEX_AQ_Cfg f_cfg;
+
+  property countryCode;
+  read: { return f_swInfo$fwInfo$countryCode; }
+  
+  /// Constructors
+  new()
+  {
+    f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$RADEX_AQ) );
+  }
+  
+  new(fwId)
+  {
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$RADEX_AQ, 
+      "RADEX_AQ_Settings"
+    );
+    
+    f_fwId.copyFrom(fwId);
+  }
+  
+  /// Propertires
+  ///
+  property devType;
+  read: { return f_fwId$devType; }
+  
+  property fwId;
+  read: { return f_fwId.clone(); }
+  
+  property swInfo;
+  read: { return f_swInfo.clone(); }
+ 
+  property config;
+  read: { return f_cfg; };
+}
