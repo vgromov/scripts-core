@@ -286,13 +286,7 @@ object EL3C extends EsDeviceBase
   
   /// Properties
   ///
-  
-  /// countryCode reader override
-  function countryCode_read()
-  {
-    return ;
-  }
-  
+
   /// Currently active opmode
   property opmode;
   read: { return m_opMode; }
