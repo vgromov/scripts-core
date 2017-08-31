@@ -11,7 +11,7 @@ enum RADEX_AQ_Rpid
   LiveDataGet               = 2052, "esBA_Call|";
   DataCountGet              = 2054, "esU16_Call|Return count of saved data nodes";
   DataDelete                = 2055, "esBL_Call|Delete all saved data nodes";
-  DataGetAtIdx              = 2056, "esBA_Call_esU16|Request saved data node at specified index";
+  DataAtIdxGet              = 2056, "esBA_Call_esU16|Request saved data node at specified index";
   SettingsGet               = 2057, "esBA_Call|Get device settigns";
   SettingsSet               = 2058, "VOID_Call_esBA|Set device settings";
 }

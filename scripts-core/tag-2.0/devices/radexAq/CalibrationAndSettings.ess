@@ -112,23 +112,24 @@ object RADEX_AQ_Cfg
 object RADEX_AQ_Settings
 {
   EsFirmwareId f_fwId;
-  EsSoftwareInfo f_swInfo
+  EsSoftwareInfo f_swInfo;
   RADEX_AQ_Cfg f_cfg;
 
-  property countryCode;
-  read: { return f_swInfo$fwInfo$countryCode; }
-  
   /// Constructors
   new()
   {
-    f_fwId.copyFrom( new EsFirmwareId(EsDeviceType$$RADEX_AQ) );
+    f_fwId.copyFrom( 
+      new EsFirmwareId(
+        EsQuartaDeviceType$$RADEXAQ
+      ) 
+    );
   }
   
   new(fwId)
   {
     fwIdValidate(
       fwId, 
-      EsDeviceType$$RADEX_AQ, 
+      EsQuartaDeviceType$$RADEXAQ, 
       "RADEX_AQ_Settings"
     );
     
@@ -145,7 +146,10 @@ object RADEX_AQ_Settings
   
   property swInfo;
   read: { return f_swInfo.clone(); }
+
+  property countryCode;
+  read: { return f_swInfo$fwInfo$countryCode; }  
  
   property config;
-  read: { return f_cfg; };
+  read: { return f_cfg; }
 }
