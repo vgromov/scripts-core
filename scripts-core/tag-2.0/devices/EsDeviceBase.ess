@@ -218,14 +218,22 @@ object EsDeviceBase
       );
 
       m_fwInitialized = true;
-      evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
+      evtPost(
+        "fromDevice", 
+        EsDeviceEvtId$$idChanged, 
+        null //< evtPost implicitly inserts id string into payload, so do not need another copy
+      );
     }
     else if( m_tmpFwIdStr != tmpFwIdStr ) // insignificant differences
     {
       m_fwId = fwId;
       m_tmpFwIdStr = tmpFwIdStr;
       m_fwInitialized = true;
-      evtPost("fromDevice", EsDeviceEvtId$$idChanged, m_tmpFwIdStr);
+      evtPost(
+        "fromDevice", 
+        EsDeviceEvtId$$idChanged, 
+        null //< evtPost implicitly inserts id string into payload, so do not need another copy
+      );
     }
   }
   
