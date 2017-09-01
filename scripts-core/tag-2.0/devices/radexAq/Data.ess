@@ -3,33 +3,26 @@
 object RADEX_AQ_LiveData
 {
   esDT f_ts; 
-  RADEX_AQ_Health f_health;
   RADEX_AQ_LiveDataFlags f_flags;
   esF f_dust;
   esF f_dustMin;
   esF f_dustMean;
   esF f_dustMax;
-  esF f_dustDailyAvg;
   esF f_dustDailyAvgMin;
   esF f_dustDailyAvgMean;
   esF f_dustDailyAvgMax;
-  esF f_humidity;
-  esF f_humidityMin;
-  esF f_humidityMean;
-  esF f_humidityMax;
-  esF f_humidityDailyAvg;
-  esF f_humidityDailyAvgMin;
-  esF f_humidityDailyAvgMean;
-  esF f_humidityDailyAvgMax;
   esF f_temperature;
   esF f_temperatureMin;
-  esF f_temperatureMean;
   esF f_temperatureMax;
-  esF f_temperatureDailyAvg;
   esF f_temperatureDailyAvgMin;
   esF f_temperatureDailyAvgMean;
   esF f_temperatureDailyAvgMax;
-  
+  esF f_humidity;
+  esF f_humidityMin;
+  esF f_humidityMax;
+  esF f_humidityDailyAvgMin;
+  esF f_humidityDailyAvgMean;
+  esF f_humidityDailyAvgMax;  
   /// Properties
   ///
   
@@ -39,13 +32,6 @@ object RADEX_AQ_LiveData
   /// Timestamp string
   property tsStr;
   read: { return f_ts.asString(); }  
-  
-  /// Errors
-  property errors;
-  read: { return f_health; }
-
-  property health;
-  read: { return f_health; }
   
   /// Data flags
   property flags;
@@ -91,15 +77,6 @@ object RADEX_AQ_LiveData
   property dustMaxStr;
   read: { return RADEX_AQ_fromStrMulti( $dustMaxStrMulti ); }
  
-  property dustDailyAvg;
-  read: { return f_dustDailyAvg$value; }
-  
-  property dustDailyAvgStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustDailyAvg, c_RADEX_AQ_unitDust, f_flags$dustDailyAvgvalid); }
-  
-  property dustDailyAvgStr;
-  read: { return RADEX_AQ_fromStrMulti( $dustDailyAvgStrMulti ); }
-
   property dustDailyAvgMin;
   read: { return f_dustDailyAvgMin$value; }
   
@@ -127,79 +104,6 @@ object RADEX_AQ_LiveData
   property dustDailyAvgMaxStr;
   read: { return RADEX_AQ_fromStrMulti( $dustDailyAvgMaxStrMulti ); }
   
-  /// Humidity
-  property humidity;
-  read: { return f_humidity$value; }
-  
-  property humidityStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidity, c_RADEX_AQ_unitHumidity, f_flags$humidityvalid); }
-  
-  property humidityStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityStrMulti ); }
-
-  property humidityMin;
-  read: { return f_humidityMin$value; }
-  
-  property humidityMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityMin, c_RADEX_AQ_unitHumidity, f_flags$humidityMinvalid); }
-  
-  property humidityMinStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityMinStrMulti ); }
-
-  property humidityMean;
-  read: { return f_humidityMean$value; }
-  
-  property humidityMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityMean, c_RADEX_AQ_unitHumidity, f_flags$humidityMeanvalid); }
-  
-  property humidityMeanStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityMeanStrMulti ); }
-  
-  property humidityMax;
-  read: { return f_humidityMax$value; }
-  
-  property humidityMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityMax, c_RADEX_AQ_unitHumidity, f_flags$humidityMaxvalid); }
-  
-  property humidityMaxStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityMaxStrMulti ); }
- 
-  property humidityDailyAvg;
-  read: { return f_humidityDailyAvg$value; }
-  
-  property humidityDailyAvgStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvg, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgvalid); }
-  
-  property humidityDailyAvgStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgStrMulti ); }
-
-  property humidityDailyAvgMin;
-  read: { return f_humidityDailyAvgMin$value; }
-  
-  property humidityDailyAvgMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMin, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMinvalid); }
-  
-  property humidityDailyAvgMinStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMinStrMulti ); }
-
-  property humidityDailyAvgMean;
-  read: { return f_humidityDailyAvgMean$value; }
-  
-  property humidityDailyAvgMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMean, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMeanvalid); }
-  
-  property humidityDailyAvgMeanStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMeanStrMulti ); }
-  
-  property humidityDailyAvgMax;
-  read: { return f_humidityDailyAvgMax$value; }
-  
-  property humidityDailyAvgMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMax, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMaxvalid); }
-  
-  property humidityDailyAvgMaxStr;
-  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMaxStrMulti ); }  
-  
   /// Temperature
   property temperature;
   read: { return f_temperature$value; }
@@ -219,15 +123,6 @@ object RADEX_AQ_LiveData
   property temperatureMinStr;
   read: { return RADEX_AQ_fromStrMulti( $temperatureMinStrMulti ); }
 
-  property temperatureMean;
-  read: { return f_temperatureMean$value; }
-  
-  property temperatureMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureMean, c_RADEX_AQ_unitTemp, f_flags$temperatureMeanvalid); }
-  
-  property temperatureMeanStr;
-  read: { return RADEX_AQ_fromStrMulti( $temperatureMeanStrMulti ); }
-  
   property temperatureMax;
   read: { return f_temperatureMax$value; }
   
@@ -237,15 +132,6 @@ object RADEX_AQ_LiveData
   property temperatureMaxStr;
   read: { return RADEX_AQ_fromStrMulti( $temperatureMaxStrMulti ); }
  
-  property temperatureDailyAvg;
-  read: { return f_temperatureDailyAvg$value; }
-  
-  property temperatureDailyAvgStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvg, c_RADEX_AQ_unitTemp, f_flags$temperatureDailyAvgvalid); }
-  
-  property temperatureDailyAvgStr;
-  read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgStrMulti ); }
-
   property temperatureDailyAvgMin;
   read: { return f_temperatureDailyAvgMin$value; }
   
@@ -272,6 +158,61 @@ object RADEX_AQ_LiveData
   
   property temperatureDailyAvgMaxStr;
   read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgMaxStrMulti ); }  
+  
+  /// Humidity
+  property humidity;
+  read: { return f_humidity$value; }
+  
+  property humidityStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidity, c_RADEX_AQ_unitHumidity, f_flags$humidityvalid); }
+  
+  property humidityStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityStrMulti ); }
+
+  property humidityMin;
+  read: { return f_humidityMin$value; }
+  
+  property humidityMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityMin, c_RADEX_AQ_unitHumidity, f_flags$humidityMinvalid); }
+  
+  property humidityMinStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityMinStrMulti ); }
+
+  property humidityMax;
+  read: { return f_humidityMax$value; }
+  
+  property humidityMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityMax, c_RADEX_AQ_unitHumidity, f_flags$humidityMaxvalid); }
+  
+  property humidityMaxStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityMaxStrMulti ); }
+ 
+  property humidityDailyAvgMin;
+  read: { return f_humidityDailyAvgMin$value; }
+  
+  property humidityDailyAvgMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMin, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMinvalid); }
+  
+  property humidityDailyAvgMinStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMinStrMulti ); }
+
+  property humidityDailyAvgMean;
+  read: { return f_humidityDailyAvgMean$value; }
+  
+  property humidityDailyAvgMeanStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMean, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMeanvalid); }
+  
+  property humidityDailyAvgMeanStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMeanStrMulti ); }
+  
+  property humidityDailyAvgMax;
+  read: { return f_humidityDailyAvgMax$value; }
+  
+  property humidityDailyAvgMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMax, c_RADEX_AQ_unitHumidity, f_flags$humidityDailyAvgMaxvalid); }
+  
+  property humidityDailyAvgMaxStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMaxStrMulti ); }  
    
   /// Overall validation checking
   property valid;

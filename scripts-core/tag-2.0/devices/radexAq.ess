@@ -78,6 +78,11 @@ object RADEX_AQ extends EsDeviceBase
         result = new RADEX_AQ_PersistentData();
         result$buffer = rpcResult#asBinBuffer();
       }
+    case RADEX_AQ_Rpid$$SettingsGet:
+      {
+        result = new RADEX_AQ_Cfg();
+        result$buffer = rpcResult#asBinBuffer();
+      }
     default: 
       result = EsDeviceBase::rpcCallResultHandle(
         rpcId, 
@@ -102,10 +107,21 @@ object RADEX_AQ extends EsDeviceBase
   
   /// RADEX_AQ custom response handlers
   ///
+  
   /// Download settings object
   function settingsDownload()
-  var settings = new RADEX_AQ_Settings(m_fwId), rpcResult;
+  var 
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe
+    ),
+    settings = new RADEX_AQ_Settings(m_fwId), 
+    rpcResult;
   {
+    EsScriptDebug::log("RADEX_AQ::settingsDownload");
+  
+    task.attachTo(__scriptHost$progressMonitor);
+    task.pulse(I"Downloading device settings...");
+  
     // Download software info
     rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
     if( rpcResult[0] )
@@ -114,11 +130,18 @@ object RADEX_AQ extends EsDeviceBase
       return rpcResult;
     
     rpcResult = rpcCall(RADEX_AQ_Rpid$$SettingsGet, null);
+    
     if( rpcResult[0] )
+    {
       settings.f_cfg.copyFrom( rpcResult[1] );
+      task.end(I"Device settings downloaded");
+    }
     else
+    {
+      task.end(I"Failed to download Device settings");
       return rpcResult;
-
+    }
+    
     rpcResult = [];
     rpcResult += true;
     rpcResult += settings;
@@ -128,14 +151,114 @@ object RADEX_AQ extends EsDeviceBase
   
   /// Upload settings object
   function settingsUpload(settings)
+  var task, rpcResult;
   {
     if( settings.f_fwId != m_fwId )
       throw "Could not upload incompatible device settings";
 
-    return rpcCall(
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe
+    );
+      
+    task.attachTo(__scriptHost$progressMonitor);
+    task.pulse(I"Uploading device settings...");
+      
+    rpcResult = rpcCall(
       RADEX_AQ_Rpid$$SettingsSet,
       settings.f_cfg
     );  
+    
+    if( rpcResult[0] )
+      task.end(I"Device settings uploaded");
+    else
+      task.end(I"Failed to upload Device settings");
+    
+    return rpcResult;
   }
   
+  // Download saved data
+  function savedDataDownload(startIdx, endIdx)
+  var task, rpcResult, tmp, idx, cnt = 0, result = [];
+  {
+    rpcResult = rpcCall( RADEX_AQ_Rpid$$DataCountGet, null );
+    if( !rpcResult[0] )
+      return;
+      
+    cnt = rpcResult[1];
+    if( 0 == cnt )
+      return; //< Nothing to download
+    
+    if( endIdx#isEmpty() )
+      endIdx = cnt-1;
+
+    if( endIdx >= cnt )
+      endIdx = cnt-1;
+      
+    if( startIdx#isEmpty() )
+      startIdx = 0;
+    
+    if( startIdx < 0 )
+      startIdx = 0;
+    
+    if( startIdx > endIdx )
+    {
+      tmp = startIdx;
+      startIdx = endIdx;
+      endIdx = tmp;
+    }
+    
+    cnt = endIdx - startIdx;
+    if( 0 == cnt )
+      return; //< Nothing to download    
+    
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe,
+      I"Downloading saved data...",
+      cnt,
+      startIdx
+    );
+    task.attachTo(__scriptHost$progressMonitor);
+
+    tmp = 1;
+    if( cnt > 20 )
+      tmp = 2;
+    else if( cnt > 80 )
+      tmp = 10;
+    else if( cnt > 200 )
+      tmp = 20;
+    else if( cnt > 500 )
+      tmp = 50;
+    else if( cnt > 800 )
+      tmp = 100;
+    
+    for( idx = startIdx; idx <= endIdx; ++idx )
+    {
+      rpcResult = rpcCall( RADEX_AQ_Rpid$$DataAtIdxGet, idx );
+      if( rpcResult[0] )
+        result += rpcResult[1];
+      else
+        break;
+
+      if( 0 == idx % tmp )
+        task$position = idx;
+    }
+    
+    if( rpcResult[0] )
+      task.end(I"Saved data downloaded");
+    else
+      task.end(I"Failed to download all requested device data"); 
+
+    rpcResult[1] = result;
+    
+    return rpcResult;
+  }
+  
+  // Delete saved data
+  function savedDataClear()
+  {
+    return rpcCall( 
+      RADEX_AQ_Rpid$$DataDelete, 
+      null 
+    );
+  }
 }

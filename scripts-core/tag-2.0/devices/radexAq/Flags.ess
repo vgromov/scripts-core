@@ -76,12 +76,17 @@ enum RADEX_AQ_PersistentDataFlag
 
 enum RADEX_AQ_Error
 {
-  PwrCritical                   = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
-  RTC                           = 0x00000002, "RTC error";                           ///< RTC initialization error
-  RTC_Invalid                   = 0x00000004, "RTC date time corrupt";               ///< RTC date time value is invalid
-  Storage                       = 0x00000008, "Storage initialization error";        ///< Storage stream could not be opened
-  NoCal                         = 0x00000010, "Calibration is missing";              ///< Clear sensor calibration is missing or invalid
-  I2C                           = 0x00000020, "I2C bus error";                       ///< Error condition latched on I2C bus
+  PwrCritical                   = 0x00000001, I"Battery Low";                         ///< Battery power level is below critical margin
+  RTC                           = 0x00000002, I"RTC error";                           ///< RTC initialization error
+  RTC_Invalid                   = 0x00000004, I"RTC date time corrupt";               ///< RTC date time value is invalid
+  Storage                       = 0x00000008, I"Storage initialization error";        ///< Storage stream could not be opened
+  NoCal                         = 0x00000010, I"Calibration is missing";              ///< Clear sensor calibration is missing or invalid
+
+  I2C                           = 0x00000080, I"I2C bus error";                       ///< Error condition latched on I2C bus
+  EEPROM                        = 0x00000100, I"EEPROM error";
+  HTS221                        = 0x00000200, I"T/H Sensor error";
+  CY3280                        = 0x00000400, I"Touch input error";
+  GP2XX                         = 0x00000800, I"Dust Sensor error";             
 }
 //-------------------------------------------------------------------------------------
 
@@ -104,6 +109,14 @@ object RADEX_AQ_Health
       result += RADEX_AQ_Error$$PwrCritical$$label;
     if(f_val & RADEX_AQ_Error$$I2C)
       result += RADEX_AQ_Error$$I2C$$label;
+    if(f_val & RADEX_AQ_Error$$EEPROM)
+      result += RADEX_AQ_Error$$EEPROM$$label;
+    if(f_val & RADEX_AQ_Error$$HTS221)
+      result += RADEX_AQ_Error$$HTS221$$label;
+    if(f_val & RADEX_AQ_Error$$CY3280)
+      result += RADEX_AQ_Error$$CY3280$$label;
+    if(f_val & RADEX_AQ_Error$$GP2XX)
+      result += RADEX_AQ_Error$$GP2XX$$label;
     if(f_val & RADEX_AQ_Error$$RTC)
       result += RADEX_AQ_Error$$RTC$$label;
     if(f_val & RADEX_AQ_Error$$RTC_Invalid)
@@ -134,6 +147,9 @@ object RADEX_AQ_Health
     return 0 != (f_val & 
                   ( RADEX_AQ_Error$$I2C|
                     RADEX_AQ_Error$$RTC|
+                    RADEX_AQ_Error$$EEPROM|
+                    RADEX_AQ_Error$$CY3280|
+                    RADEX_AQ_Error$$GP2XX|
                     RADEX_AQ_Error$$Storage 
                   )
                 ); 
@@ -144,7 +160,8 @@ object RADEX_AQ_Health
   read: { 
     return 0 != (f_val & 
         ( RADEX_AQ_Error$$RTC_Invalid|
-          RADEX_AQ_Error$$NoCal
+          RADEX_AQ_Error$$NoCal|
+          RADEX_AQ_Error$$HTS221
         )
       );        
   }

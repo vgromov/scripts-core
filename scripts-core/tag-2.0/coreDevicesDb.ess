@@ -50,8 +50,9 @@ enum EsQuartaDeviceType
 {
   RADEX1   = 42001,   "RADEX1  ";
   MKC1100  = 42002,   "MKC1100 ";
-  MR107    = 42003,   "MR107   ";
-  RADEXAQ  = 42004,   "RADEXAQ ";
+//  MR107    = 42003,   "MR107   ";
+//  RADEXAQ  = 42004,   "RADEXAQ ";
+  RADEXAQ  = 42003,   "RADEXAQ ";
 }
 
 // IDs of 'dumb', AKA accessory, or output-only ECO-E devices, like Ekconnect, or Lupin
