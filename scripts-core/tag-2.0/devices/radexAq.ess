@@ -66,8 +66,6 @@ object RADEX_AQ extends EsDeviceBase
     {
     case EsRpcStdId$$HEALTH_INFO_GET:
       result = new RADEX_AQ_Health(rpcResult);    // use RADEX_AQ health implementation instead of unparsed standard one
-    case RADEX_AQ_Rpid$$DataCountGet:
-      result = rpcResult;
     case RADEX_AQ_Rpid$$LiveDataGet:
       {
         result = new RADEX_AQ_LiveData(); 
@@ -178,7 +176,7 @@ object RADEX_AQ extends EsDeviceBase
   
   // Download saved data
   function savedDataDownload(startIdx, endIdx)
-  var task, rpcResult, tmp, idx, cnt = 0, result = [];
+  var task, rpcResult, tmp, idx, cnt = 0, result = [], data = [];
   {
     rpcResult = rpcCall( RADEX_AQ_Rpid$$DataCountGet, null );
     if( !rpcResult[0] )
@@ -235,7 +233,7 @@ object RADEX_AQ extends EsDeviceBase
     {
       rpcResult = rpcCall( RADEX_AQ_Rpid$$DataAtIdxGet, idx );
       if( rpcResult[0] )
-        result += rpcResult[1];
+        data += rpcResult[1];
       else
         break;
 
@@ -248,6 +246,9 @@ object RADEX_AQ extends EsDeviceBase
     else
       task.end(I"Failed to download all requested device data"); 
 
+    result += startIdx;     
+    result += endIdx;
+    result += data;
     rpcResult[1] = result;
     
     return rpcResult;
