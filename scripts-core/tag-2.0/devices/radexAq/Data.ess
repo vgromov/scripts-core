@@ -226,11 +226,11 @@ object RADEX_AQ_LiveData
   property dustMinvalid;
   read: { return f_flags$dustMinvalid; }
 
+  property dustMeanvalid;
+  read: { return f_flags$dustMeanvalid; }
+
   property dustMaxvalid;
   read: { return f_flags$dustMaxvalid; }
-  
-  property dustDailyAvgvalid;
-  read: { return f_flags$dustDailyAvgvalid; }
   
   property dustDailyAvgMinvalid;
   read: { return f_flags$dustDailyAvgMinvalid; }
@@ -247,14 +247,8 @@ object RADEX_AQ_LiveData
   property humidityMinvalid;
   read: { return f_flags$humidityMinvalid; }
 
-  property humidityMeanvalid;
-  read: { return f_flags$humidityMeanvalid; }
-
   property humidityMaxvalid;
   read: { return f_flags$humidityMaxvalid; }
-
-  property humidityDailyAvgvalid;
-  read: { return f_flags$humidityDailyAvgvalid; }
 
   property humidityDailyAvgMinvalid;
   read: { return f_flags$humidityDailyAvgMinvalid; }
@@ -271,14 +265,8 @@ object RADEX_AQ_LiveData
   property temperatureMinvalid;
   read: { return f_flags$temperatureMinvalid; }
 
-  property temperatureMeanvalid;
-  read: { return f_flags$temperatureMeanvalid; }
-
   property temperatureMaxvalid;
   read: { return f_flags$temperatureMaxvalid; }
-
-  property temperatureDailyAvgvalid;
-  read: { return f_flags$temperatureDailyAvgvalid; }
 
   property temperatureDailyAvgMinvalid;
   read: { return f_flags$temperatureDailyAvgMinvalid; }

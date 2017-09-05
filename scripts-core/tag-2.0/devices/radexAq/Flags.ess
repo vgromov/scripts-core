@@ -836,7 +836,7 @@ object RADEX_AQ_LiveDataFlags
   property temperatureDailyAvgMeanvalid;
   read: { return f_val & RADEX_AQ_LiveDataFlag$$TemperatureDailyAvgMeanValid; }
 
-  property temperatureDailAvgMaxvalid;
+  property temperatureDailyAvgMaxvalid;
   read: { return f_val & RADEX_AQ_LiveDataFlag$$TemperatureDailyAvgMaxValid; }
 
   property humidityvalid;
