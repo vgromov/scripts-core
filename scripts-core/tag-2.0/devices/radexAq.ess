@@ -248,7 +248,7 @@ object RADEX_AQ extends EsDeviceBase
 
     result += startIdx;     
     result += endIdx;
-    result += data;
+    result#append( data );
     rpcResult[1] = result;
     
     return rpcResult;

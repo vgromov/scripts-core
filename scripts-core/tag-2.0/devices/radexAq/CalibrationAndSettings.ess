@@ -13,7 +13,33 @@ object RADEX_AQ_Cfg
   esU8  f_lang[4];
   esU16 f_dummy;
   
+  // Comparison support
+  //
+  function compare(other)
+  {
+    if( other#isEmpty() )
+      return 1;
+      
+    if( !other#isKindOf("RADEX_AQ_Cfg") )  
+      return 1;
+      
+    if( 
+      f_flags$value != other.f_flags$value ||
+      f_screens$value != other.f_screens$value ||
+      f_screenChangeTmo != other.f_screenChangeTmo ||
+      f_bcklTmo != other.f_bcklTmo ||
+      f_msrPeriod != other.f_msrPeriod ||
+      f_dustType != other.f_dustType ||
+      f_alertThreshold != other.f_alertThreshold ||
+      f_lang != other.f_lang
+    )
+      return 1;
+
+    return 0;
+  }
+  
   // Flags 
+  //
   property flags;
   @label = I"Configuration flags";
   read: { return f_flags.clone(); }
@@ -71,7 +97,7 @@ object RADEX_AQ_Cfg
   // Concentration alert threshold
   property alertThreshold;
   @label = I"Dust alert threshold";
-  @help = I"Dust alert threshold, [mg/m^3]";
+  @help = I"Dust alert threshold, [mg/m³]";
   @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
   @default = RADEX_AQ_Defs$$DustAlertDef;
   read: { return f_alertThreshold$value; }

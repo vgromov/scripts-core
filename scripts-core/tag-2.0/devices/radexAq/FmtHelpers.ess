@@ -1,9 +1,9 @@
 /// RADEX_AQ Data formatting helpers
 ///
-function RADEX_AQ_ValueFmt(val)
+function RADEX_AQ_ValueFmt(val, allowNegative)
 var fmt;
 {
-	if( val < 0 )
+	if( !allowNegative && val < 0 )
 		val = 0;
 		
 	if( val < 10 )
@@ -17,7 +17,7 @@ var fmt;
 }
 
 /// Multi part value string creation
-function RADEX_AQ_strMultiGet(val, unit, valid)
+function RADEX_AQ_strMultiGet(val, unit, valid, allowNegative)
 var mul = 1., result = []; 
 {
   if( !valid )
@@ -28,13 +28,13 @@ var mul = 1., result = [];
   }
   else
   {
-		result += RADEX_AQ_ValueFmt( val );
+		result += RADEX_AQ_ValueFmt( val, allowNegative );
 		if( val > 1000. )
 		{
 			mul = 1000.;
 			val /= mul;
 		}
-		result += RADEX_AQ_ValueFmt( val );
+		result += RADEX_AQ_ValueFmt( val, allowNegative );
 		result += EsStr::format("x%d", mul);
   }
   	
