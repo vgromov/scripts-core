@@ -278,7 +278,7 @@ object RADEX_AQ_Flags
   }
 
   property continousMeasurements;
-  @label = I"Continous Measurements";
+  @label = I"Continuous Measurements";
   read: { return (f_val & RADEX_AQ_CfgFlag$$ContinuousMeasurementsOn); } 
   write: { 
     f_val &= ~RADEX_AQ_CfgFlag$$ContinuousMeasurementsOn;
@@ -290,7 +290,7 @@ object RADEX_AQ_Flags
   read: {
     return (
       $continousMeasurements ? 
-        I"Continous Measurements" :
+        I"Continuous Measurements" :
         I"Periodic Measurements"
     );
   }
@@ -444,6 +444,16 @@ object RADEX_AQ_Screens
       I"Current Dust concentration Histogram screen is OFF";
   }
 
+  property dailyAvgDustMin;
+  @label = I"Daily avg. minimum Dust concentration";
+  @help = I"Include or exclude Daily avg. minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgDustMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgDustMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgDustMin;    
+  }  
+  
   property dailyAvgDustMinStr;
   read: { 
     return $dailyAvgDustMin ? 

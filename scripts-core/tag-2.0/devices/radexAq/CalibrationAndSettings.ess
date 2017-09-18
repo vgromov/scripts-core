@@ -53,6 +53,61 @@ object RADEX_AQ_Cfg
     }
   }
   
+  // Individual configuration flags delegates
+  property sound;
+  @label = I"Sound";
+  @help = I"Toggle device sound";
+  read: { return f_flags$sound; } 
+  write: { f_flags$sound = __value; }
+  
+  property alert;
+  @label = I"Alert";
+  @help = I"Toggle Dust concentration threshold alert";
+  read: { return f_flags$alert; } 
+  write: { f_flags$alert = __value; }
+
+  property nightMode;
+  @label = I"Night Mode";
+  @help = I"Toggle device Night Mode";
+  read: { return f_flags$nightMode; } 
+  write: { f_flags$nightMode = __value; }
+
+  property continuousBacklight;
+  @label = I"Continuous backlight";
+  @help = I"Toggle continuous backlight";
+  read: { return f_flags$continuousBacklight; } 
+  write: { f_flags$continuousBacklight = __value; }
+
+  property bluetooth;
+  @label = I"Bluetooth";
+  @help = I"Toggle device Bluetooth module";
+  read: { return f_flags$bluetooth; } 
+  write: { f_flags$bluetooth = __value; }
+
+  property continousMeasurements;
+  @label = I"Continuos Measurements";
+  @help = I"Toggle between continuous or periodic measurements";
+  read: { return f_flags$continousMeasurements; } 
+  write: { f_flags$continousMeasurements = __value; }
+
+  property screenScrolling;
+  @label = I"Screen Scrolling";
+  @help = I"Toggle between screens scrolling and static single screen";
+  read: { return f_flags$screenScrolling; } 
+  write: { f_flags$screenScrolling = __value; }
+
+  property temperatureInF;
+  @label = I"Temperature °F";
+  @help = I"Toggle device temperature units between °F or °C";
+  read: { return f_flags$temperatureInF; } 
+  write: { f_flags$temperatureInF = __value; }
+
+  property timeInAmPm;
+  @label = I"AM/PM";
+  @help = I"Toggle between AM/PM and 24 hour time format in device";
+  read: { return f_flags$timeInAmPm; } 
+  write: { f_flags$timeInAmPm = __value; }
+  
   // Screens
   property screens;
   @label = I"Screens configuration";
@@ -66,6 +121,163 @@ object RADEX_AQ_Cfg
         f_screens$value = __value$value;
     }
   }  
+  
+  // Individual screen flags
+  property currentDust;
+  @label = I"Current Dust concentration";
+  @help = I"Include or exclude Current Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDust; }
+  write: { f_screens$currentDust = __value; }
+
+  property currentDustMin;
+  @label = I"Current Minimum Dust concentration";
+  @help = I"Include or exclude Current Minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMin; }
+  write: { f_screens$currentDustMin = __value; }
+
+  property currentDustMed;
+  @label = I"Current Mean Dust concentration";
+  @help = I"Include or exclude Current Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMed; }
+  write: { f_screens$currentDustMed = __value; }
+
+  property currentDustMax;
+  @label = I"Current Maximum Dust concentration";
+  @help = I"Include or exclude Current Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMax; }
+  write: { f_screens$currentDustMax = __value; }
+
+  property currentDustHistogram;
+  @label = I"Current Dust concentration Histogram";
+  @help = I"Include or exclude Current Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustHistogram; }
+  write: { f_screens$currentDustHistogram = __value; }
+
+  property dailyAvgDustMin;
+  @label = I"Daily avg. minimum Dust concentration";
+  @help = I"Include or exclude Daily avg. minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMin; }
+  write: { f_screens$dailyAvgDustMin = __value; }
+  
+  property dailyAvgDustMed;
+  @label = I"Daily Average Mean Dust concentration";
+  @help = I"Include or exclude Daily Average Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMed; }
+  write: { f_screens$dailyAvgDustMed = __value; }
+
+  property dailyAvgDustMax;
+  @label = I"Daily Average Maximum Dust concentration";
+  @help = I"Include or exclude Daily Average Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMax; }
+  write: { f_screens$dailyAvgDustMax = __value; }
+
+  property dailyAvgDustHistogram;
+  @label = I"Daily Average Dust concentration Histogram";
+  @help = I"Include or exclude Daily Average Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustHistogram; }
+  write: { f_screens$dailyAvgDustHistogram = __value; }
+
+  property currentTemperature;
+  @label = I"Current Temperature";
+  @help = I"Include or exclude Current Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperature; }
+  write: { f_screens$currentTemperature = __value; }
+ 
+  property currentTemperatureMin;
+  @label = I"Current Minimum Temperature";
+  @help = I"Include or exclude Current Minimum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureMin; }
+  write: { f_screens$currentTemperatureMin = __value; }
+
+  property currentTemperatureMax;
+  @label = I"Current Maximum Temperature";
+  @help = I"Include or exclude Current Maximum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureMax; }
+  write: { f_screens$currentTemperatureMax = __value; }
+
+  property currentTemperatureHistogram;
+  @label = I"Current Temperature Histogram";
+  @help = I"Include or exclude Current Temperature Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureHistogram; }
+  write: { f_screens$currentTemperatureHistogram = __value; }
+
+  property dailyAvgTemperatureMin;
+  @label = I"Daily Average Minimum Temperature";
+  @help = I"Include or exclude Daily Average Minimum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMin; }
+  write: { f_screens$dailyAvgTemperatureMin = __value; }
+
+  property dailyAvgTemperatureMed;
+  @label = I"Daily Average Mean Temperature";
+  @help = I"Include or exclude Daily Average Mean Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMed; }
+  write: { f_screens$dailyAvgTemperatureMed = __value; }
+
+  property dailyAvgTemperatureMax;
+  @label = I"Daily Average Maximum Temperature";
+  @help = I"Include or exclude Daily Average Maximum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMax; }
+  write: { f_screens$dailyAvgTemperatureMax = __value; }
+
+  property dailyAvgTemperatureHistogram;
+  @label = I"Daily Average Temperature Histogram";
+  @help = I"Include or exclude Daily Average Temperature Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureHistogram; }
+  write: { f_screens$dailyAvgTemperatureHistogram = __value; }
+
+  property currentHumidity;
+  @label = I"Current Humidity";
+  @help = I"Include or exclude Current Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidity; }
+  write: { f_screens$currentHumidity = __value; }
+
+  property currentHumidityMin;
+  @label = I"Current Minimum Humidity";
+  @help = I"Include or exclude Current Minimum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityMin; }
+  write: { f_screens$currentHumidityMin = __value; }
+
+  property currentHumidityMax;
+  @label = I"Current Maximum Humidity";
+  @help = I"Include or exclude Current Maximum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityMax; }
+  write: { f_screens$currentHumidityMax = __value; }
+
+  property currentHumidityHistogram;
+  @label = I"Current Humidity Histogram";
+  @help = I"Include or exclude Current Humidity Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityHistogram; }
+  write: { f_screens$currentHumidityHistogram = __value; }
+
+  property dailyAvgHumidityMin;
+  @label = I"Daily Average Minimum Humidity";
+  @help = I"Include or exclude Daily Average Minimum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMin; }
+  write: { f_screens$dailyAvgHumidityMin = __value; }
+
+  property dailyAvgHumidityMed;
+  @label = I"Daily Average Mean Humidity";
+  @help = I"Include or exclude Daily Average Mean Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMed; }
+  write: { f_screens$dailyAvgHumidityMed = __value; }
+
+  property dailyAvgHumidityMax;
+  @label = I"Daily Average Maximum Humidity";
+  @help = I"Include or exclude Daily Average Maximum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMax; }
+  write: { f_screens$dailyAvgHumidityMax = __value; }
+
+  property dailyAvgHumidityHistogram;
+  @label = I"Daily Average Humidity Histogram";
+  @help = I"Include or exclude Daily Average Humidity Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityHistogram; }
+  write: { f_screens$dailyAvgHumidityHistogram = __value; }
+
+  property clock;
+  @label = I"Current Date Time";
+  @help = I"Include or exclude Current Date Time screen in/from screen sliding sequence";
+  read: { return f_screens$clock; }
+  write: { f_screens$clock = __value; }
   
   // Screen change timeout, if enabled in configuration flags
   property screenChangeTmo;
