@@ -45,7 +45,7 @@ enum RADEX_AQ_Defs
   ScrUpdateMax  = 240;
   ScrUpdateDef  = 10;
   
-  // Backlight duration, saved
+  // Backlight duration, s
   BcklTmoMin    = 60;
   BcklTmoMax    = 3600;
   BcklTmoDef    = 60;

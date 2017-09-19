@@ -61,7 +61,7 @@ object RADEX_AQ_Cfg
   write: { f_flags$sound = __value; }
   
   property alert;
-  @label = I"Alert";
+  @label = I"Alert threshold";
   @help = I"Toggle Dust concentration threshold alert";
   read: { return f_flags$alert; } 
   write: { f_flags$alert = __value; }
@@ -281,37 +281,48 @@ object RADEX_AQ_Cfg
   
   // Screen change timeout, if enabled in configuration flags
   property screenChangeTmo;
-  @label = I"Screen timeout";
-  @help = I"Screen sequence change timeout, [s]";
+  @label = I"Screen update, [s]";
+  @help = I"Screen sequence update timeout, [s]";
+  @textPrompt = I"Value in seconds";
   @restriction = [RADEX_AQ_Defs$$ScrUpdateMin .. RADEX_AQ_Defs$$ScrUpdateMax];
+  @lookup = [[I"5 s", 5], [I"10 s", 10], [I"15 s", 15], [I"20 s", 20], [I"30 s", 30], [I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240]];
   @default = RADEX_AQ_Defs$$ScrUpdateDef;
   read: { return f_screenChangeTmo$value; }
   write: { f_screenChangeTmo$value = __value; }
   
   // Backlight OFF timeout, if not set continuous in config flags
   property bcklTmo;
-  @label = I"Backlight timeout";
-  @help = I"Screen backlight timeout, [s]";
+  @label = I"Backlight timeout, [s]";
+  @help = I"Screen backlight dimmer timeout, [s]";
+  @textPrompt = I"Value in seconds";
   @restriction = [RADEX_AQ_Defs$$BcklTmoMin .. RADEX_AQ_Defs$$BcklTmoMax];
+  @lookup = [[I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240], [I"5 min", 300], [I"10 min", 600], [I"15 min", 900], 
+    [I"20 min", 1200], [I"30 min", 1800], [I"1 hour", 3600]];
   @default = RADEX_AQ_Defs$$BcklTmoDef;
   read: { return f_bcklTmo$value; }
   write: { f_bcklTmo$value = __value; }
   
   // Measurement period, if not set to continuous in config flags
   property msrPeriod;
-  @label = I"Measurement period";
-  @help = I"Measurement period, [s]";
+  @label = I"Measurement period, [s]";
+  @help = I"Period between consequent measurements, [s]";
+  @textPrompt = I"Value in seconds";
   @restriction = [RADEX_AQ_Defs$$MsrPeriodMin .. RADEX_AQ_Defs$$MsrPeriodMax];
   @default = RADEX_AQ_Defs$$MsrPeriodDef;
+  @lookup = [[I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240], [I"5 min", 300], [I"10 min", 600], [I"15 min", 900], 
+    [I"20 min", 1200], [I"30 min", 1800], [I"1 hr", 3600], [I"2 hr", 7200], [I"3 hr", 10800], [I"4 hr", 14400], [I"5 hr", 18000], [I"6 hr", 21600], 
+    [I"12 hr", 43200], [I"24 hr", 86400]];
   read: { return f_msrPeriod$value; }
   write: { f_msrPeriod$value = __value; }
   
   // Concentration alert threshold
   property alertThreshold;
-  @label = I"Dust alert threshold";
-  @help = I"Dust alert threshold, [mg/m³]";
+  @label = I"Alert threshold, [mg/m³]";
+  @help = I"Dust concentration alert threshold, [mg/m³]";
+  @textPrompt = I"Value in [mg/m³]";
   @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
   @default = RADEX_AQ_Defs$$DustAlertDef;
+  @precision = 3;
   read: { return f_alertThreshold$value; }
   write: { f_alertThreshold$value = __value; }
 
