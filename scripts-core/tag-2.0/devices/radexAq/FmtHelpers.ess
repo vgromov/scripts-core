@@ -39,6 +39,7 @@ var mul = 1., result = [];
   }
   	
   result += unit;
+  
   return result;
 }
 
