@@ -242,14 +242,22 @@ object RADEX_AQ extends EsDeviceBase
     }
     
     if( rpcResult[0] )
+    {
       task.end(I"Saved data downloaded");
+      
+      result += startIdx;     
+      result += endIdx;
+      result#append( data );
+      rpcResult[1] = result;
+    }
     else
-      task.end(I"Failed to download all requested device data"); 
-
-    result += startIdx;     
-    result += endIdx;
-    result#append( data );
-    rpcResult[1] = result;
+    {
+      rpcResult[1] = I"Failed to download all requested device data"; 
+    
+      task.end(
+        rpcResult[1]
+      );
+    }
     
     return rpcResult;
   }
