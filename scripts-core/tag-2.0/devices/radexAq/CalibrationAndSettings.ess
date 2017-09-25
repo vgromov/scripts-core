@@ -17,6 +17,10 @@ object RADEX_AQ_Cfg
   //
   function compare(other)
   {
+    EsScriptDebug::log(
+      "Called compare on RADEX_AQ_Cfg"
+    );
+  
     if( other#isEmpty() )
       return 1;
       
@@ -33,8 +37,18 @@ object RADEX_AQ_Cfg
       f_alertThreshold != other.f_alertThreshold ||
       f_lang != other.f_lang
     )
+    {
+      EsScriptDebug::log(
+        "...returning 1"
+      );
+    
       return 1;
+    }
 
+    EsScriptDebug::log(
+      "...returning 0"
+    );
+    
     return 0;
   }
   
@@ -400,5 +414,5 @@ object RADEX_AQ_Settings
   read: { return f_swInfo$fwInfo$countryCode; }  
  
   property config;
-  read: { return f_cfg; }
+  read: { return f_cfg.clone(); }
 }

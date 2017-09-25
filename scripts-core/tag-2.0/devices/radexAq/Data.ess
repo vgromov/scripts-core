@@ -303,13 +303,11 @@ object RADEX_AQ_PersistentData
 {
   esU16 f_msrSeriesIdx;
   esU16 f_msrIdx;
-  esU16 f_msrDuration;
   RADEX_AQ_PersistentDataFlags f_flags;
   esF   f_dust;
   esF   f_temp;
   esF   f_humidity;
   esDT  f_ts;
-  esU16 f_dummy;
 
   /// Timestamp
   property ts;
@@ -325,9 +323,6 @@ object RADEX_AQ_PersistentData
   property idxInSeries;
   read: { return f_msrIdx$value; }
 
-  property duration;
-  read: { return f_msrDuration$value; }
-  
   // Common flag delegates
   property thresholdOverflow;
   read: { return f_flags$thresholdOverflow; }
@@ -350,7 +345,7 @@ object RADEX_AQ_PersistentData
   read: { return f_temp$value; }
   
   property temperatureStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dust, c_RADEX_AQ_unitTemp, f_flags$tempvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperature, c_RADEX_AQ_unitTemp, f_flags$tempvalid, true); }
   
   property temperatureStr;
   read: { return RADEX_AQ_fromStrMulti( $temperatureStrMulti ); }
@@ -360,7 +355,7 @@ object RADEX_AQ_PersistentData
   read: { return f_humidity$value; }
   
   property humidityStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dust, c_RADEX_AQ_unitHumidity, f_flags$humidityvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $humidity, c_RADEX_AQ_unitHumidity, f_flags$humidityvalid, false); }
   
   property humidityStr;
   read: { return RADEX_AQ_fromStrMulti( $humidityStrMulti ); }

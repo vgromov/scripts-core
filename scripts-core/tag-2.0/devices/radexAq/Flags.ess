@@ -871,7 +871,7 @@ object RADEX_AQ_LiveDataFlags
 /// Persistend data node flags
 object RADEX_AQ_PersistentDataFlags
 {
-  esU8 f_val;
+  esU16 f_val;
   
   property thresholdOverflow;
   read: { return f_val & RADEX_AQ_PersistentDataFlag$$ThresholdOverfolw; }
