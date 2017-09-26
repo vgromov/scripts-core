@@ -115,7 +115,7 @@ object RADEX_AQ extends EsDeviceBase
     settings = new RADEX_AQ_Settings(m_fwId), 
     rpcResult;
   {
-    EsScriptDebug::log("RADEX_AQ::settingsDownload");
+//    EsScriptDebug::log("RADEX_AQ::settingsDownload");
   
     task.attachTo(__scriptHost$progressMonitor);
     task.pulse(I"Downloading device settings...");

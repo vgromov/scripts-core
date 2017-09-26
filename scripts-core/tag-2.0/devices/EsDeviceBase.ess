@@ -355,7 +355,7 @@ object EsDeviceBase
         m_countryCode = handlingResult$fwInfo$countryCode;
         m_hwInfo = handlingResult$fwInfo$hwConfigInfo.clone();
         
-        EsScriptDebug::log("EsDeviceBase - EsRpcStdId$$SW_INFO_GET, countryCode=%d, hwInfo is set to %s", m_countryCode, m_hwInfo.asString());
+        //EsScriptDebug::log("EsDeviceBase - EsRpcStdId$$SW_INFO_GET, countryCode=%d, hwInfo is set to %s", m_countryCode, m_hwInfo.asString());
       }
       else if(EsRpcStdId$$POWER_STATUS_GET == rpcId && rpcResult#countGet() )
       {

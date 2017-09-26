@@ -17,9 +17,9 @@ object RADEX_AQ_Cfg
   //
   function compare(other)
   {
-    EsScriptDebug::log(
-      "Called compare on RADEX_AQ_Cfg"
-    );
+    //EsScriptDebug::log(
+    //  "Called compare on RADEX_AQ_Cfg"
+    //);
   
     if( other#isEmpty() )
       return 1;
@@ -38,16 +38,16 @@ object RADEX_AQ_Cfg
       f_lang != other.f_lang
     )
     {
-      EsScriptDebug::log(
-        "...returning 1"
-      );
+      // EsScriptDebug::log(
+        // "...returning 1"
+      // );
     
       return 1;
     }
 
-    EsScriptDebug::log(
-      "...returning 0"
-    );
+    // EsScriptDebug::log(
+      // "...returning 0"
+    // );
     
     return 0;
   }
@@ -406,6 +406,9 @@ object RADEX_AQ_Settings
   
   property fwId;
   read: { return f_fwId.clone(); }
+  
+  property fwIdStringEssential;
+  read: { return f_fwId$fwIdStringEssential; }
   
   property swInfo;
   read: { return f_swInfo.clone(); }
