@@ -118,7 +118,9 @@ object RADEX_AQ extends EsDeviceBase
 //    EsScriptDebug::log("RADEX_AQ::settingsDownload");
   
     task.attachTo(__scriptHost$progressMonitor);
-    task.pulse(I"Downloading device settings...");
+    task.pulse(
+      EsStr::translate(I"Downloading device settings...")
+    );
   
     // Download software info
     rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
@@ -132,11 +134,15 @@ object RADEX_AQ extends EsDeviceBase
     if( rpcResult[0] )
     {
       settings.f_cfg.copyFrom( rpcResult[1] );
-      task.end(I"Device settings downloaded");
+      task.end(
+        EsStr::translate(I"Device settings downloaded")
+      );
     }
     else
     {
-      task.end(I"Failed to download Device settings");
+      task.end(
+        EsStr::translate(I"Failed to download Device settings")
+      );
       return rpcResult;
     }
     
@@ -152,14 +158,16 @@ object RADEX_AQ extends EsDeviceBase
   var task, rpcResult;
   {
     if( settings.f_fwId != m_fwId )
-      throw "Could not upload incompatible device settings";
+      throw EsStr::translate(I"Could not upload incompatible device settings");
 
     task = new EsProgressMonitorTask(
       $fwIdStrSafe
     );
       
     task.attachTo(__scriptHost$progressMonitor);
-    task.pulse(I"Uploading device settings...");
+    task.pulse(
+      EsStr::translate(I"Uploading device settings...")
+    );
       
     rpcResult = rpcCall(
       RADEX_AQ_Rpid$$SettingsSet,
@@ -167,9 +175,13 @@ object RADEX_AQ extends EsDeviceBase
     );  
     
     if( rpcResult[0] )
-      task.end(I"Device settings uploaded");
+      task.end(
+        EsStr::translate(I"Device settings uploaded")
+      );
     else
-      task.end(I"Failed to upload Device settings");
+      task.end(
+        EsStr::translate(I"Failed to upload Device settings")
+      );
     
     return rpcResult;
   }
@@ -211,7 +223,7 @@ object RADEX_AQ extends EsDeviceBase
     
     task = new EsProgressMonitorTask(
       $fwIdStrSafe,
-      I"Downloading saved data...",
+      EsStr::translate(I"Downloading saved data..."),
       cnt,
       startIdx
     );
@@ -243,7 +255,9 @@ object RADEX_AQ extends EsDeviceBase
     
     if( rpcResult[0] )
     {
-      task.end(I"Saved data downloaded");
+      task.end(
+        EsStr::translate(I"Saved data downloaded")
+      );
       
       result += startIdx;     
       result += endIdx;
@@ -252,7 +266,7 @@ object RADEX_AQ extends EsDeviceBase
     }
     else
     {
-      rpcResult[1] = I"Failed to download all requested device data"; 
+      rpcResult[1] = EsStr::translate(I"Failed to download all requested device data"); 
     
       task.end(
         rpcResult[1]

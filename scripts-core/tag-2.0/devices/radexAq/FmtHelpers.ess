@@ -14,7 +14,7 @@ var fmt;
 		fmt = "%0.0f";
 	
 	return EsStr::lformat(
-    EsStr::osLocaleIdGet(), 
+    EsStr::osLocaleIdGet("-"), 
     EsStr::translate(
       fmt
     ), 
@@ -44,7 +44,7 @@ var mul = 1., result = [];
 		result += EsStr::format("x%d", mul);
   }
   	
-  result += unit;
+  result += EsStr::translate(unit);
   
   return result;
 }

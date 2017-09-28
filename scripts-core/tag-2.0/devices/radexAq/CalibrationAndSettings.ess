@@ -111,8 +111,8 @@ object RADEX_AQ_Cfg
   write: { f_flags$screenScrolling = __value; }
 
   property temperatureInF;
-  @label = I"Temperature °F";
-  @help = I"Toggle device temperature units between °F or °C";
+  @label = I"Temperature 0F";
+  @help = I"Toggle device temperature units between 0F or 0C";
   read: { return f_flags$temperatureInF; } 
   write: { f_flags$temperatureInF = __value; }
 
@@ -331,9 +331,9 @@ object RADEX_AQ_Cfg
   
   // Concentration alert threshold
   property alertThreshold;
-  @label = I"Alert threshold, [mg/m³]";
-  @help = I"Dust concentration alert threshold, [mg/m³]";
-  @textPrompt = I"Value in [mg/m³]";
+  @label = I"Alert threshold, [mg/m^3]";
+  @help = I"Dust concentration alert threshold, [mg/m^3]";
+  @textPrompt = I"Value in [mg/m^3]";
   @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
   @default = RADEX_AQ_Defs$$DustAlertDef;
   @precision = 3;

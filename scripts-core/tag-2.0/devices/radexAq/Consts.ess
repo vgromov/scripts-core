@@ -1,7 +1,7 @@
 /// RADEX_AQ contants
 ///
 
-const c_RADEX_AQ_unitDust = I"mg/m³";
+const c_RADEX_AQ_unitDust = I"mg/m^3";
 const c_RADEX_AQ_unitTemp = "°C";
 const c_RADEX_AQ_unitHumidity = "%";
 

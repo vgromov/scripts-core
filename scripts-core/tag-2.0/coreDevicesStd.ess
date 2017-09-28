@@ -103,11 +103,11 @@ object EsFirmwareSwInfo
 /// Standard hardware configuration bits
 enum EsHwConfigBitsStd
 {
-  BluetoothClassic  = 0x0001, "Classic Bluetooth";
-  BluetoothLE       = 0x0002, "Bluetooth Low Energy";
+  BluetoothClassic  = 0x0001, I"Classic Bluetooth";
+  BluetoothLE       = 0x0002, I"Bluetooth Low Energy";
   WiFi              = 0x0004, "Wi-Fi";
-  USBSlave          = 0x0008, "USB slave";
-  Accumulator       = 0x0010, "Rechargeable battery";
+  USBSlave          = 0x0008, I"USB slave";
+  Accumulator       = 0x0010, I"Rechargeable battery";
 }
 
 /// Universal hardware information
@@ -334,10 +334,10 @@ object EsSoftwareInfo
 /// Power status flag masks
 enum EsPowerStatusFlag
 {
-  BATTERY       = 0x01, "Battery attached";
-  AUX           = 0x02, "Auxiliary power is ON";
-  CHARGING      = 0x04, "Battery is charging";
-  FAST_CHARGING = 0x08, "Battery is fast charging";
+  BATTERY       = 0x01, I"Battery attached";
+  AUX           = 0x02, I"Auxiliary power is ON";
+  CHARGING      = 0x04, I"Battery is charging";
+  FAST_CHARGING = 0x08, I"Battery is fast charging";
 }
 
 /// Power status structure
@@ -385,20 +385,34 @@ object EsPowerStatus
   var flagsStr = "";
   {
     if( isOnBattery() ) 
-      flagsStr += EsPowerStatusFlag$$BATTERY$$label;
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$BATTERY$$label
+      );
+    
     if( isOnAuxPower() )
     {
       if( flagsStr )
         flagsStr += ", ";
-      flagsStr += EsPowerStatusFlag$$AUX$$label;
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$AUX$$label
+      );
     }
+    
     if( isCharging() )
     {
       if( flagsStr )
         flagsStr += ", ";
-      flagsStr += EsPowerStatusFlag$$CHARGING$$label;
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$CHARGING$$label
+      );
     }
-    return EsStr::format("Power level: %0.1f%%, status: %s", percentGet(), flagsStr);
+    
+    return EsStr::lformat(
+      EsStr::osLocaleIdGet("-"),
+      EsStr::translate(I"Power level: %0.1f%%, status: %s"), 
+      percentGet(), 
+      flagsStr
+    );
   }  
   
   property level;
@@ -417,10 +431,10 @@ object EsPowerStatus
 // memory space units
 enum EsMemoryUnit
 {
-  Bytes   = 0, "Bytes";
-  Kbytes   = 1, "Kilobytes";
-  Mbytes  = 2, "Megabytes";
-  Gbytes  = 3, "Gigabytes";
+  Bytes   = 0, I"Bytes";
+  Kbytes  = 1, I"Kilobytes";
+  Mbytes  = 2, I"Megabytes";
+  Gbytes  = 3, I"Gigabytes";
 }
 
 object EsMemSpaceInfo 
@@ -437,37 +451,37 @@ object EsMemSpaceInfo
 /// File system item attribute enumeration
 enum EsFsItemAttribute
 {
-  ReadOnly        = 0x01, "Read only";
-  Hidden          = 0x02, "Hidden";
-  System          = 0x04, "System";
-  VolumeLabel      = 0x08, "Volume";
-  Directory        = 0x10, "Directory";
-  Archive          = 0x20, "Archive";
+  ReadOnly          = 0x01, I"Read only";
+  Hidden            = 0x02, I"Hidden";
+  System            = 0x04, I"System";
+  VolumeLabel       = 0x08, I"Volume";
+  Directory         = 0x10, I"Directory";
+  Archive           = 0x20, I"Archive";
 }
 
 /// File system request result enumeration
 enum EsFsResult 
 {
-  OK                   = 0, "Succeeded";
-  ErrHardware          = 1, "A hardware error occurred in the low level storage I/O layer";
-  ErrInternal          = 2, "Internal storage engine operation failed";
-  ErrNotReady          = 3, "The storage hardware is not ready";
-  ErrNoFile            = 4, "File is not found";
-  ErrNoPath            = 5, "Path is not found";
-  ErrNameInvalid      = 6, "The filesystem object's name is invalid";
-  ErrAccessDenied      = 7, "Access to filesystem object is denied";
-  ErrExist            = 8, "Filesystem object already exists";
-  ErrObjectInvalid    = 9, "Filesystem object is invalid";
-  ErrWriteProtected    = 10,"The storage is write protected";
-  ErrDriveInvalid      = 11,"The logical drive is invalid";
-  ErrNoWorkarea        = 12,"The volume has no work area";
-  ErrNoFilesystem      = 13,"There is no valid filesystem found";
-  ErrMakeFilesystem    = 14,"The 'make filesystem' call was aborted due to any parameter error";
-  ErrAccessTmo        = 15,"Could not acquire access the filesystem within defined period";
-  ErrLocked           = 16,"The filesystem operation was rejected due to sharing violation";
-  ErrNotEnoughMem      = 17,"Working buffer could not be allocated, not enough memory";
-  ErrTooManyOpenFiles  = 18,"Open files count exceeds the allowed margin";
-  ErrParamInvalid      = 19,"Filesystem low level operation parameter is invalid";
+  OK                    = 0,  I"Succeeded";
+  ErrHardware           = 1,  I"A hardware error occurred in the low level storage I/O layer";
+  ErrInternal           = 2,  I"Internal storage engine operation failed";
+  ErrNotReady           = 3,  I"The storage hardware is not ready";
+  ErrNoFile             = 4,  I"File is not found";
+  ErrNoPath             = 5,  I"Path is not found";
+  ErrNameInvalid        = 6,  I"The filesystem object's name is invalid";
+  ErrAccessDenied       = 7,  I"Access to filesystem object is denied";
+  ErrExist              = 8,  I"Filesystem object already exists";
+  ErrObjectInvalid      = 9,  I"Filesystem object is invalid";
+  ErrWriteProtected     = 10, I"The storage is write protected";
+  ErrDriveInvalid       = 11, I"The logical drive is invalid";
+  ErrNoWorkarea         = 12, I"The volume has no work area";
+  ErrNoFilesystem       = 13, I"There is no valid filesystem found";
+  ErrMakeFilesystem     = 14, I"The 'make filesystem' call was aborted due to any parameter error";
+  ErrAccessTmo          = 15, I"Could not acquire access the filesystem within defined period";
+  ErrLocked             = 16, I"The filesystem operation was rejected due to sharing violation";
+  ErrNotEnoughMem       = 17, I"Working buffer could not be allocated, not enough memory";
+  ErrTooManyOpenFiles   = 18, I"Open files count exceeds the allowed margin";
+  ErrParamInvalid       = 19, I"Filesystem low level operation parameter is invalid";
 }
 
 // File system item struct. used in rpc
@@ -567,7 +581,11 @@ function fsResultStringGet(fsResult)
     return EsFsResult.valueLabelGet(fsResult);
   
   if( !fsResult#isEmpty() )
-    return EsStr::format("Unknown filesystem operation result code: %d", fsResult);
+    return EsStr::lformat(
+      EsStr::osLocaleIdGet("-"),
+      EsStr::translate(I"Unknown filesystem operation result code: %d"), 
+      fsResult
+    );
     
   return "";
 }

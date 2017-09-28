@@ -314,7 +314,7 @@ object RADEX_AQ_Flags
   }
   
   property temperatureInF;
-  @label = I"Temperature in °F";
+  @label = I"Temperature in 0F";
   read: { return !(f_val & RADEX_AQ_CfgFlag$$TempInF); } 
   write: { 
     f_val &= ~RADEX_AQ_CfgFlag$$TempInF;
@@ -326,8 +326,8 @@ object RADEX_AQ_Flags
   read: {
     return (
       $temperatureInF ? 
-        I"Show Temperature in °F" :
-        I"Show Temperature in °C"
+        I"Show Temperature in 0F" :
+        I"Show Temperature in 0C"
     );
   }
 
