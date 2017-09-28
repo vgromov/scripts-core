@@ -159,7 +159,7 @@ object RADEX_AQ_LiveData
   read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMean, c_RADEX_AQ_unitTemp, f_flags$temperatureDailyAvgMeanvalid, true); }
   
   property temperatureDailyAvgMeanStr;
-  @label=I"daily avg. mean temperature";
+  @label=I"Daily avg. mean temperature";
   read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgMeanStrMulti ); }
   
   property temperatureDailyAvgMax;

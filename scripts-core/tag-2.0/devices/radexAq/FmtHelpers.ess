@@ -13,7 +13,13 @@ var fmt;
 	else
 		fmt = "%0.0f";
 	
-	return EsStr::format(fmt, val);
+	return EsStr::lformat(
+    EsStr::osLocaleIdGet(), 
+    EsStr::translate(
+      fmt
+    ), 
+    val
+  );
 }
 
 /// Multi part value string creation
