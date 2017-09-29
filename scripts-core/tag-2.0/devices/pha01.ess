@@ -136,7 +136,7 @@ object PHA01 extends EsDeviceBase
     // optionally download software info
     if( m_fwId$ver > "1.5" )
     {
-      rpcResult = rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+      rpcResult = swInfoQuery();
       if( rpcResult[0] )
         settings.f_swInfo.copyFrom( rpcResult[1] );
       else

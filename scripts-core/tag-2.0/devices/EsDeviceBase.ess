@@ -618,6 +618,13 @@ object EsDeviceBase
     else
       return rpcCall(EsRpcStdId$$FWID_GET, null);
   }
+  
+/// Full embedded software info structure query helper
+  function swInfoQuery()
+  {
+    if( EsRpcStdId$$SW_INFO_GET in m_caps ) 
+      return rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+  }  
 
 /// Internal fsresult substitution helper. Must not be used directly
   function checkFsResultOnSuccess( result, fsItemName )
