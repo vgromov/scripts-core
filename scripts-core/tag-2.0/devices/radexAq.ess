@@ -192,11 +192,15 @@ object RADEX_AQ extends EsDeviceBase
   {
     rpcResult = rpcCall( RADEX_AQ_Rpid$$DataCountGet, null );
     if( !rpcResult[0] )
-      return;
+      return rpcResult;
       
     cnt = rpcResult[1];
     if( 0 == cnt )
-      return; //< Nothing to download
+    {
+      rpcResult[0] = false;
+      rpcResult[1] = I"Nothing to download";
+      return rpcResult; //< Nothing to download
+    }
     
     if( endIdx#isEmpty() )
       endIdx = cnt-1;
@@ -217,9 +221,13 @@ object RADEX_AQ extends EsDeviceBase
       endIdx = tmp;
     }
     
-    cnt = endIdx - startIdx;
+    cnt = endIdx - startIdx + 1;
     if( 0 == cnt )
-      return; //< Nothing to download    
+    {
+      rpcResult[0] = false;
+      rpcResult[1] = I"Nothing to download";
+      return rpcResult; //< Nothing to download
+    }    
     
     task = new EsProgressMonitorTask(
       $fwIdStrSafe,
