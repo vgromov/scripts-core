@@ -6,7 +6,7 @@ enum RADEX_AQ_CfgFlag
   SndOn                         = 0x00000001;
   ThresholdOn                   = 0x00000002;
   NightModeOn                   = 0x00000004;
-  BacklightAlwaysOn             = 0x00000008;
+  SleepModeOn                   = 0x00000008;
   BLE_On                        = 0x00000010;
   ContinuousMeasurementsOn      = 0x00000020;
   ScreenScrollingOff            = 0x00000040;
@@ -241,21 +241,21 @@ object RADEX_AQ_Flags
     );
   }
 
-  property continuousBacklight;
-  @label = I"Continuous Backlight";
-  read: { return (f_val & RADEX_AQ_CfgFlag$$BacklightAlwaysOn); } 
+  property sleepMode;
+  @label = I"Sleep mode";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$SleepModeOn); } 
   write: { 
-    f_val &= ~RADEX_AQ_CfgFlag$$BacklightAlwaysOn;
+    f_val &= ~RADEX_AQ_CfgFlag$$SleepModeOn;
     if( __value )
-      f_val |= RADEX_AQ_CfgFlag$$BacklightAlwaysOn;
+      f_val |= RADEX_AQ_CfgFlag$$SleepModeOn;
   }
 
-  property continuousBacklightStr;
+  property sleepModeStr;
   read: {
     return (
-      $continuousBacklight ? 
-        I"Backlight always ON" :
-        I"Normal Backlight"
+      $sleepMode ? 
+        I"Sleep mode ON" :
+        I"Sleep mode OFF"
     );
   }
 

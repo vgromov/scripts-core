@@ -1,7 +1,12 @@
 /// RADEX_AQ contants
 ///
 
-const c_RADEX_AQ_unitDust = I"mg/m^3";
+const c_RADEX_AQ_unitDust = [
+  I"ug/m^3",
+  I"mg/m^3",
+  I"g/m^3"
+];
+const c_RADEX_AQ_baseUnitDust = 1;
 const c_RADEX_AQ_unitTemp = "°C";
 const c_RADEX_AQ_unitHumidity = "%";
 
@@ -46,9 +51,9 @@ enum RADEX_AQ_Defs
   ScrUpdateDef  = 10;
   
   // Backlight duration, s
-  BcklTmoMin    = 60;
-  BcklTmoMax    = 3600;
-  BcklTmoDef    = 60;
+  SleepModeTmoMin = 60;
+  SleepModeTmoMax = 3600;
+  SleepModeTmoDef = 60;
   
   // Dust concentration alert, mg/m^3
   DustAlertMin  = 0.001;

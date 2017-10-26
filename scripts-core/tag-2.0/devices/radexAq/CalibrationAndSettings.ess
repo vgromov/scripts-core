@@ -6,7 +6,7 @@ object RADEX_AQ_Cfg
   RADEX_AQ_Flags f_flags;
   RADEX_AQ_Screens f_screens;
   esU32 f_screenChangeTmo;
-  esU32 f_bcklTmo;
+  esU32 f_sleepModeTmo;
   esU32 f_msrPeriod;
   esU8  f_dustType;
   esF   f_alertThreshold;
@@ -31,7 +31,7 @@ object RADEX_AQ_Cfg
       f_flags$value != other.f_flags$value ||
       f_screens$value != other.f_screens$value ||
       f_screenChangeTmo != other.f_screenChangeTmo ||
-      f_bcklTmo != other.f_bcklTmo ||
+      f_sleepModeTmo != other.f_sleepModeTmo ||
       f_msrPeriod != other.f_msrPeriod ||
       f_dustType != other.f_dustType ||
       f_alertThreshold != other.f_alertThreshold ||
@@ -86,11 +86,11 @@ object RADEX_AQ_Cfg
   read: { return f_flags$nightMode; } 
   write: { f_flags$nightMode = __value; }
 
-  property continuousBacklight;
-  @label = I"Continuous backlight";
-  @help = I"Toggle continuous backlight";
-  read: { return f_flags$continuousBacklight; } 
-  write: { f_flags$continuousBacklight = __value; }
+  property sleepMode;
+  @label = I"Sleep mode";
+  @help = I"Toggle device sleep mode";
+  read: { return f_flags$sleepMode; } 
+  write: { f_flags$sleepMode = __value; }
 
   property bluetooth;
   @label = I"Bluetooth";
@@ -305,16 +305,16 @@ object RADEX_AQ_Cfg
   write: { f_screenChangeTmo$value = __value; }
   
   // Backlight OFF timeout, if not set continuous in config flags
-  property bcklTmo;
-  @label = I"Backlight timeout, [s]";
-  @help = I"Screen backlight dimmer timeout, [s]";
+  property sleepModeTmo;
+  @label = I"Sleep mode timeout, [s]";
+  @help = I"Normal to Sleep mode timeout, [s]";
   @textPrompt = I"Value in seconds";
-  @restriction = [RADEX_AQ_Defs$$BcklTmoMin .. RADEX_AQ_Defs$$BcklTmoMax];
+  @restriction = [RADEX_AQ_Defs$$SleepModeTmoMin .. RADEX_AQ_Defs$$SleepModeTmoMax];
   @lookup = [[I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240], [I"5 min", 300], [I"10 min", 600], [I"15 min", 900], 
     [I"20 min", 1200], [I"30 min", 1800], [I"1 hour", 3600]];
-  @default = RADEX_AQ_Defs$$BcklTmoDef;
-  read: { return f_bcklTmo$value; }
-  write: { f_bcklTmo$value = __value; }
+  @default = RADEX_AQ_Defs$$SleepModeTmoDef;
+  read: { return f_sleepModeTmo$value; }
+  write: { f_sleepModeTmo$value = __value; }
   
   // Measurement period, if not set to continuous in config flags
   property msrPeriod;
@@ -353,6 +353,8 @@ object RADEX_AQ_Cfg
   property lang;
   @label = I"Language";
   @help = I"Device language selection";
+  @default = "en";
+  @lookup = [["English", "en"], ["Русский", "ru"]];
   read: { return EsStr::fromByteString(f_lang$buffer, EsStrByteEncoding$$CP1251); }
   write: 
   var idx = 0, ch, str = "";

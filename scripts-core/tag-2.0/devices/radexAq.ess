@@ -188,7 +188,8 @@ object RADEX_AQ extends EsDeviceBase
   
   // Download saved data
   function savedDataDownload(startIdx, endIdx)
-  var task, rpcResult, tmp, idx, cnt = 0, result = [], data = [];
+  var task, rpcResult, tmp, idx, cnt = 0, 
+    result = [], data = [], retries = 0;
   {
     rpcResult = rpcCall( RADEX_AQ_Rpid$$DataCountGet, null );
     if( !rpcResult[0] )
@@ -238,26 +239,35 @@ object RADEX_AQ extends EsDeviceBase
     task.attachTo(__scriptHost$progressMonitor);
 
     tmp = 1;
-    if( cnt > 20 )
-      tmp = 2;
-    else if( cnt > 80 )
-      tmp = 10;
-    else if( cnt > 200 )
-      tmp = 20;
-    else if( cnt > 500 )
+    if( cnt > 800 )
       tmp = 50;
-    else if( cnt > 800 )
-      tmp = 100;
+    else if( cnt > 500 )
+      tmp = 20;
+    else if( cnt > 200 )
+      tmp = 10;
+    else if( cnt > 80 )
+      tmp = 5;
+    else if( cnt > 20 )
+      tmp = 2;
     
     for( idx = startIdx; idx <= endIdx; ++idx )
     {
-      rpcResult = rpcCall( RADEX_AQ_Rpid$$DataAtIdxGet, idx );
+      do
+      {
+        rpcResult = rpcCall( RADEX_AQ_Rpid$$DataAtIdxGet, idx );
+        ++retries;
+      }
+      while( !rpcResult[0] && retries < 3 );
+      
       if( rpcResult[0] )
+      {
         data += rpcResult[1];
+        retries = 0;
+      }
       else
         break;
 
-      if( 0 == idx % tmp )
+      if( 0 == (idx % tmp) )
         task$position = idx;
     }
     

@@ -1,20 +1,25 @@
 /// RADEX_AQ Data formatting helpers
 ///
-function RADEX_AQ_ValueFmt(val, allowNegative)
+function RADEX_AQ_ValueFmt(val, allowNegative, prec)
 var fmt;
 {
-	if( !allowNegative && val < 0 )
-		val = 0;
-		
-	if( val < 10 )
-		fmt = "%0.2f";
-	else if( val < 100 )
-		fmt = "%0.1f";
-	else
-		fmt = "%0.0f";
-	
-	return EsStr::lformat(
-    EsStr::osLocaleIdGet("-"), 
+  if( !allowNegative && val < 0 )
+    val = 0;
+    
+  if( -1 != prec )
+    fmt = "%0." + prec + "f";
+  else
+  {  
+  if( val < 10 )
+    fmt = "%0.2f";
+  else if( val < 100 )
+    fmt = "%0.1f";
+  else
+    fmt = "%0.0f";
+  }
+  
+  return EsStr::lformat(
+    EsStr::localeIdGet(), 
     EsStr::translate(
       fmt
     ), 
@@ -23,8 +28,8 @@ var fmt;
 }
 
 /// Multi part value string creation
-function RADEX_AQ_strMultiGet(val, unit, valid, allowNegative)
-var mul = 1., result = []; 
+function RADEX_AQ_strMultiGet(val, unit, baseUnitIdx, valid, allowNegative)
+var mul = 1., result = [], unitIdx = baseUnitIdx, prec = -1; 
 {
   if( !valid )
   {
@@ -34,17 +39,34 @@ var mul = 1., result = [];
   }
   else
   {
-		result += RADEX_AQ_ValueFmt( val, allowNegative );
-		if( val > 1000. )
-		{
-			mul = 1000.;
-			val /= mul;
-		}
-		result += RADEX_AQ_ValueFmt( val, allowNegative );
-		result += EsStr::format("x%d", mul);
+    result += RADEX_AQ_ValueFmt( val, allowNegative, prec );
+    if( EsMath::abs(val) > 1000. )
+    {
+      mul = 1000.;
+      ++unitIdx;
+    }
+    else if( EsMath::abs(val) < 1. )
+    {
+      mul = 0.001;
+      --unitIdx;
+      prec = 0;
+    }
+    val /= mul;
+    
+    result += RADEX_AQ_ValueFmt( val, allowNegative, prec );
+
+    result += EsStr::format("x%d", mul);
   }
-  	
-  result += EsStr::translate(unit);
+  
+  if( unit#isCollection() )
+  {
+    result += EsStr::translate( unit[baseUnitIdx] );
+    result += EsStr::translate( unit[unitIdx] );
+  }
+  else
+  {
+    result += EsStr::translate( unit );  
+  }
   
   return result;
 }
@@ -52,5 +74,14 @@ var mul = 1., result = [];
 /// Create simple string from multistring
 function RADEX_AQ_fromStrMulti(multi)
 {
-	return multi[0] + " " + multi[3];
+  return 
+    ((5 == multi#countGet()) ? 
+      multi[1] :
+      multi[0]
+    ) +
+    " " + 
+    ((5 == multi#countGet()) ? 
+      multi[4] :
+      multi[3]
+    );
 }
