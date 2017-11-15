@@ -74,14 +74,5 @@ var mul = 1., result = [], unitIdx = baseUnitIdx, prec = -1;
 /// Create simple string from multistring
 function RADEX_AQ_fromStrMulti(multi)
 {
-  return 
-    ((5 == multi#countGet()) ? 
-      multi[1] :
-      multi[0]
-    ) +
-    " " + 
-    ((5 == multi#countGet()) ? 
-      multi[4] :
-      multi[3]
-    );
+  return multi[0] + " " + multi[3];
 }

@@ -45,7 +45,7 @@ object RADEX_AQ_LiveData
   read: { return f_dust$value; }
   
   property dustStrMulti;
-  read: { return RADEX_AQ_strMultiGet($dust, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
+  read: { return RADEX_AQ_strMultiGet($dust * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
   
   property dustStr;
   @label=I"Current Dust concentration";
@@ -55,7 +55,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustMin$value; }
   
   property dustMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustMin, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMinvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustMin * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMinvalid, false); }
   
   property dustMinStr;
   @label=I"Minimum Dust concentration";
@@ -65,7 +65,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustMean$value; }
   
   property dustMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustMean, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMeanvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustMean * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMeanvalid, false); }
   
   property dustMeanStr;
   @label=I"Average Dust concentration";
@@ -75,7 +75,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustMax$value; }
   
   property dustMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustMax, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMaxvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustMax * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMaxvalid, false); }
   
   property dustMaxStr;
   @label=I"Maximum Dust concentration";
@@ -85,7 +85,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustDailyAvgMin$value; }
   
   property dustDailyAvgMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMin, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMinvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMin * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMinvalid, false); }
   
   property dustDailyAvgMinStr;
   @label=I"Daily avg. minimum Dust concentration";
@@ -95,7 +95,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustDailyAvgMean$value; }
   
   property dustDailyAvgMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMean, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMeanvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMean * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMeanvalid, false); }
   
   property dustDailyAvgMeanStr;
   @label=I"Daily avg. mean Dust concentration";
@@ -105,7 +105,7 @@ object RADEX_AQ_LiveData
   read: { return f_dustDailyAvgMax$value; }
   
   property dustDailyAvgMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMax, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMaxvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMax * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMaxvalid, false); }
   
   property dustDailyAvgMaxStr;
   @label=I"Daily avg. maximum Dust concentration";
@@ -335,7 +335,7 @@ object RADEX_AQ_PersistentData
   read: { return f_dust$value; }
   
   property dustStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $dust, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
+  read: { return RADEX_AQ_strMultiGet( $dust * 1000., c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
   
   property dustStr;
   read: { return RADEX_AQ_fromStrMulti( $dustStrMulti ); }

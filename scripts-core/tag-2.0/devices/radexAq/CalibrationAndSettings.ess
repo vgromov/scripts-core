@@ -331,14 +331,14 @@ object RADEX_AQ_Cfg
   
   // Concentration alert threshold
   property alertThreshold;
-  @label = I"Alert threshold, [mg/m^3]";
-  @help = I"Dust concentration alert threshold, [mg/m^3]";
-  @textPrompt = I"Value in [mg/m^3]";
+  @label = I"Alert threshold, [ug/m^3]";
+  @help = I"Dust concentration alert threshold, [ug/m^3]";
+  @textPrompt = I"Value in [ug/m^3]";
   @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
   @default = RADEX_AQ_Defs$$DustAlertDef;
   @precision = 3;
-  read: { return f_alertThreshold$value; }
-  write: { f_alertThreshold$value = __value; }
+  read: { return f_alertThreshold$value * 1000.; }
+  write: { f_alertThreshold$value = __value / 1000.; }
 
   // Dust type awareness
   property dustType;
