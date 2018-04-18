@@ -1,0 +1,220 @@
+// --------------------------- device identification base
+
+// device firmware comparison flags
+enum EsFirmwareIdCmpFlag
+{
+  // device type is always used in comparison
+  Type          = 0;
+  Serial        = 1;
+  Version       = 2;
+  UID           = 4;
+  Functionality = 8;
+  Significant   = 3;
+  All           = 0xF;
+}
+
+// firmware version
+object EsVerInfo
+  @help = "Firmware version";
+{
+  esU8 f_major;
+  esU8 f_minor;
+  
+  function asString()
+  {
+    return f_major.asString() + "." + f_minor.asString();
+  }
+  
+  function compare(other) 
+  {
+    if( other#isString() )
+      return EsStr::compare( asString(), other );
+    else if( other.isKindOf("EsVerInfo") )
+    {
+      if( f_major == other.f_major )
+      {
+        if( f_minor < other.f_minor )
+          return -1;
+        else if( f_minor > other.f_minor )  
+          return 1;
+        
+        return 0;
+      }
+      else if( f_major < other.f_major )
+        return -1;
+
+      return 1;
+    }
+  
+    return -1;
+  } 
+
+  property major;
+  read: { return f_major$value; }
+  write: { f_major = __value#asByte(); }
+
+  property minor;
+  read: { return f_minor$value; }
+  write: { f_minor = __value#asByte(); }
+}
+
+// device f_serial number
+object EsDeviceSerial
+@help = "Hardware serial number";
+{
+  esU16 f_year;
+  esU16 f_order;
+
+  function asString()
+  {
+    return EsStr::format("%05d-%02d", f_order, f_year%100);
+  }
+  
+  function compare(other) 
+  {
+    if( other#isString() )
+      return EsStr::compare( asString(), other );
+    else if( other.isKindOf("EsDeviceSerial") )
+    {
+      if( f_year == other.f_year )
+      {
+        if( f_order < other.f_order )
+          return -1;
+        else if( f_order > other.f_order )  
+          return 1;
+        
+        return 0;
+      }
+      else if( f_year < other.f_year )
+        return -1;
+
+      return 1;
+    }
+    
+    return -1;
+  }
+  
+  property year;
+  read: { return f_year$value; }
+  write: { f_year = __value#asULong(); }
+
+  property order;
+  read: { return f_order$value; }
+  write: { f_order = __value#asULong(); }
+}
+
+// device f_uid
+object EsDeviceUID
+  @help = "Device Unique IDentification string";
+{
+  esU8 f_id[32];
+  
+  // f_uid comparison
+  function compare(other)
+  var idx = 0, c, co;
+  {  
+    if( other.isKindOf("EsDeviceUID") )
+    {
+      while(idx < 32)
+      {
+        c = f_id[idx];
+        co = other.f_id[idx];
+        if( c < co )
+          return -1;
+        else if( c > co )
+          return 1;
+          
+        ++idx;
+      }
+    }
+    else if( other#isIndexed() )
+    {
+      c = other#countGet();
+      if( 32 < c )
+        return -1;
+      else if( 32 > c )
+        return 1;
+      
+      while(idx < 32)
+      {
+        c = f_id[idx];
+        co = other[idx];
+        if( c < co )
+          return -1;
+        else if( c > co )
+          return 1;
+          
+        ++idx;
+      }
+    }
+    else 
+      return -1;
+    
+    return 0;
+  }
+  
+  /// Return generic string f_uid representation
+  function asString()
+  {
+    return EsStr::fromByteString(f_id$buffer);
+  }
+  
+  /// Try to set f_uid from string representation
+  function uidFromString(uidStr)
+  var ch, str = EsStr::toUpper(uidStr#asString());
+  { 
+    if( 32 != str#countGet() )
+      throw "UID string length must be 32 symbols";
+    foreach(ch in str)
+      if( !EsStr::isHexChar(ch) )
+        throw "UID string must contain only HEX symbols";
+    f_id$buffer = EsStr::toByteString(str);
+  }  
+  
+  new()
+  var idx = 0;
+  {
+    while(idx < 32)
+      f_id[idx++] = B'0';
+  }
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite(asString());
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    uidFromString(stream.valueRead());
+  }
+  
+  // value property, to allow UID reading|writing as string
+  property value;
+  @persistent;
+  read: { return asString(); }
+  write: { uidFromString(__value); }
+}
+
+/// Try to read UID from the device. If device is HUB, request returns its 16 byte Unique ID
+/// otherwise, null is returned.
+///
+function deviceHwUidRead(rpcMaster)
+var hwUid, rpcResult;
+{
+  try
+  {
+    rpcResult = rpcMaster.esBA_Call(EsRpcStdId$$HW_UID_GET);
+    if( !rpcResult#isEmpty() )
+    {
+      hwUid = new EsDeviceUID();
+      hwUid$buffer = rpcResult#asBinBuffer();
+    }
+  }
+  catch
+  {}
+  
+  return hwUid;
+}
+// --------------------------- end device identification base

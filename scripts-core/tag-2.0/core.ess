@@ -37,8 +37,9 @@ enum EsRpcStdId
 ##require("coreUtils.ess");
 ##require("coreDevicesDb.ess");
 ##require("coreDevicesIdFormatters.ess");
-##require("coreDevicesId.ess");
+##require("coreDevicesIdBase.ess");
 ##require("coreDevicesStd.ess");
+##require("coreDevicesId.ess");
 ##require("coreDevicesHw.ess");
 
 /// Assert RPC master object

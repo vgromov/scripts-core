@@ -38,9 +38,17 @@ object RADEX_AQ extends EsDeviceBase
   }
 
   function fwIdDefaultSet()
+  var now = EsDateTime::now();
   {
     m_fwId = new EsFirmwareId(EsQuartaDeviceType$$RADEXAQ);
-    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_order = 0;
+    m_fwId.f_year = now$year;
+    m_fwId.f_month = now$month;
+    m_fwId.f_day = now$day;
+    m_fwId.f_countryCode = m_countryCode;
+    m_fwId.f_hwConfig$standard = 0;
+    m_fwId.f_hwConfig$custom = 0;
+    
     m_fwId.f_fwVer.f_major = 1;
     m_fwId.f_fwVer.f_minor = 0;
   }
