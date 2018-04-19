@@ -310,8 +310,8 @@ object RADEX_AQ_Cfg
   @help = I"Normal to Sleep mode timeout, [s]";
   @textPrompt = I"Value in seconds";
   @restriction = [RADEX_AQ_Defs$$SleepModeTmoMin .. RADEX_AQ_Defs$$SleepModeTmoMax];
-  @lookup = [[I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240], [I"5 min", 300], [I"10 min", 600], [I"15 min", 900], 
-    [I"20 min", 1200], [I"30 min", 1800], [I"1 hour", 3600]];
+  @lookup = [[I"5 s", 5], [I"10 s", 10], [I"15 s", 15], [I"30 s", 30], [I"45 s", 45], 
+    [I"1 min", 60], [I"2 min", 120], [I"3 min", 180], [I"4 min", 240], [I"5 min", 300]];
   @default = RADEX_AQ_Defs$$SleepModeTmoDef;
   read: { return f_sleepModeTmo$value; }
   write: { f_sleepModeTmo$value = __value; }

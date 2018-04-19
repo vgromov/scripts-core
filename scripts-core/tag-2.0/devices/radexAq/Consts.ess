@@ -50,10 +50,10 @@ enum RADEX_AQ_Defs
   ScrUpdateMax  = 240;
   ScrUpdateDef  = 10;
   
-  // Backlight duration, s
-  SleepModeTmoMin = 60;
-  SleepModeTmoMax = 3600;
-  SleepModeTmoDef = 60;
+  // Sleep mode, s
+  SleepModeTmoMin = 5;
+  SleepModeTmoMax = 300;
+  SleepModeTmoDef = 5;
   
   // Dust concentration alert, ug/m^3
   DustAlertMin  = 1;
