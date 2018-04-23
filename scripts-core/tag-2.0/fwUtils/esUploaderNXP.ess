@@ -19,7 +19,8 @@ object EsUploaderNXP extends EsUploaderBase
 	}
 	
 	function enterBootWithWarmBoot(progressTask, rpcMaster)
-  var chnl = rpcMaster$channel;
+  var chnl = rpcMaster$channel,
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
 	{
     rpcMaster.activate();
     rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
@@ -28,7 +29,7 @@ object EsUploaderNXP extends EsUploaderBase
 		progressTask.pulse("Performing Warm Boot...");
 		EsThreadWorker::sleep(1500);
     
-		if( !chnl$useRS232 )
+		if( !usesRS232 )
 			devicePowerOnInBootMode(chnl);
 	}
 	
@@ -67,12 +68,13 @@ object EsUploaderNXP extends EsUploaderBase
 	function configureForBoot(programmer, rpcMaster, supportedRpcs)
 	var chnl = rpcMaster$channel, 
 		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
-		progressTask = new EsProgressMonitorTask("configureForBoot");
+		progressTask = new EsProgressMonitorTask("configureForBoot"),
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
 	{
 		progressTask.attachTo(__scriptHost$progressMonitor);
 		
 		if( supportsPowerCtl && 
-				!chnl$useRS232 &&
+				!usesRS232 &&
 				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
 		{
 			try
@@ -113,7 +115,7 @@ object EsUploaderNXP extends EsUploaderBase
       }
 		}
 		
-		if( supportsPowerCtl && !chnl$useRS232 )
+		if( supportsPowerCtl && !usesRS232 )
 		{
       //EsScriptDebug::log("Trying to enter boot with natural power-off");
 			enterBootWithNaturalPowerOff(progressTask, rpcMaster);

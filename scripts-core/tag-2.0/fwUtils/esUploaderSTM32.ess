@@ -60,12 +60,13 @@ object EsUploaderStm32 extends EsUploaderBase
   function configureForBoot(programmer, rpcMaster, supportedRpcs)
   var chnl = rpcMaster$channel, 
     supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
-    progressTask = new EsProgressMonitorTask("configureForBoot");
+    progressTask = new EsProgressMonitorTask("configureForBoot"),
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
   {
     progressTask.attachTo(__scriptHost$progressMonitor);
     
     if( supportsPowerCtl && 
-        !chnl$useRS232 &&
+        usesRS232 &&
         (EsRpcStdId$$SHUTDOWN in supportedRpcs) )
     {
       try
