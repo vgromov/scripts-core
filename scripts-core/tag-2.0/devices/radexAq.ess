@@ -68,7 +68,7 @@ object RADEX_AQ extends EsDeviceBase
   }
   
   function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
-  var result = null;
+  var cnt, result = null;
   {
     switch( rpcId )
     {
@@ -88,6 +88,12 @@ object RADEX_AQ extends EsDeviceBase
       {
         result = new RADEX_AQ_Cfg();
         result$buffer = rpcResult#asBinBuffer();
+      }
+    case RADEX_AQ_Rpid$$DataBlockGet:
+      {
+        result = new RADEX_AQ_PersistentDataBlock(
+          rpcResult#asBinBuffer()
+        );
       }
     default: 
       result = EsDeviceBase::rpcCallResultHandle(
@@ -309,5 +315,84 @@ object RADEX_AQ extends EsDeviceBase
       RADEX_AQ_Rpid$$DataDelete, 
       null 
     );
+  }
+  
+  function allSavedDataDownload()
+  var task, rpcResult, idx = 0, cnt = 0, 
+    data = [], retries = 0, 
+    node, nodeIdx, block;
+  {
+    rpcResult = rpcCall( RADEX_AQ_Rpid$$DataCountGet, null );
+    if( !rpcResult[0] )
+      return rpcResult;
+      
+    cnt = rpcResult[1];
+    if( 0 == cnt )
+    {
+      rpcResult[0] = false;
+      rpcResult[1] = I"Nothing to download";
+      return rpcResult; //< Nothing to download
+    }
+
+    // Calculate blocks count
+    //EsScriptDebug::log("Data cont is %d", cnt);
+    cnt = EsVar::asULong(cnt / c_RADEX_AQ_maxNodesPerBlock) + 
+      ((cnt % c_RADEX_AQ_maxNodesPerBlock) ? 1 : 0);
+    //EsScriptDebug::log("Expected blocks count is %d", cnt);
+    
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe,
+      EsStr::translate(I"Downloading saved data..."),
+      cnt,
+      idx
+    );
+    task.attachTo(__scriptHost$progressMonitor);
+   
+    for( ; idx < cnt; ++idx )
+    {
+      do
+      {
+        rpcResult = rpcCall( RADEX_AQ_Rpid$$DataBlockGet, idx );
+        ++retries;
+      }
+      while( !rpcResult[0] && retries < 3 );
+      
+      if( rpcResult[0] )
+      {
+        block = rpcResult[1];
+        //EsScriptDebug::log("nodes in block: %d", block$count);
+        
+        for(nodeIdx = 0; nodeIdx < block$count; ++nodeIdx)
+        {
+          data += 
+            block$nodes[nodeIdx];
+        }
+       
+        retries = 0;
+      }
+      else
+        break;
+
+      task$position = idx;
+    }
+    
+    if( rpcResult[0] )
+    {
+      task.end(
+        EsStr::translate(I"Saved data downloaded")
+      );
+      
+      rpcResult[1] = data;
+    }
+    else
+    {
+      rpcResult[1] = EsStr::translate(I"Failed to download all requested device data"); 
+    
+      task.end(
+        rpcResult[1]
+      );
+    }
+    
+    return rpcResult;
   }
 }

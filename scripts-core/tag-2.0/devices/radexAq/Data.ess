@@ -370,3 +370,23 @@ object RADEX_AQ_PersistentData
   property humidityvalid;
   read: { return f_flags$humidityvalid; }
 }
+
+object RADEX_AQ_PersistentDataBlock
+{
+  var m_cnt;
+  RADEX_AQ_PersistentData f_nodes[m_cnt#isEmpty() ? 0 : m_cnt#asULong()];
+  
+  new(buff)
+  {
+    m_cnt = EsVar::asULong(buff#countGet() / 26);//RADEX_AQ_PersistentData$size;
+    this$buffer = buff;
+    
+//    EsScriptDebug::log("RADEX_AQ_PersistentDataBlock created with count: %d", m_cnt);
+  }
+ 
+  property count;
+  read: { return m_cnt; }
+  
+  property nodes;
+  read: { return f_nodes; }
+}

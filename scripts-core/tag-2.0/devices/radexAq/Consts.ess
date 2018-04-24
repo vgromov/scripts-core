@@ -9,6 +9,7 @@ const c_RADEX_AQ_unitDust = [
 const c_RADEX_AQ_baseUnitDust = 0;
 const c_RADEX_AQ_unitTemp = "°C";
 const c_RADEX_AQ_unitHumidity = "%";
+const c_RADEX_AQ_maxNodesPerBlock = 18;
 
 // RADEX_AQ-specific rpcs 
 enum RADEX_AQ_Rpid
@@ -19,6 +20,7 @@ enum RADEX_AQ_Rpid
   DataAtIdxGet              = 2056, "esBA_Call_esU16|Request saved data node at specified index";
   SettingsGet               = 2057, "esBA_Call|Get device settigns";
   SettingsSet               = 2058, "VOID_Call_esBA|Set device settings";
+  DataBlockGet              = 2059, "esBA_Call_esU16|Get continuous device data block";
 }
 
 // Settings defaults
