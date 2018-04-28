@@ -1,0 +1,148 @@
+// XMODEM firmware programmer implementation
+//
+##require("esXmodem.ess");
+
+// XMODEM firmware IO
+//
+
+// Misc Quarta Xmodem timeouts
+//
+enum EsQuartaXmodem {
+  TmoPing       = 1000;
+  TmoFirstFrame = 10000;
+  TmoFrame      = 1000;
+}
+
+object EsQuartaXmodemBootInfo 
+{
+  esU32 f_ver;
+  esU32 f_type;
+}
+
+object EsQuartaXmodemProgrammer
+{
+  var m_bootInfo
+  
+  new()
+  {
+    m_bootInfo = new EsQuartaXmodemBootInfo();
+  }
+
+  function bootloaderConnect(chnl)
+  var buff, tmpbuff, offs = 0, infosze = 8,
+    progressTask;
+  {
+    progressTask = new EsProgressMonitorTask("bootloaderConnect");
+    progressTask.pulse("Synching with bootloader...");
+    progressTask.attachTo(__scriptHost$progressMonitor);
+    
+    if( 1 == chnl.pytesPut(XmodemCh$$PING, EsQuartaXmodem$$TmoPing) )
+    {
+      tmpbuff = chnl.pytesGet(
+        infosze, //< boot info
+        EsQuartaXmodem$$TmoPing
+      );
+      
+      if( tmpbuff#isEmpty() )
+        return false;
+        
+      // Filter off XmodemCh$$C
+      while( XmodemCh$$C == tmpbuff[offs] && offs < tmpbuff#countGet() )
+        ++offs;
+        
+      if( offs )
+      {
+        buff = tmpbuff#sliceGet(offs, tmpbuff#countGet()-1);
+
+        tmpbuff = chnl.pytesGet(
+          infosze-offs, //< boot info
+          EsQuartaXmodem$$TmoPing
+        );
+
+        if( tmpbuff#isEmpty() || tmpbuff#countGet() < infosze-offs )
+          return false;
+        
+        buff += tmpbuff;
+        m_bootInfo$buffer = buff;
+
+        EsScriptDebug::log("QartaXmodem boot info received: %s", buff);
+        
+        return true;
+      }
+      else if( tmpbuff#countGet() == infosze )
+      {
+        m_bootInfo$buffer = tmpbuff;
+        
+        EsScriptDebug::log("QartaXmodem boot info received: %s", tmpbuff);
+        
+        return true;
+      }
+    }
+
+    return false;
+  }
+  
+  function ackRead(chnl)
+  var buff = chnl.bytesGet(
+    1, 
+    EsQuartaXmodem$$TmoPing
+  );
+  {
+    return !buff#isEmpty() && 1 == buff#countGet() &&
+      XmodemCh$$ACK == buff[0];
+  }
+  
+  function eotSend(chnl)
+  {
+    return 
+      1 == chnl.pytesPut(XmodemCh$$EOT, EsQuartaXmodem$$TmoPing) &&
+      ackRead(chnl);
+  }
+
+  function write(chnl, data)
+  var xmblockNum = 0, firstFrame = true, 
+    dataoffs = 0, datalen, xmblock, 
+    progressTask;
+  {
+    if( data#isEmpty() || !data#countGet() )
+      return false;
+
+    datalen = data#countGet();
+    
+    progressTask = new EsProgressMonitorTask("program");
+    progressTask.initialize("Uploading firmware...", datalen, 0);
+    progressTask.attachTo(__scriptHost$progressMonitor);
+      
+    while( dataoffs < datalen ) 
+    {
+      xmblock = new XmodemPacket(
+        hdr, 
+        xmblockNum, 
+        data,
+        dataoffs
+      );
+      
+      if(
+        xmblock$size ==
+        chnl.bytesPut(
+          xmblock$buffer,
+          firstFrame ? 
+            EsQuartaXmodem$$TmoFirstFrame :
+            EsQuartaXmodem$$TmoFrame
+        ) &&
+        ackRead(chnl)
+      )
+      {
+        dataoffs += xmblock$size-4; //< Xmodem size - Xmodem header size
+        ++xmblockNum;
+      }
+
+      firstFrame = false;
+
+      // update progress
+      progressTask$pos = dataoffs;
+    }
+
+    return len <= 0;    
+  }
+}

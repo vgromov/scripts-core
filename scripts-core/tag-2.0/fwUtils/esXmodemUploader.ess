@@ -1,111 +1,79 @@
-// ESS XMODEM IO implementation
-//
+##require("fwUtils/esUploaderBase.ess")
+##require("fwUtils/esXmodemProgrammer.ess")
 
-// XMODEM special symbols
+// Quarta XMODEM firmware uploader
 //
-enum XmodemCh {
-  SOH = B'\0x01', "Start of Header";
-  EOT = B'\0x04', "End of Transmission";
-  ACK = B'\0x06', "Acknowledge";
-  NAK = B'\0x15', "Not Acknowledge";
-  ETB = B'\0x17', "End of Transmission Block";
-  CAN = B'\0x18', "Cancel";
-  EOF = B'\0x1A', "End Of File";
-  C   = B'C', "CRC16 Request";
-}
-
-// XMODEM packet object
-//
-object XmodemPacket
+object EsQurtaXmodemUploader extends EsUploaderBase
 {
-  esU8 f_hdr;
-  esU8 f_num;
-  esU8 f_xnum;
-  esU8 f_data[128];
-  esU8 f_crc8;
-
-  new( hdr, num, data )
-  var idx, cnt, crc = B'\0', ch;
+  /// Base class overrides
+  ///
+  function programmerCreate()
   {
-    if( !(hdr in [XmodemCh$$SOH, XmodemCh$$EOT, XmodemCh$$CAN, XmodemCh$$ETB]) )
-      throw EsStr::format(
-        "Invalid XMODEM packet header byte: '%s'",
-        hdr
-      );
-
-    f_hdr = hdr;
-    
-    if( !num#isEmpty() )
-      f_num = num;
-    else
-      f_num = 0;
-
-    f_xnum = 255-f_num;
-    
-    if( data#isEmpty() )
-    {
-      idx = 0;
-      ch = XmodemCh$$EOF;
-      while(idx < 128)
-      {
-        f_data[idx++] = ch;
-        crc += ch#asByte();
-      }
-    }
-    else
-    {
-      cnt = data#countGet();
-      if( cnt > 128 )
-        cnt = 128;
-
-      for(idx = 0; idx < cnt; ++idx)
-      {
-        ch = data[idx];
-        f_data[idx] = ch;
-        crc += ch#asByte();
-      }
-      
-      ch = XmodemCh$$EOF;
-      while(idx < 128)
-      {
-        f_data[idx++] = ch;
-        crc += ch#asByte();
-      }
-    }
-
-    f_crc8 = crc;
+    return new EsQuartaXmodemProgrammer();
   }
-}
-
-// Radex XMODEM data IO
-//
-object EsRadexXmodemBootInfo 
-{
-  esU32 f_ver;
-  esU32 f_type;
-}
-
-object EsRadexXmodemIO
-{
-  var m_bootInfo,
-    m_chnl;
   
-  new()
+/*
+  function doChnlPrepareForBootloader(chnl)
   {
-    m_bootInfo = new EsRadexXmodemBootInfo();
+    EsUploaderBase::doChnlPrepareForBootloader(chnl);
+    chnl$parity = EsEkonnectIoParity$$Even;  
   }
 
-  function bootloaderConnect()
+  function doChnlPrepareForDefaultNormalComm(chnl)
   {
-  }
+    EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
 
-  function write()
+  function doChnlPrepareForNormalComm(chnl)
   {
+    EsUploaderBase::doChnlPrepareForNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
+*/
+  
+  function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
+  {
+    progressTask.pulse("Shutting down device...");
+
+    rpcMaster.activate();
+    // Command to power off the device
+    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    configurePowerOff(chnl);
+//    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
+    
+    // Wait until device detects power off, and shuts down OK
+    EsThreadWorker::sleep(2000);
+    chnlPrepareForBootloader(chnl);
+    configurePowerOn(chnl);
+
+    rpcMaster.deactivate();
   }
+  
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
+  var chnl = rpcMaster$channel, 
+    supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+    progressTask = new EsProgressMonitorTask("configureForBoot"),
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
+  {
+    progressTask.attachTo(__scriptHost$progressMonitor);
+    
+    if( supportsPowerCtl && 
+        usesRS232 &&
+        (EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+    {
+      try
+      {
+        enterBootWithShutdown(progressTask, rpcMaster);
+        return true;
+      }
+      catch
+      {
+        rpcMaster.deactivate();
+      }
+    }
 
-  property bootVer;
-  read: { return m_bootInfo.f_ver#asULong(); }
-
-  property bootType;
-  read: { return m_bootInfo.f_type#asULong(); }
+    return false;
+  }  
 }
