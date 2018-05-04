@@ -32,13 +32,19 @@ object EsFwMonikerBase
   var idx, id, buff;
   {
     m_binary.emptyCheck();
-    
+
     for( idx = 0; idx < m_fwTypesExpected#countGet(); ++idx )
     {
       id = new EsFirmwareId(m_fwTypesExpected[idx]);
+
       m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], id$size);    
       buff = m_binary.m_fw#sliceGet(m_fwIdOffs[idx], m_fwIdOffs[idx]+id$size);
+
+      EsScriptDebug::log("Testpoint!!! size=%d buffSize=%d", id$size, buff#countGet());
+      EsScriptDebug::log("Testpoint!!! buff=%s", buff);
+
       id$buffer = buff;
+
       fwIdValidate(id, m_fwTypesExpected[idx], $type);
       m_tmpId[idx] = id;
     }

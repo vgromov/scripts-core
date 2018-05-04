@@ -21,14 +21,16 @@ object EsQuartaXmodemBootInfo
 
 object EsQuartaXmodemProgrammer
 {
-  var m_bootInfo
+  var m_moniker,
+      m_bootInfo;
   
-  new()
+  new(moniker)
   {
     m_bootInfo = new EsQuartaXmodemBootInfo();
+    m_moniker = moniker;
   }
 
-  function bootloaderConnect(chnl)
+  function checkIfInBoot(chnl)
   var buff, tmpbuff, offs = 0, infosze = 8,
     progressTask;
   {
@@ -81,7 +83,7 @@ object EsQuartaXmodemProgrammer
 
     return false;
   }
-  
+ 
   function ackRead(chnl)
   var buff = chnl.bytesGet(
     1, 
@@ -99,11 +101,18 @@ object EsQuartaXmodemProgrammer
       ackRead(chnl);
   }
 
-  function write(chnl, data)
+  function program(chnl, isAlreadySynched)
   var xmblockNum = 0, firstFrame = true, 
-    dataoffs = 0, datalen, xmblock, 
+    data, dataoffs = 0, datalen, xmblock, 
     progressTask;
   {
+    if( !isAlreadySynched )
+      isAlreadySynched = checkIfInBoot(chnl);
+
+    if( !isAlreadySynched )
+      throw "Could not connect to device bootloader";
+
+    data = m_moniker$binaryFw;
     if( data#isEmpty() || !data#countGet() )
       return false;
 
@@ -116,7 +125,7 @@ object EsQuartaXmodemProgrammer
     while( dataoffs < datalen ) 
     {
       xmblock = new XmodemPacket(
-        hdr, 
+        XmodemCh$$SOH, 
         xmblockNum, 
         data,
         dataoffs
@@ -143,6 +152,6 @@ object EsQuartaXmodemProgrammer
       progressTask$pos = dataoffs;
     }
 
-    return len <= 0;    
+    return dataoffs >= datalen;    
   }
 }

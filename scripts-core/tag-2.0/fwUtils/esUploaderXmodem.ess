@@ -1,0 +1,77 @@
+##require("fwUtils/esUploaderBase.ess");
+##require("fwUtils/esMcuProgrammerXmodem.ess");
+
+// Quarta XMODEM firmware uploader
+//
+object EsQuartaXmodemUploader extends EsUploaderBase
+{
+  /// Base class overrides
+  ///
+  function programmerCreate()
+  {
+    return new EsQuartaXmodemProgrammer(
+      m_moniker
+    );
+  }
+  
+/*
+  function doChnlPrepareForBootloader(chnl)
+  {
+    EsUploaderBase::doChnlPrepareForBootloader(chnl);
+    chnl$parity = EsEkonnectIoParity$$Even;  
+  }
+
+  function doChnlPrepareForDefaultNormalComm(chnl)
+  {
+    EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
+
+  function doChnlPrepareForNormalComm(chnl)
+  {
+    EsUploaderBase::doChnlPrepareForNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
+*/
+
+  function deviceDumbShutdownWait(chnl, tmo)
+  {
+    // Sleep a bit more
+    EsThreadWorker::sleep(1000);
+  }
+  
+  function enterBootWithWarmBoot(progressTask, rpcMaster)
+  {
+    rpcMaster.activate();
+    rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+    rpcMaster.deactivate();
+
+    progressTask.pulse("Performing Warm Boot...");
+    EsThreadWorker::sleep(2000);
+  }
+
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
+  var progressTask = new EsProgressMonitorTask("configureForBoot");
+  {
+    progressTask.attachTo(__scriptHost$progressMonitor);
+    
+    if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
+    {
+      try
+      {
+        enterBootWithWarmBoot(
+          progressTask, 
+          rpcMaster
+        );
+
+        return true;
+      }
+      catch
+      {
+        rpcMaster.deactivate();
+      }
+    }
+
+    return false;
+  }  
+}

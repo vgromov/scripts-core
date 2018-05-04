@@ -4,16 +4,16 @@
 // XMODEM special symbols
 //
 enum XmodemCh {
-  SOH = B'\0x01', "Start of Header";
-  EOT = B'\0x04', "End of Transmission";
-  ACK = B'\0x06', "Acknowledge";
-  NAK = B'\0x15', "Not Acknowledge";
-  ETB = B'\0x17', "End of Transmission Block";
-  CAN = B'\0x18', "Cancel";
-  EOF = B'\0x1A', "End Of File";
-  C   = B'C', "CRC16 Request";
+  SOH = B'\x01', "Start of Header";
+  EOT = B'\x04', "End of Transmission";
+  ACK = B'\x06', "Acknowledge";
+  NAK = B'\x15', "Not Acknowledge";
+  ETB = B'\x17', "End of Transmission Block";
+  CAN = B'\x18', "Cancel";
+  EOF = B'\x1A', "End Of File";
+  C   = B'C',    "CRC16 Request";
   // Quarta-specific stuff:
-  PING= B'\0x05', "Bootloader Ping";
+  PING= B'\x05', "Bootloader Ping";
 }
 
 // XMODEM packet object
