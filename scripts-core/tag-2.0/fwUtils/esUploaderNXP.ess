@@ -71,7 +71,7 @@ object EsUploaderNXP extends EsUploaderBase
 		progressTask = new EsProgressMonitorTask("configureForBoot"),
     usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
 	{
-		progressTask.attachTo(__scriptHost$progressMonitor);
+		progressTask.attachTo(programmer$topTask);
 		
 		if( supportsPowerCtl && 
 				!usesRS232 &&

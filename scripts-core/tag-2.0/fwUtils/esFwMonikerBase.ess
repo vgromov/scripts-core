@@ -40,9 +40,6 @@ object EsFwMonikerBase
       m_binary.fwOffsAndSizeCheck(m_fwIdOffs[idx], id$size);    
       buff = m_binary.m_fw#sliceGet(m_fwIdOffs[idx], m_fwIdOffs[idx]+id$size);
 
-      EsScriptDebug::log("Testpoint!!! size=%d buffSize=%d", id$size, buff#countGet());
-      EsScriptDebug::log("Testpoint!!! buff=%s", buff);
-
       id$buffer = buff;
 
       fwIdValidate(id, m_fwTypesExpected[idx], $type);

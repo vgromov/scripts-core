@@ -183,11 +183,8 @@ object EsUploaderBase
   }
     
   function checkIfStartedInBoot(chnl, programmer)
-  var progressTask = new EsProgressMonitorTask("checkIfStartedInBoot"), deviceIsInBootMode = false;
+  var deviceIsInBootMode = false;
   {
-		progressTask.attachTo(__scriptHost$progressMonitor);
-    progressTask.pulse("Checking empty device...");
-
     //EsScriptDebug::log("Preparing for default boot communication");
     chnl.close();
     // Prepare channel for bootloader communication
@@ -204,10 +201,10 @@ object EsUploaderBase
     return deviceIsInBootMode;
   }  
   
-  function deviceDumbShutdownWait(chnl, tmo)
+  function deviceDumbShutdownWait(chnl, tmo, programmer)
   var progressTask = new EsProgressMonitorTask("waitingForShutdownOnTmo");
   {
-		progressTask.attachTo(__scriptHost$progressMonitor);
+    progressTask.attachTo(programmer$topTask);
     progressTask.initialize("Waiting for device to shut down on timeout...", tmo*1000, tmo*1000 );
     
     chnlPrepareForBootloader(chnl);
@@ -278,14 +275,22 @@ object EsUploaderBase
       }
       
       //EsScriptDebug::log("Trying to enter boot with RPC shutdown");
-      deviceIsInBootMode = configureForBoot(programmer, rpcMaster, supportedRpcs);
+      deviceIsInBootMode = configureForBoot(
+        programmer, 
+        rpcMaster, 
+        supportedRpcs
+      );
     }
      
     chnl.close();
     if( !deviceIsInBootMode )
     {
       //EsScriptDebug::log("Performing dumb shutdown");
-      deviceDumbShutdownWait(chnl, c_dumbShutdownTmo);
+      deviceDumbShutdownWait(
+        chnl, 
+        c_dumbShutdownTmo, 
+        programmer
+      );
     }
     chnl.open();
 
@@ -293,7 +298,11 @@ object EsUploaderBase
     {
       //EsScriptDebug::log("programmer.program with alreadySynched=%s", alreadySynched ? "Yes" : "No");
       
-      programmer.program(chnl, alreadySynched);
+      programmer.program(
+        chnl, 
+        alreadySynched
+      );
+
       completeUpload(chnl);
     }
     catch

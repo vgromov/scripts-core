@@ -8,149 +8,233 @@
 // Misc Quarta Xmodem timeouts
 //
 enum EsQuartaXmodem {
-  TmoPing       = 1000;
-  TmoFirstFrame = 10000;
+  TmoInvitation = 500;
+  TmoRead       = 1000;
   TmoFrame      = 1000;
-}
-
-object EsQuartaXmodemBootInfo 
-{
-  esU32 f_ver;
-  esU32 f_type;
+  Retries       = 10;
 }
 
 object EsQuartaXmodemProgrammer
 {
-  var m_moniker,
-      m_bootInfo;
+  var m_topTask,
+      m_moniker,
+      m_crcMode;
   
   new(moniker)
   {
-    m_bootInfo = new EsQuartaXmodemBootInfo();
+    m_topTask = new EsProgressMonitorTask("program");
+    m_topTask.pulse("Preparing for a firmware upload...");
+    m_topTask.attachTo(__scriptHost$progressMonitor);
+
     m_moniker = moniker;
   }
 
-  function checkIfInBoot(chnl)
-  var buff, tmpbuff, offs = 0, infosze = 8,
-    progressTask;
+  function invitationRead(chnl)
+  var buff, ch, retries = 0;
   {
-    progressTask = new EsProgressMonitorTask("bootloaderConnect");
-    progressTask.pulse("Synching with bootloader...");
-    progressTask.attachTo(__scriptHost$progressMonitor);
+    EsScriptDebug::log("Reading BL invitation...");
     
-    if( 1 == chnl.pytesPut(XmodemCh$$PING, EsQuartaXmodem$$TmoPing) )
+    chnl.reset();
+    while( retries < EsQuartaXmodem$$Retries )
     {
-      tmpbuff = chnl.pytesGet(
-        infosze, //< boot info
-        EsQuartaXmodem$$TmoPing
+      buff = chnl.bytesGet(
+        1, //< BL invitation byte
+        EsQuartaXmodem$$TmoInvitation
       );
+
+      if( buff#isEmpty() || 0 == buff#countGet() )
+      {
+        ++retries;
+
+        EsScriptDebug::log("BL invitation not read, retry %d", retries);
+        continue;
+      }
+
+      EsScriptDebug::log("BL invitation read: %s", buff);
       
-      if( tmpbuff#isEmpty() )
-        return false;
-        
-      // Filter off XmodemCh$$C
-      while( XmodemCh$$C == tmpbuff[offs] && offs < tmpbuff#countGet() )
-        ++offs;
-        
-      if( offs )
+      ch = buff[ buff#countGet()-1 ];
+      if( XmodemCh$$NAK == ch || XmodemCh$$C == ch )
       {
-        buff = tmpbuff#sliceGet(offs, tmpbuff#countGet()-1);
+        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
 
-        tmpbuff = chnl.pytesGet(
-          infosze-offs, //< boot info
-          EsQuartaXmodem$$TmoPing
-        );
-
-        if( tmpbuff#isEmpty() || tmpbuff#countGet() < infosze-offs )
-          return false;
-        
-        buff += tmpbuff;
-        m_bootInfo$buffer = buff;
-
-        EsScriptDebug::log("QartaXmodem boot info received: %s", buff);
-        
-        return true;
+        return ch;
       }
-      else if( tmpbuff#countGet() == infosze )
-      {
-        m_bootInfo$buffer = tmpbuff;
-        
-        EsScriptDebug::log("QartaXmodem boot info received: %s", tmpbuff);
-        
-        return true;
-      }
+
+      ++retries;
+      EsScriptDebug::log("Unknown BL invitation read: 0x%02X, retry %d", ch, retries);
     }
+  }
 
-    return false;
+  function checkIfInBoot(chnl)
+  var progressTask = new EsProgressMonitorTask("program.bootloaderConnect");
+  {
+    progressTask.pulse("Synching with bootloader...");
+    progressTask.attachTo( m_topTask );
+
+    EsScriptDebug::log("checkIfInBoot(chnl.isOpen=%s), synching...", chnl.isOpen());
+    m_crcMode = invitationRead(chnl);
+
+    return !m_crcMode#isEmpty();
   }
  
-  function ackRead(chnl)
-  var buff = chnl.bytesGet(
-    1, 
-    EsQuartaXmodem$$TmoPing
-  );
+  function ackOrNakRead(chnl)
+  var retries = 0, ch, buff;
   {
-    return !buff#isEmpty() && 1 == buff#countGet() &&
-      XmodemCh$$ACK == buff[0];
+    EsScriptDebug::log("Reading ACK or NAK from device...");        
+    
+    do
+    {
+      buff = chnl.bytesGet(
+        1, 
+        EsQuartaXmodem$$TmoRead
+      );
+
+      if( !buff#isEmpty() && 1 == buff#countGet() )
+      {
+        ch = buff[0];
+        break;
+      }
+
+      ++retries;
+      EsScriptDebug::log("ACK or NAK Retry %d...", retries);
+
+    } while(
+      ch#isEmpty() &&
+      retries < EsQuartaXmodem$$Retries
+    );
+
+    if( ch#isEmpty() )
+      EsScriptDebug::log("ACK or NAK not read after Retries expired...");
+
+    return ch;
   }
   
-  function eotSend(chnl)
+  function transmissionFinalize(chnl)
   {
-    return 
-      1 == chnl.pytesPut(XmodemCh$$EOT, EsQuartaXmodem$$TmoPing) &&
-      ackRead(chnl);
+    EsScriptDebug::log("Finalizing transmission...");
+
+    // Gracefully finalize transfer
+    chnl.bytesPut(
+      EsVar::asByte(XmodemCh$$EOT), 
+      EsQuartaXmodem$$TmoFrame
+    );
+    ackOrNakRead(chnl);
+
+    chnl.bytesPut(
+      EsVar::asByte(XmodemCh$$ETB),
+      EsQuartaXmodem$$TmoFrame
+    );
+    ackOrNakRead(chnl);
+  }
+
+  function packetWrite(chnl, xmblock)
+  {
+    return chnl.bytesPut(
+      xmblock$buffer,
+      EsQuartaXmodem$$TmoFrame
+    );
   }
 
   function program(chnl, isAlreadySynched)
-  var xmblockNum = 0, firstFrame = true, 
-    data, dataoffs = 0, datalen, xmblock, 
-    progressTask;
+  var xmblockNum = 1,
+    ch, data, 
+    dataoffs = 0x6000, 
+    datalen, xmblock, 
+    progressTask, written, retries = 0;
   {
     if( !isAlreadySynched )
+    {
+      EsScriptDebug::log("EsQuartaXmodemProgrammer not yet synched with bootloader, synching...");
+      
+      if( !chnl.isOpen() )
+        chnl.open();
+
       isAlreadySynched = checkIfInBoot(chnl);
+    }
 
     if( !isAlreadySynched )
       throw "Could not connect to device bootloader";
 
     data = m_moniker$binaryFw;
     if( data#isEmpty() || !data#countGet() )
+    {
+      EsScriptDebug::log("No firmware data found in moniker!");
       return false;
+    }
 
     datalen = data#countGet();
+    EsScriptDebug::log("Programming %d data starting at offs %d", datalen, dataoffs);
     
-    progressTask = new EsProgressMonitorTask("program");
-    progressTask.initialize("Uploading firmware...", datalen, 0);
-    progressTask.attachTo(__scriptHost$progressMonitor);
-      
+    m_topTask.initialize("Uploading firmware...", datalen, dataoffs);
+    
+    if( !chnl.isOpen() )
+      chnl.open();
+  
     while( dataoffs < datalen ) 
     {
       xmblock = new XmodemPacket(
-        XmodemCh$$SOH, 
         xmblockNum, 
         data,
+        dataoffs,
+        m_crcMode
+      );
+
+      EsScriptDebug::log(
+        "Writing XModem block %s %d, at offs %d...", 
+        xmblock$buffer,
+        xmblockNum, 
         dataoffs
       );
       
-      if(
-        xmblock$size ==
-        chnl.bytesPut(
-          xmblock$buffer,
-          firstFrame ? 
-            EsQuartaXmodem$$TmoFirstFrame :
-            EsQuartaXmodem$$TmoFrame
-        ) &&
-        ackRead(chnl)
-      )
+label __packetRetry:
+      written = packetWrite(
+        chnl, 
+        xmblock
+      );      
+      EsScriptDebug::log("Written %d bytes...", written);
+
+      if( xmblock$size != written )
       {
-        dataoffs += xmblock$size-4; //< Xmodem size - Xmodem header size
-        ++xmblockNum;
+        EsScriptDebug::log("Error writing XModem data block! Aborting.");        
+        break;
       }
 
-      firstFrame = false;
+      ch = ackOrNakRead(chnl);
+      if( ch#isEmpty() )
+        break;
+
+      if( XmodemCh$$ACK == ch )
+      {
+        retries = 0;
+        EsScriptDebug::log("Packet %d ACK-ed...", xmblockNum);
+      }
+      else if( XmodemCh$$NAK == ch )
+      {
+        // Retrying entire packet
+        ++retries;
+        EsScriptDebug::log("NAK received, retrying(%d) packet %d...", retries, xmblockNum);
+
+        if(retries < EsQuartaXmodem$$Retries)
+          goto __packetRetry;
+        
+        EsScriptDebug::log("Packet Retries expired, aborting...");
+        break;
+      }
+
+      dataoffs += c_XmodemDataSize;
+
+      ++xmblockNum;
+      if( xmblockNum > 255 )
+        xmblockNum = 0;
+
+      EsScriptDebug::log("XModem block %d, written OK", xmblockNum);
+      EsScriptDebug::log("Data offs/len: [%d/%d]", dataoffs, datalen);
 
       // update progress
-      progressTask$pos = dataoffs;
+      progressTask$position = dataoffs;
     }
+
+    transmissionFinalize(chnl);
 
     return dataoffs >= datalen;    
   }

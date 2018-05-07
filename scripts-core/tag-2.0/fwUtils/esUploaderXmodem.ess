@@ -14,32 +14,6 @@ object EsQuartaXmodemUploader extends EsUploaderBase
     );
   }
   
-/*
-  function doChnlPrepareForBootloader(chnl)
-  {
-    EsUploaderBase::doChnlPrepareForBootloader(chnl);
-    chnl$parity = EsEkonnectIoParity$$Even;  
-  }
-
-  function doChnlPrepareForDefaultNormalComm(chnl)
-  {
-    EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
-    chnl$parity = EsEkonnectIoParity$$None;
-  }  
-
-  function doChnlPrepareForNormalComm(chnl)
-  {
-    EsUploaderBase::doChnlPrepareForNormalComm(chnl);
-    chnl$parity = EsEkonnectIoParity$$None;
-  }  
-*/
-
-  function deviceDumbShutdownWait(chnl, tmo)
-  {
-    // Sleep a bit more
-    EsThreadWorker::sleep(1000);
-  }
-  
   function enterBootWithWarmBoot(progressTask, rpcMaster)
   {
     rpcMaster.activate();
@@ -47,13 +21,13 @@ object EsQuartaXmodemUploader extends EsUploaderBase
     rpcMaster.deactivate();
 
     progressTask.pulse("Performing Warm Boot...");
-    EsThreadWorker::sleep(2000);
+    EsThreadWorker::sleep(3000);
   }
 
   function configureForBoot(programmer, rpcMaster, supportedRpcs)
   var progressTask = new EsProgressMonitorTask("configureForBoot");
   {
-    progressTask.attachTo(__scriptHost$progressMonitor);
+    progressTask.attachTo(programmer$topTask);
     
     if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
     {
@@ -73,5 +47,66 @@ object EsQuartaXmodemUploader extends EsUploaderBase
     }
 
     return false;
+  }
+
+  // Upload firmware 
+  function upload(rpcMaster)
+  var programmer = programmerCreate();
+  var supportedRpcs, 
+    deviceIsInBootMode = false, 
+    alreadySynched = false;
+  {  
+    rpcMaster.deactivate();
+
+    deviceIsInBootMode = checkIfStartedInBoot(
+      rpcMaster$channel, 
+      programmer
+    );
+    alreadySynched = deviceIsInBootMode;
+    
+    EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
+    if( !deviceIsInBootMode )
+    {
+      rpcMaster.activate();
+      
+      try
+      {
+        EsScriptDebug::log("Getting implemented RPCs");
+        
+        supportedRpcs = rpcMaster.getImplementedRPCs();
+       
+        EsScriptDebug::log("Implemented RPCs acquired");
+      }
+      catch
+      {
+        // error ocurred during the most basic device query
+        // device may be already in boot mode
+        rpcMaster.deactivate();
+      }
+      
+      EsScriptDebug::log("Trying to enter boot with RPC WARM BOOT");
+      deviceIsInBootMode = configureForBoot(
+        programmer, 
+        rpcMaster, 
+        supportedRpcs
+      );
+    }
+
+    try
+    {
+      EsScriptDebug::log("programmer.program with alreadySynched=%s", alreadySynched ? "Yes" : "No");
+
+      rpcMaster.deactivate();
+
+      programmer.program(
+        rpcMaster$channel, 
+        alreadySynched
+      );
+    }
+    catch
+    {
+      completeUpload(rpcMaster$channel);
+      rethrow;
+    }
   }  
 }
