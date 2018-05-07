@@ -46,16 +46,16 @@ object EsQuartaXmodemProgrammer
       {
         ++retries;
 
-        EsScriptDebug::log("BL invitation not read, retry %d", retries);
+//        EsScriptDebug::log("BL invitation not read, retry %d", retries);
         continue;
       }
 
-      EsScriptDebug::log("BL invitation read: %s", buff);
+//      EsScriptDebug::log("BL invitation read: %s", buff);
       
       ch = buff[ buff#countGet()-1 ];
       if( XmodemCh$$NAK == ch || XmodemCh$$C == ch )
       {
-        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
+//        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
 
         return ch;
       }
@@ -80,7 +80,7 @@ object EsQuartaXmodemProgrammer
   function ackOrNakRead(chnl)
   var retries = 0, ch, buff;
   {
-    EsScriptDebug::log("Reading ACK or NAK from device...");        
+//    EsScriptDebug::log("Reading ACK or NAK from device...");        
     
     do
     {
@@ -140,7 +140,7 @@ object EsQuartaXmodemProgrammer
     ch, data, 
     dataoffs = 0x6000, 
     datalen, xmblock, 
-    progressTask, written, retries = 0;
+    written, retries = 0;
   {
     if( !isAlreadySynched )
     {
@@ -178,14 +178,14 @@ object EsQuartaXmodemProgrammer
         dataoffs,
         m_crcMode
       );
-
+/*
       EsScriptDebug::log(
         "Writing XModem block %s %d, at offs %d...", 
         xmblock$buffer,
         xmblockNum, 
         dataoffs
       );
-      
+*/      
 label __packetRetry:
       written = packetWrite(
         chnl, 
@@ -231,11 +231,14 @@ label __packetRetry:
       EsScriptDebug::log("Data offs/len: [%d/%d]", dataoffs, datalen);
 
       // update progress
-      progressTask$position = dataoffs;
+      m_topTask$position = dataoffs;
     }
 
     transmissionFinalize(chnl);
 
     return dataoffs >= datalen;    
   }
+
+  property topTask;
+  read: { return m_topTask; }
 }
