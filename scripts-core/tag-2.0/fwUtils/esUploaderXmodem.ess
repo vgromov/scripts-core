@@ -1,43 +1,268 @@
-##require("fwUtils/esUploaderBase.ess");
-##require("fwUtils/esMcuProgrammerXmodem.ess");
+// XMODEM firmware programmer implementation
+//
+##require("core.ess");
+##require("esXmodem.ess");
+
+// Misc Quarta Xmodem timeouts
+//
+enum EsQuartaXmodem {
+  TmoInvitation = 500;
+  TmoRead       = 1000;
+  TmoFrame      = 1000;
+  Retries       = 10;
+}
 
 // Quarta XMODEM firmware uploader
 //
-object EsQuartaXmodemUploader extends EsUploaderBase
+object EsQuartaXmodemUploader
 {
-  /// Base class overrides
-  ///
-  function programmerCreate()
+  var m_topTask,
+      m_crcMode,
+      m_bin;
+
+  function invitationRead(chnl)
+  var buff, ch, retries = 0;
   {
-    return new EsQuartaXmodemProgrammer(
-      m_moniker
+    EsScriptDebug::log("Reading BL invitation...");
+    
+    chnl.reset();
+    while( retries < EsQuartaXmodem$$Retries )
+    {
+      buff = chnl.bytesGet(
+        1, //< BL invitation byte
+        EsQuartaXmodem$$TmoInvitation
+      );
+
+      if( buff#isEmpty() || 0 == buff#countGet() )
+      {
+        ++retries;
+
+//        EsScriptDebug::log("BL invitation not read, retry %d", retries);
+        continue;
+      }
+
+//      EsScriptDebug::log("BL invitation read: %s", buff);
+      
+      ch = buff[ buff#countGet()-1 ];
+      if( XmodemCh$$NAK == ch || XmodemCh$$C == ch )
+      {
+//        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
+
+        return ch;
+      }
+
+      ++retries;
+      EsScriptDebug::log("Unknown BL invitation read: 0x%02X, retry %d", ch, retries);
+    }
+  }
+
+  function checkIfInBoot(chnl)
+  var progressTask = new EsProgressMonitorTask("program.bootloaderConnect");
+  {
+    progressTask.pulse("Synching with bootloader...");
+    progressTask.attachTo( m_topTask );
+
+    EsScriptDebug::log("checkIfInBoot(chnl.isOpen=%s), synching...", chnl.isOpen());
+    m_crcMode = invitationRead(chnl);
+
+    return !m_crcMode#isEmpty();
+  }
+ 
+  function ackOrNakRead(chnl)
+  var retries = 0, ch, buff;
+  {
+//    EsScriptDebug::log("Reading ACK or NAK from device...");        
+    
+    do
+    {
+      buff = chnl.bytesGet(
+        1, 
+        EsQuartaXmodem$$TmoRead
+      );
+
+      if( !buff#isEmpty() && 1 == buff#countGet() )
+      {
+        ch = buff[0];
+        break;
+      }
+
+      ++retries;
+      EsScriptDebug::log("ACK or NAK Retry %d...", retries);
+
+    } while(
+      ch#isEmpty() &&
+      retries < EsQuartaXmodem$$Retries
     );
+
+    if( ch#isEmpty() )
+      EsScriptDebug::log("ACK or NAK not read after Retries expired...");
+
+    return ch;
   }
   
-  function enterBootWithWarmBoot(progressTask, rpcMaster)
+  function transmissionFinalize(chnl)
   {
-    rpcMaster.activate();
-    rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
-    rpcMaster.deactivate();
+    EsScriptDebug::log("Finalizing transmission...");
 
-    progressTask.pulse("Performing Warm Boot...");
-    EsThreadWorker::sleep(3000);
+    // Gracefully finalize transfer
+    chnl.bytesPut(
+      EsVar::asByte(XmodemCh$$EOT), 
+      EsQuartaXmodem$$TmoFrame
+    );
+    ackOrNakRead(chnl);
+
+    chnl.bytesPut(
+      EsVar::asByte(XmodemCh$$ETB),
+      EsQuartaXmodem$$TmoFrame
+    );
+    ackOrNakRead(chnl);
   }
 
-  function configureForBoot(programmer, rpcMaster, supportedRpcs)
-  var progressTask = new EsProgressMonitorTask("configureForBoot");
+  function packetWrite(chnl, xmblock)
   {
-    progressTask.attachTo(programmer$topTask);
+    return chnl.bytesPut(
+      xmblock$buffer,
+      EsQuartaXmodem$$TmoFrame
+    );
+  }
+
+  function program(chnl, isAlreadySynched)
+  var xmblockNum = 1,
+    ch, data, 
+    dataoffs = 0,
+    datalen, xmblock, 
+    written, retries = 0;
+  {
+    if( !isAlreadySynched )
+    {
+//      EsScriptDebug::log("EsQuartaXmodemProgrammer not yet synched with bootloader, synching...");
+      
+      if( !chnl.isOpen() )
+        chnl.open();
+
+      isAlreadySynched = checkIfInBoot(chnl);
+    }
+
+    if( !isAlreadySynched )
+      throw I"Could not connect to device bootloader";
+
+    data = m_bin$firmware;
+    if( data#isEmpty() || !data#countGet() )
+    {
+//      EsScriptDebug::log("No firmware data found in moniker!");
+      return false;
+    }
+
+    datalen = data#countGet();
+//    EsScriptDebug::log("Programming %d data starting at offs %d", datalen, dataoffs);
     
+    m_topTask.initialize(
+      I"Uploading firmware...", 
+      datalen, 
+      dataoffs
+     );
+    
+    if( !chnl.isOpen() )
+      chnl.open();
+  
+    while( dataoffs < datalen ) 
+    {
+      xmblock = new XmodemPacket(
+        xmblockNum, 
+        data,
+        dataoffs,
+        m_crcMode
+      );
+/*
+      EsScriptDebug::log(
+        "Writing XModem block %s %d, at offs %d...", 
+        xmblock$buffer,
+        xmblockNum, 
+        dataoffs
+      );
+*/      
+label __packetRetry:
+      written = packetWrite(
+        chnl, 
+        xmblock
+      );      
+//      EsScriptDebug::log("Written %d bytes...", written);
+
+      if( xmblock$size != written )
+      {
+//       EsScriptDebug::log("Error writing XModem data block! Aborting.");        
+        break;
+      }
+
+      ch = ackOrNakRead(chnl);
+      if( ch#isEmpty() )
+        break;
+
+      if( XmodemCh$$ACK == ch )
+      {
+        retries = 0;
+//        EsScriptDebug::log("Packet %d ACK-ed...", xmblockNum);
+      }
+      else if( XmodemCh$$NAK == ch )
+      {
+        // Retrying entire packet
+        ++retries;
+//        EsScriptDebug::log("NAK received, retrying(%d) packet %d...", retries, xmblockNum);
+
+        if(retries < EsQuartaXmodem$$Retries)
+          goto __packetRetry;
+        
+//        EsScriptDebug::log("Packet Retries expired, aborting...");
+        break;
+      }
+
+      dataoffs += c_XmodemDataSize;
+
+      ++xmblockNum;
+      if( xmblockNum > 255 )
+        xmblockNum = 0;
+
+//      EsScriptDebug::log("XModem block %d, written OK", xmblockNum);
+//      EsScriptDebug::log("Data offs/len: [%d/%d]", dataoffs, datalen);
+
+      // update progress
+      m_topTask$position = dataoffs;
+    }
+
+    transmissionFinalize(chnl);
+
+    return dataoffs >= datalen;
+  }
+
+  new(bin)
+  {
+    m_topTask = new EsProgressMonitorTask("program");
+    m_topTask.pulse("Preparing for a firmware upload...");
+    m_topTask.attachTo(__scriptHost$progressMonitor);
+
+    // Assert binary type name
+    if( !bin#isKindOf("EsQuartaFwBinary") )
+      throw "Unsupported formware binary format";
+
+    m_bin = bin;
+  }
+
+  function configureForBoot(rpcMaster, supportedRpcs)
+  {
     if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
     {
       try
       {
-        enterBootWithWarmBoot(
-          progressTask, 
-          rpcMaster
+        rpcMaster.activate();
+        rpcMaster.VOID_Call_esU32(
+          EsRpcStdId$$ENTER_BOOT, 
+          4000 + 1000*((m_bin#countGet() * 30) / 115200) //< USB have high baud despite the configuration
         );
+        rpcMaster.deactivate();
 
+        m_topTask.pulse("Performing Warm Boot...");
+        EsThreadWorker::sleep(3000);
+    
         return true;
       }
       catch
@@ -49,33 +274,46 @@ object EsQuartaXmodemUploader extends EsUploaderBase
     return false;
   }
 
+  function checkIfStartedInBoot(chnl)
+  var deviceIsInBootMode = false;
+  {
+    //EsScriptDebug::log("Preparing for default boot communication");
+    chnl.close();
+    
+    // Check if we're in bootloader mode (empty chip), trying to sync with bootloader at once
+    chnl.open();
+    
+    //EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
+    
+    deviceIsInBootMode = checkIfInBoot(chnl);
+    chnl.close();  
+    
+    return deviceIsInBootMode;
+  }  
+  
   // Upload firmware 
   function upload(rpcMaster)
-  var programmer = programmerCreate();
   var supportedRpcs, 
-    deviceIsInBootMode = false, 
-    alreadySynched = false;
+    deviceIsInBootMode = false;
   {  
     rpcMaster.deactivate();
 
     deviceIsInBootMode = checkIfStartedInBoot(
-      rpcMaster$channel, 
-      programmer
+      rpcMaster$channel
     );
-    alreadySynched = deviceIsInBootMode;
     
-    EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
+    //EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
       rpcMaster.activate();
       
       try
       {
-        EsScriptDebug::log("Getting implemented RPCs");
+//        EsScriptDebug::log("Getting implemented RPCs");
         
         supportedRpcs = rpcMaster.getImplementedRPCs();
        
-        EsScriptDebug::log("Implemented RPCs acquired");
+//        EsScriptDebug::log("Implemented RPCs acquired");
       }
       catch
       {
@@ -84,9 +322,8 @@ object EsQuartaXmodemUploader extends EsUploaderBase
         rpcMaster.deactivate();
       }
       
-      EsScriptDebug::log("Trying to enter boot with RPC WARM BOOT");
+//      EsScriptDebug::log("Trying to enter boot with RPC WARM BOOT");
       deviceIsInBootMode = configureForBoot(
-        programmer, 
         rpcMaster, 
         supportedRpcs
       );
@@ -94,18 +331,15 @@ object EsQuartaXmodemUploader extends EsUploaderBase
 
     try
     {
-      EsScriptDebug::log("programmer.program with alreadySynched=%s", alreadySynched ? "Yes" : "No");
-
       rpcMaster.deactivate();
 
-      programmer.program(
+      program(
         rpcMaster$channel, 
-        alreadySynched
+        deviceIsInBootMode
       );
     }
     catch
     {
-      completeUpload(rpcMaster$channel);
       rethrow;
     }
   }  
