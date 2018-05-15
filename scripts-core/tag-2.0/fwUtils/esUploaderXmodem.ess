@@ -287,7 +287,7 @@ label __packetRetry:
   function upload(rpcMaster)
   var supportedRpcs, 
     deviceIsInBootMode = false,
-    idAfter;
+    idAfter, retries = 0;
   {  
     rpcMaster.deactivate();
 
@@ -337,11 +337,17 @@ label __packetRetry:
         m_topTask.pulse("Checking firmware...");
         EsThreadWorker::sleep(3000);
 
-        rpcMaster.activate();
-        
-        idAfter = deviceFwIdRead(rpcMaster);
-        
-        rpcMaster.deactivate();
+        while( idAfter#isEmpty() && retries < EsQuartaXmodem$$Retries)
+        {
+          EsThreadWorker::sleep(1000);
+          rpcMaster.activate();
+          if( rpcMaster.isActive() )
+          {
+            idAfter = deviceFwIdRead(rpcMaster);
+            rpcMaster.deactivate();
+          }
+          ++retries;
+        }
 
         if( 
           idAfter#isEmpty() ||
