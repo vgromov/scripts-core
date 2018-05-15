@@ -59,9 +59,9 @@ object EsQuartaFwBinary
     return id;
   }
 
-  new(data, typeExpected, offsId, descr)
+  new(hexData, typeExpected, offsId, descr)
   {
-    m_data = data#asBinBuffer();
+    m_data = EsStr::hexToBin(hexData);
 
     m_offsId = offsId#asULong();
     m_descr = descr;
@@ -81,6 +81,12 @@ object EsQuartaFwBinary
 
   property binaryData;
   read: { return m_data#asBinBuffer(); }
+
+  property byteSize;
+  read: { return m_data#countGet(); }
+
+  property firmwareId;
+  read: { return m_id.clone(); }
 
   property deviceType;
   read: { return m_id$deviceType; }

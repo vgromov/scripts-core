@@ -23,7 +23,7 @@ object EsQuartaXmodemUploader
   function invitationRead(chnl)
   var buff, ch, retries = 0;
   {
-    EsScriptDebug::log("Reading BL invitation...");
+//    EsScriptDebug::log("Reading BL invitation...");
     
     chnl.reset();
     while( retries < EsQuartaXmodem$$Retries )
@@ -46,13 +46,13 @@ object EsQuartaXmodemUploader
       ch = buff[ buff#countGet()-1 ];
       if( XmodemCh$$NAK == ch || XmodemCh$$C == ch )
       {
-//        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
+        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
 
         return ch;
       }
 
       ++retries;
-      EsScriptDebug::log("Unknown BL invitation read: 0x%02X, retry %d", ch, retries);
+//      EsScriptDebug::log("Unknown BL invitation read: 0x%02X, retry %d", ch, retries);
     }
   }
 
@@ -62,7 +62,7 @@ object EsQuartaXmodemUploader
     progressTask.pulse("Synching with bootloader...");
     progressTask.attachTo( m_topTask );
 
-    EsScriptDebug::log("checkIfInBoot(chnl.isOpen=%s), synching...", chnl.isOpen());
+//    EsScriptDebug::log("checkIfInBoot(chnl.isOpen=%s), synching...", chnl.isOpen());
     m_crcMode = invitationRead(chnl);
 
     return !m_crcMode#isEmpty();
@@ -87,35 +87,38 @@ object EsQuartaXmodemUploader
       }
 
       ++retries;
-      EsScriptDebug::log("ACK or NAK Retry %d...", retries);
+//      EsScriptDebug::log("ACK or NAK Retry %d...", retries);
 
     } while(
       ch#isEmpty() &&
       retries < EsQuartaXmodem$$Retries
     );
 
-    if( ch#isEmpty() )
-      EsScriptDebug::log("ACK or NAK not read after Retries expired...");
+//    if( ch#isEmpty() )
+//      EsScriptDebug::log("ACK or NAK not read after Retries expired...");
 
     return ch;
   }
   
   function transmissionFinalize(chnl)
   {
-    EsScriptDebug::log("Finalizing transmission...");
+//    EsScriptDebug::log("Finalizing transmission...");
+    try
+    {
+      // Gracefully finalize transfer
+      chnl.bytesPut(
+        EsVar::asByte(XmodemCh$$EOT), 
+        EsQuartaXmodem$$TmoFrame
+      );
+      ackOrNakRead(chnl);
 
-    // Gracefully finalize transfer
-    chnl.bytesPut(
-      EsVar::asByte(XmodemCh$$EOT), 
-      EsQuartaXmodem$$TmoFrame
-    );
-    ackOrNakRead(chnl);
-
-    chnl.bytesPut(
-      EsVar::asByte(XmodemCh$$ETB),
-      EsQuartaXmodem$$TmoFrame
-    );
-    ackOrNakRead(chnl);
+      chnl.bytesPut(
+        EsVar::asByte(XmodemCh$$ETB),
+        EsQuartaXmodem$$TmoFrame
+      );
+      ackOrNakRead(chnl);
+    }
+    catch {}
   }
 
   function packetWrite(chnl, xmblock)
@@ -126,27 +129,14 @@ object EsQuartaXmodemUploader
     );
   }
 
-  function program(chnl, isAlreadySynched)
+  function program(chnl)
   var xmblockNum = 1,
     ch, data, 
     dataoffs = 0,
     datalen, xmblock, 
     written, retries = 0;
   {
-    if( !isAlreadySynched )
-    {
-//      EsScriptDebug::log("EsQuartaXmodemProgrammer not yet synched with bootloader, synching...");
-      
-      if( !chnl.isOpen() )
-        chnl.open();
-
-      isAlreadySynched = checkIfInBoot(chnl);
-    }
-
-    if( !isAlreadySynched )
-      throw I"Could not connect to device bootloader";
-
-    data = m_bin$firmware;
+    data = m_bin$binaryData;
     if( data#isEmpty() || !data#countGet() )
     {
 //      EsScriptDebug::log("No firmware data found in moniker!");
@@ -231,6 +221,8 @@ label __packetRetry:
 
     transmissionFinalize(chnl);
 
+    chnl.close();
+
     return dataoffs >= datalen;
   }
 
@@ -256,7 +248,7 @@ label __packetRetry:
         rpcMaster.activate();
         rpcMaster.VOID_Call_esU32(
           EsRpcStdId$$ENTER_BOOT, 
-          4000 + 1000*((m_bin#countGet() * 30) / 115200) //< USB have high baud despite the configuration
+          4000 + 1000*((m_bin$byteSize * 30) / 115200) //< USB have high baud despite the configuration
         );
         rpcMaster.deactivate();
 
@@ -294,7 +286,8 @@ label __packetRetry:
   // Upload firmware 
   function upload(rpcMaster)
   var supportedRpcs, 
-    deviceIsInBootMode = false;
+    deviceIsInBootMode = false,
+    idAfter;
   {  
     rpcMaster.deactivate();
 
@@ -302,7 +295,7 @@ label __packetRetry:
       rpcMaster$channel
     );
     
-    //EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
+//    EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
       rpcMaster.activate();
@@ -326,20 +319,43 @@ label __packetRetry:
       deviceIsInBootMode = configureForBoot(
         rpcMaster, 
         supportedRpcs
+      ) && 
+      checkIfStartedInBoot(
+        rpcMaster$channel
       );
     }
+
+    if( !deviceIsInBootMode )
+      throw I"Could not connect to device bootloader";
 
     try
     {
       rpcMaster.deactivate();
 
-      program(
-        rpcMaster$channel, 
-        deviceIsInBootMode
-      );
+      if( program( rpcMaster$channel ) )
+      {
+        m_topTask.pulse("Checking firmware...");
+        EsThreadWorker::sleep(3000);
+
+        rpcMaster.activate();
+        
+        idAfter = deviceFwIdRead(rpcMaster);
+        
+        rpcMaster.deactivate();
+
+        if( 
+          idAfter#isEmpty() ||
+          0 != idAfter.comparePartial(
+            m_bin$firmwareId, 
+            EsFirmwareIdCmpFlag$$Version
+          ) 
+        )
+          throw I"Uploaded device firmware verification failed. Firmware not updated.";
+      }
     }
     catch
     {
+      rpcMaster.deactivate();
       rethrow;
     }
   }  

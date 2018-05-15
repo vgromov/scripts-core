@@ -35,7 +35,10 @@ object XmodemPacket
 
     function checksumAppend(checksum, ch)
     {
-      return checksum#asByte() + ch#asByte();
+      if(checksum > 255-ch)
+        return ch-(255-checksum);
+      else
+        return checksum#asByte() + ch#asByte();
     }
 
     function checksumFinalize(checksum)
