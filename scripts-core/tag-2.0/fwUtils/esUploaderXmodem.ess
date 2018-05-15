@@ -356,7 +356,7 @@ label __packetRetry:
             EsFirmwareIdCmpFlag$$Version
           ) 
         )
-          throw I"Uploaded device firmware verification failed. Firmware not updated.";
+          throw I"Uploaded device firmware verification failed.";
       }
     }
     catch
