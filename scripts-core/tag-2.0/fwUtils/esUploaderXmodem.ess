@@ -349,14 +349,21 @@ label __packetRetry:
           ++retries;
         }
 
-        if( 
-          idAfter#isEmpty() ||
+        if( idAfter#isEmpty() )
+          throw I"Uploaded device firmware verification failed. No response from device after firmware upload.";
+        else if( 
           0 != idAfter.comparePartial(
             m_bin$firmwareId, 
             EsFirmwareIdCmpFlag$$Version
           ) 
         )
-          throw I"Uploaded device firmware verification failed.";
+        {
+          throw EsStr::format(
+            I"Uploaded device firmware version verification failed. Uploaded firmware version %s, device firmware version %s.",
+            m_bin$firmwareId$ver,
+            idAfter$ver
+          );
+        }
       }
     }
     catch
