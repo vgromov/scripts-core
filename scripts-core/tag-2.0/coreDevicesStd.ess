@@ -281,7 +281,7 @@ object EsFwInfo
   read: { return f_type$value; }
   
   property devTypeName;
-  read: { return deviceDescriptionLongGet(f_type); }
+  read: { return EsStr::translate( deviceDescriptionLongGet(f_type) ); }
 
   property ver;
   read: { return f_ver; }

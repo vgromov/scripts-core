@@ -46,7 +46,7 @@ object EsQuartaXmodemUploader
       ch = buff[ buff#countGet()-1 ];
       if( XmodemCh$$NAK == ch || XmodemCh$$C == ch )
       {
-        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
+//        EsScriptDebug::log("BL invitation read: 0x%02X, retry %d", ch, retries);
 
         return ch;
       }
@@ -59,7 +59,11 @@ object EsQuartaXmodemUploader
   function checkIfInBoot(chnl)
   var progressTask = new EsProgressMonitorTask("program.bootloaderConnect");
   {
-    progressTask.pulse("Synching with bootloader...");
+    progressTask.pulse(
+      EsStr::translate(
+        I"Synching with bootloader..."
+      )
+    );
     progressTask.attachTo( m_topTask );
 
 //    EsScriptDebug::log("checkIfInBoot(chnl.isOpen=%s), synching...", chnl.isOpen());
@@ -147,7 +151,9 @@ object EsQuartaXmodemUploader
 //    EsScriptDebug::log("Programming %d data starting at offs %d", datalen, dataoffs);
     
     m_topTask.initialize(
-      I"Uploading firmware...", 
+      EsStr::translate(
+        I"Uploading firmware..."
+      ), 
       datalen, 
       dataoffs
      );
@@ -229,12 +235,18 @@ label __packetRetry:
   new(bin)
   {
     m_topTask = new EsProgressMonitorTask("program");
-    m_topTask.pulse("Preparing for a firmware upload...");
+    m_topTask.pulse(
+      EsStr::translate(
+        I"Preparing for a firmware upload..."
+      )
+    );
     m_topTask.attachTo(__scriptHost$progressMonitor);
 
     // Assert binary type name
     if( !bin#isKindOf("EsQuartaFwBinary") )
-      throw "Unsupported formware binary format";
+      throw EsStr::translate(
+        I"Unsupported firmware binary format"
+      );
 
     m_bin = bin;
   }
@@ -252,7 +264,11 @@ label __packetRetry:
         );
         rpcMaster.deactivate();
 
-        m_topTask.pulse("Performing Warm Boot...");
+        m_topTask.pulse(
+          EsStr::translate(
+            I"Performing Warm Boot..."
+          )
+        );
         EsThreadWorker::sleep(3000);
     
         return true;
@@ -326,7 +342,9 @@ label __packetRetry:
     }
 
     if( !deviceIsInBootMode )
-      throw I"Could not connect to device bootloader";
+      throw EsStr::translate(
+        I"Could not connect to device bootloader"
+      );
 
     try
     {
@@ -334,7 +352,11 @@ label __packetRetry:
 
       if( program( rpcMaster$channel ) )
       {
-        m_topTask.pulse("Checking firmware...");
+        m_topTask.pulse(
+          EsStr::translate(
+            I"Checking firmware..."
+          )
+        );
         EsThreadWorker::sleep(3000);
 
         while( idAfter#isEmpty() && retries < EsQuartaXmodem$$Retries)
@@ -350,7 +372,9 @@ label __packetRetry:
         }
 
         if( idAfter#isEmpty() )
-          throw I"Uploaded device firmware verification failed. No response from device after firmware upload.";
+          throw EsStr::translate(
+            I"Uploaded device firmware verification failed. No response from device after firmware upload."
+          );
         else if( 
           0 != idAfter.comparePartial(
             m_bin$firmwareId, 
@@ -359,7 +383,9 @@ label __packetRetry:
         )
         {
           throw EsStr::format(
-            I"Uploaded device firmware version verification failed. Uploaded firmware version %s, device firmware version %s.",
+            EsStr::translate(
+              I"Uploaded device firmware version verification failed. Uploaded firmware version %s, device firmware version %s."
+            ),
             m_bin$firmwareId$ver,
             idAfter$ver
           );

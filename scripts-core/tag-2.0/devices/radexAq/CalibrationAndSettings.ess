@@ -99,7 +99,7 @@ object RADEX_AQ_Cfg
   write: { f_flags$bluetooth = __value; }
 
   property continousMeasurements;
-  @label = I"Continuos Measurements";
+  @label = I"Continuous Measurements";
   @help = I"Toggle between continuous or periodic measurements";
   read: { return f_flags$continousMeasurements; } 
   write: { f_flags$continousMeasurements = __value; }

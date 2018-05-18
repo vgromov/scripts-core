@@ -61,7 +61,7 @@ var result = "";
   if( flags & EsFirmwareIdFmtFlag$$DescrShort )
     result = deviceDescriptionShortGet(type);
   else if( flags & EsFirmwareIdFmtFlag$$DescrLong )
-    result = deviceDescriptionLongGet(type);
+    result = EsStr::translate( deviceDescriptionLongGet(type) );
   
   if( flags & EsFirmwareIdFmtFlag$$Serial )
   {

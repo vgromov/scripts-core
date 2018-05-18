@@ -83,7 +83,7 @@ const c_deviceDatabase = [
   [EsDeviceKind$$Appliance,   "IRA-01",   "Измеритель ИК излучения ИКИ-01"],
   [EsDeviceKind$$Appliance,   "LD-01-V",  "Головка лазерная дозиметрическая ЛД-01-В"],
   [EsDeviceKind$$Appliance,   "OAA",      "Преобразователь ИГ Октава"],
-  [EsDeviceKind$$Appliance,   "EL-03-C",  "Lighting meter eLight-03-C"]
+  [EsDeviceKind$$Appliance,   "EL-03-C",  I"Lighting meter eLight-03-C"]
 ];
 
 const c_octavaDeviceDatabase = [
@@ -99,10 +99,10 @@ const c_tenzorDeviceDatabase = [
 ];
 
 const c_quartaDeviceDatabase = [
-  [EsDeviceKind$$Appliance,   "RadexOne", "Mini Dosimeter RadexOne"],
-  [EsDeviceKind$$Appliance,   "MKC-1100", "MKC-1100 Dosimeter"],
-  [EsDeviceKind$$Appliance,   "MR-107",   "Radon radiometer MR-107"],
-  [EsDeviceKind$$Appliance,   "RadexAQ",  "Air quality monitor RadexAQ"]
+  [EsDeviceKind$$Appliance,   "RadexOne", I"Mini Dosimeter RadexOne"],
+  [EsDeviceKind$$Appliance,   "MKC-1100", I"MKC-1100 Dosimeter"],
+  [EsDeviceKind$$Appliance,   "MR-107",   I"Radon radiometer MR-107"],
+  [EsDeviceKind$$Appliance,   "RadexAQ",  I"Air quality monitor RadexAQ"]
 ];
 
 // known hubs devices database
