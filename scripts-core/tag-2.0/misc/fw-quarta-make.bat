@@ -41,7 +41,15 @@ set BIN2SCRIPT=%CESSE%\esFwQuartaConverter.cesse
 
 rem execute binary converter _1 - input bin file base name without version suffix, _2 - version suffix, _3 - folder to output compiled fw
 rem create temporary ess file with version suffix
-set FW_BIN=%1.bin
+if exist "%1.bin" (
+  set FW_BIN=%1.bin
+  goto process
+)
+
+set FW_BIN=%1.%2.bin
+
+:process
+
 set FW_ESS_BASE=%~dp1%~n1.ess
 set FW_ESS=%~dp1%~n1.%2.ess
 set FW_BIN_ESS="%~dp1bin.ess"
