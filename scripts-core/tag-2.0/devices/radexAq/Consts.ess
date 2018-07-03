@@ -58,7 +58,7 @@ enum RADEX_AQ_Defs
   SleepModeTmoDef = 5;
   
   // Dust concentration alert, ug/m^3
-  DustAlertMin  = 1;
-  DustAlertMax  = 1000;
-  DustAlertDef  = 1;
+  DustAlertMin  = 100;
+  DustAlertMax  = 999;
+  DustAlertDef  = 100;
 }
