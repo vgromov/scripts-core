@@ -1,5 +1,10 @@
 /// RADEX_AQ Data formatting helpers
 ///
+function RADEX_AQ_c2f(c)
+{
+  return (c * 9) / 5 + 32;
+}
+
 function RADEX_AQ_ValueFmt(val, allowNegative, prec)
 var fmt;
 {

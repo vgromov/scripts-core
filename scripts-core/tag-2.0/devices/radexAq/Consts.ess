@@ -8,6 +8,7 @@ const c_RADEX_AQ_unitDust = [
 ];
 const c_RADEX_AQ_baseUnitDust = 0;
 const c_RADEX_AQ_unitTemp = "°C";
+const c_RADEX_AQ_unitTempF = "°F";
 const c_RADEX_AQ_unitHumidity = "%";
 const c_RADEX_AQ_maxNodesPerBlock = 18;
 

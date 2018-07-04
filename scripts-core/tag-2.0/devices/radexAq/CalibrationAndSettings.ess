@@ -366,6 +366,10 @@ object RADEX_AQ_Cfg
       }
     }
   }
+  
+  // Temperature display unit
+  property temperatureDisplayUnit;
+  read: { return $temperatureInF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
 }
 
 /// RADEX_AQ device settings

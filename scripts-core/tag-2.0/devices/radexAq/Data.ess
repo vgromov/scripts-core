@@ -2,6 +2,8 @@
 ///
 object RADEX_AQ_LiveData
 {
+  var m_isF;
+
   esDT f_ts; 
   RADEX_AQ_LiveDataFlags f_flags;
   esF f_dust;
@@ -23,7 +25,19 @@ object RADEX_AQ_LiveData
   esF f_humidityDailyAvgMin;
   esF f_humidityDailyAvgMean;
   esF f_humidityDailyAvgMax;  
+  
   /// Properties
+  ///
+  
+  /// Services
+  property isF;
+  read: { return m_isF#isEmpty() ? false : m_isF#asBool(); }
+  write: { m_isF = __value#asBool(); }
+  
+  property temperatureDisplayUnit;
+  read: { return $isF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
+  
+  /// Data header
   ///
   
   /// Timestamp
@@ -115,8 +129,11 @@ object RADEX_AQ_LiveData
   property temperature;
   read: { return f_temperature$value; }
   
+  property temperatureDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperature) : $temperature; }
+  
   property temperatureStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperature, c_RADEX_AQ_unitTemp, 0, f_flags$temperaturevalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureDisplay, $temperatureDisplayUnit, 0, f_flags$temperaturevalid, true); }
   
   property temperatureStr;
   @label=I"Current temperature";
@@ -125,8 +142,11 @@ object RADEX_AQ_LiveData
   property temperatureMin;
   read: { return f_temperatureMin$value; }
   
+  property temperatureMinDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureMin) : $temperatureMin; }
+  
   property temperatureMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureMin, c_RADEX_AQ_unitTemp, 0, f_flags$temperatureMinvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureMinDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureMinvalid, true); }
   
   property temperatureMinStr;
   @label=I"Minimum temperature";
@@ -135,8 +155,11 @@ object RADEX_AQ_LiveData
   property temperatureMax;
   read: { return f_temperatureMax$value; }
   
+  property temperatureMaxDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureMax) : $temperatureMax; }
+  
   property temperatureMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureMax, c_RADEX_AQ_unitTemp, 0, f_flags$temperatureMaxvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureMaxDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureMaxvalid, true); }
   
   property temperatureMaxStr;
   @label=I"Maximum temperature";
@@ -145,8 +168,11 @@ object RADEX_AQ_LiveData
   property temperatureDailyAvgMin;
   read: { return f_temperatureDailyAvgMin$value; }
   
+  property temperatureDailyAvgMinDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMin) : $temperatureDailyAvgMin; }
+  
   property temperatureDailyAvgMinStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMin, c_RADEX_AQ_unitTemp, 0, f_flags$temperatureDailyAvgMinvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMinDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMinvalid, true); }
   
   property temperatureDailyAvgMinStr;
   @label=I"Daily avg. minimum temperature";
@@ -155,8 +181,11 @@ object RADEX_AQ_LiveData
   property temperatureDailyAvgMean;
   read: { return f_temperatureDailyAvgMean$value; }
   
+  property temperatureDailyAvgMeanDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMean) : $temperatureDailyAvgMean; }
+  
   property temperatureDailyAvgMeanStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMean, c_RADEX_AQ_unitTemp, 0, f_flags$temperatureDailyAvgMeanvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMeanDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMeanvalid, true); }
   
   property temperatureDailyAvgMeanStr;
   @label=I"Daily avg. mean temperature";
@@ -165,8 +194,11 @@ object RADEX_AQ_LiveData
   property temperatureDailyAvgMax;
   read: { return f_temperatureDailyAvgMax$value; }
   
+  property temperatureDailyAvgMaxDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMax) : $temperatureDailyAvgMax; }
+  
   property temperatureDailyAvgMaxStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMax, c_RADEX_AQ_unitTemp, 0, f_flags$temperatureDailyAvgMaxvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMaxDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMaxvalid, true); }
   
   property temperatureDailyAvgMaxStr;
   @label=I"Daily avg. maximum temperature";
@@ -301,6 +333,8 @@ object RADEX_AQ_LiveData
 ///
 object RADEX_AQ_PersistentData
 {
+  var m_isF;
+
   esU16 f_msrSeriesIdx;
   esU16 f_msrIdx;
   RADEX_AQ_PersistentDataFlags f_flags;
@@ -309,6 +343,14 @@ object RADEX_AQ_PersistentData
   esF   f_humidity;
   esDT  f_ts;
 
+  /// Services
+  property isF;
+  read: { return m_isF#isEmpty() ? false : m_isF#asBool(); }
+  write: { m_isF = __value#asBool(); }
+  
+  property temperatureDisplayUnit;
+  read: { return $isF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
+  
   /// Timestamp
   property ts;
   read: { return f_ts$value; }
@@ -340,12 +382,15 @@ object RADEX_AQ_PersistentData
   property dustStr;
   read: { return RADEX_AQ_fromStrMulti( $dustStrMulti ); }
 
-   // Temperature
+  // Temperature
   property temperature;
   read: { return f_temp$value; }
+
+  property temperatureDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperature) : $temperature; }
   
   property temperatureStrMulti;
-  read: { return RADEX_AQ_strMultiGet( $temperature, c_RADEX_AQ_unitTemp, 0, f_flags$tempvalid, true); }
+  read: { return RADEX_AQ_strMultiGet( $temperatureDisplay, $temperatureDisplayUnit, 0, f_flags$tempvalid, true); }
   
   property temperatureStr;
   read: { return RADEX_AQ_fromStrMulti( $temperatureStrMulti ); }
@@ -382,6 +427,14 @@ object RADEX_AQ_PersistentDataBlock
     this$buffer = buff;
     
 //    EsScriptDebug::log("RADEX_AQ_PersistentDataBlock created with count: %d", m_cnt);
+  }
+ 
+  property isF;
+  write: 
+  var node;
+  {  
+    foreach(node in f_nodes)
+      node$isF = __value;
   }
  
   property count;

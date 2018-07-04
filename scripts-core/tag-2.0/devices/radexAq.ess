@@ -10,6 +10,8 @@
 object RADEX_AQ extends EsDeviceBase
 @nomarshal;
 {
+  var m_cfgCache;
+
 /// Mandatory base overrides
   function rpcNameGetById(rpcId)
   {
@@ -76,24 +78,35 @@ object RADEX_AQ extends EsDeviceBase
       result = new RADEX_AQ_Health(rpcResult);    // use RADEX_AQ health implementation instead of unparsed standard one
     case RADEX_AQ_Rpid$$LiveDataGet:
       {
-        result = new RADEX_AQ_LiveData(); 
+        result = new RADEX_AQ_LiveData();
+        
+        if( !m_cfgCache#isEmpty() )
+          result$isF = m_cfgCache$temperatureInF;
+          
         result$buffer = rpcResult#asBinBuffer();
       }
     case RADEX_AQ_Rpid$$DataAtIdxGet:
       {
         result = new RADEX_AQ_PersistentData();
         result$buffer = rpcResult#asBinBuffer();
+
+        if( !m_cfgCache#isEmpty() )
+          result$isF = m_cfgCache$temperatureInF;
       }
     case RADEX_AQ_Rpid$$SettingsGet:
       {
         result = new RADEX_AQ_Cfg();
         result$buffer = rpcResult#asBinBuffer();
+        m_cfgCache = result;
       }
     case RADEX_AQ_Rpid$$DataBlockGet:
       {
         result = new RADEX_AQ_PersistentDataBlock(
           rpcResult#asBinBuffer()
         );
+        
+        if( !m_cfgCache#isEmpty() )
+          result$isF = m_cfgCache$temperatureInF;
       }
     default: 
       result = EsDeviceBase::rpcCallResultHandle(
@@ -189,9 +202,13 @@ object RADEX_AQ extends EsDeviceBase
     );  
     
     if( rpcResult[0] )
+    {
       task.end(
         EsStr::translate(I"Device settings uploaded")
       );
+      
+      m_cfgCache = settings.f_cfg.clone();
+    }
     else
       task.end(
         EsStr::translate(I"Failed to upload Device settings")
