@@ -1,0 +1,47 @@
+function file_utf8_2C_esc(inFileName)
+var inFile = new EsFile("", 0),
+  outFile = new EsFile("", 0),
+  path,
+  inbuff, inb,
+  out = B"";
+{
+  inFile$flags = EsFileFlag$$Read;
+  outFile$flags = EsFileFlag$$Write;
+
+  inFile$name = inFileName;
+
+  path = EsPath::createFromFilePath(inFileName);
+  if( "in" == path$fileExt )
+    path$fileExt = "";
+  else
+    path$fileExt = path$fileExt + ".processed";
+
+  outFile$name = path.pathGet(
+    EsPathFlag$$Default,
+    ""
+  );
+
+  inFile.open();
+  inbuff = inFile.readAllAsBinBuffer();
+  inFile.close();
+
+  foreach(inb in inbuff)
+  {
+    if( inb & 0x80 )
+      out += EsStr::toByteString(
+        EsStr::format(
+          "\\x%0.2X",
+          inb
+        )
+      );
+    else
+      out += inb;
+  }
+
+  outFile.open();
+  outFile.writeAllAsBinBuffer(out);
+}
+
+// Testing, comment out in release
+//var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\esfwxe\\res\\ru\\esfwxe.strings.cc.in";
+//file_utf8_2C_esc(testIn);
