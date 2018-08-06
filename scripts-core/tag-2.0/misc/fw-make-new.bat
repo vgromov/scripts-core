@@ -67,7 +67,7 @@ if not exist "%CESSE%\esFwConverter.cesse" (
 )
 set HEX2BIN_SCRIPT=%CESSE%\esFwConverter.cesse
 rem execute binary converter _1 - input hex file, _2 - output compiled fw
-%ESSCON% -f "%HEX2BIN_SCRIPT%" -e convert;"%1";"%~dp1bin.ess" -r -x
+%ESSCON% -f "%HEX2BIN_SCRIPT%" -r -e convert;"%1";"%~dp1bin.ess" -r -x
 rem finally, compile firmware binary, save encrypted file
 set FW_ESS=%~dp1%~n1.ess
 %ESSCON% -i "%~dp1/../scripts-core" -f "%FW_ESS%" -o %2 -c -x

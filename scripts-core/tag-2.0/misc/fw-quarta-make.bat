@@ -55,7 +55,7 @@ set FW_ESS=%~dp1%~n1.%2.ess
 set FW_BIN_ESS="%~dp1bin.ess"
 copy /Y %FW_ESS_BASE% %FW_ESS%
 
-%ESSCON% -f "%BIN2SCRIPT%" -e convert;"%FW_BIN%";"%FW_BIN_ESS%" -r -x
+%ESSCON% -f "%BIN2SCRIPT%" -r -e convert;"%FW_BIN%";"%FW_BIN_ESS%" -r -x
 
 rem finally, compile firmware binary, save encrypted file
 %ESSCON% -i "%~dp1scripts-core" -f "%FW_ESS%" -o %3 -c -x

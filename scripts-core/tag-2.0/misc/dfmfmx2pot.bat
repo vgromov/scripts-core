@@ -39,6 +39,6 @@ if not exist "%CESSE%" (
 )
 set SCRIPT=%CESSE%
 rem execute dfm fmx string extractor _1 - input lookup path, _2 - which properties to look up, _3 - where to put extracted output
-%ESSCON% -f "%SCRIPT%" -e dfmfmx2pot;"%1";"%2";"%3" -x
+%ESSCON% -f "%SCRIPT%" -r -e dfmfmx2pot;"%1";"%2";"%3" -x
 
 :exit

@@ -68,6 +68,6 @@ if not exist "%CESSE%" (
 )
 set SCRIPT=%CESSE%
 rem execute dfm fmx string extractor _1 - input sql dump, _2 - where to put extracted output
-%ESSCON% -f "%SCRIPT%" -e sql2pot;"%1";"%2" -x
+%ESSCON% -f "%SCRIPT%" -r -e sql2pot;"%1";"%2" -x
 
 :exit

@@ -72,11 +72,11 @@ echo ON
 rem Check if compiled binary present, and if not, compile it
 set CESSE=c:%HOMEPATH%\ECO-E\cesse
 if not exist "%CESSE%\utf8_2c_esc.cesse" (
-	%ESSCON% -f utf8_2c_esc.ess -o "%CESSE%" -c -x
+	%ESSCON% -f scripts-core\misc\utf8_2c_esc.ess -o "%CESSE%" -c -x
 )
 
 set SCRIPT=%CESSE%\utf8_2c_esc.cesse
 rem execute utf8 string escaper _1 - input *.strings.cc.in file
-%ESSCON% -f "%SCRIPT%" -e utf8_2c_esc;"%1" -x
+%ESSCON% -f "%SCRIPT%" -r -e utf8_2c_esc;"%1" -x
 
 :exit

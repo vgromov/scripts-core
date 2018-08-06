@@ -1,4 +1,4 @@
-function file_utf8_2C_esc(inFileName)
+function utf8_2c_esc(inFileName)
 var inFile = new EsFile("", 0),
   outFile = new EsFile("", 0),
   path,
@@ -43,5 +43,6 @@ var inFile = new EsFile("", 0),
 }
 
 // Testing, comment out in release
-//var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\esfwxe\\res\\ru\\esfwxe.strings.cc.in";
-//file_utf8_2C_esc(testIn);
+//var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\hubs\\boi-01\\res\\ru\\gui.strings.cc.in";
+//utf8_2c_esc(testIn);
+//
