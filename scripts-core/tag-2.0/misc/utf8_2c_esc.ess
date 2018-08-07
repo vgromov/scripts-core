@@ -1,6 +1,6 @@
 function utf8_2c_esc(inFileName)
-var inFile = new EsFile("", 0),
-  outFile = new EsFile("", 0),
+var inFile = new EsFile(),
+  outFile = new EsFile(),
   path,
   inbuff, inb,
   out = B"";
@@ -43,6 +43,5 @@ var inFile = new EsFile("", 0),
 }
 
 // Testing, comment out in release
-//var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\hubs\\boi-01\\res\\ru\\gui.strings.cc.in";
-//utf8_2c_esc(testIn);
-//
+var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\hubs\\boi-01\\res\\ru\\gui.strings.cc.in";
+utf8_2c_esc(testIn);
