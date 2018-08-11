@@ -43,5 +43,6 @@ var inFile = new EsFile(),
 }
 
 // Testing, comment out in release
-var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\hubs\\boi-01\\res\\ru\\gui.strings.cc.in";
-utf8_2c_esc(testIn);
+//var testIn = "D:\\gromo\\Documents\\Projects\\esemu-1.24\\external\\hubs\\boi-01\\res\\ru\\gui.strings.cc.in";
+//utf8_2c_esc(testIn);
+//
