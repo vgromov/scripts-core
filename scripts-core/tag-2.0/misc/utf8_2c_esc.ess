@@ -3,6 +3,7 @@ var inFile = new EsFile(),
   outFile = new EsFile(),
   path,
   inbuff, inb,
+  inbPrev,
   out = B"";
 {
   inFile$flags = EsFileFlag$$Read;
@@ -35,7 +36,23 @@ var inFile = new EsFile(),
         )
       );
     else
+    {
+      // Previous was an escape sequence, check if this char may be interpreted as part of hex
+      // - insert noop string break to interrupt hex sequence: ""
+      if( 
+        !inbPrev#isEmpty() && 
+        (inbPrev & 0x80) && 
+        (inb in [[B'0' .. B'9'], [B'A' .. B'F'], [B'a' .. B'f']])
+      )
+      {
+        out += B'"';
+        out += B'"';
+      }
+      
       out += inb;
+    }
+    
+    inbPrev = inb;
   }
 
   outFile.open();
