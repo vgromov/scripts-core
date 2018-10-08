@@ -99,7 +99,7 @@ const c_tenzorDeviceDatabase = [
 ];
 
 const c_quartaDeviceDatabase = [
-  [EsDeviceKind$$Appliance,   "RadexOne", I"Mini Dosimeter RadexOne"],
+  [EsDeviceKind$$Appliance,   "RadexOne", I"RadexOne Dosimeter"],
   [EsDeviceKind$$Appliance,   "MKC-1100", I"MKC-1100 Dosimeter"],
   [EsDeviceKind$$Appliance,   "MR-107",   I"Radon radiometer MR-107"],
   [EsDeviceKind$$Appliance,   "RadexAQ",  I"Air quality monitor RadexAQ"]

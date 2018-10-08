@@ -409,7 +409,7 @@ object EsPowerStatus
     
     return EsStr::lformat(
       EsStr::osLocaleIdGet("-"),
-      EsStr::translate(I"Power level: %0.1f%%, status: %s"), 
+      EsStr::translate(I"Power level: %0.0f%%, status: %s"), 
       percentGet(), 
       flagsStr
     );
