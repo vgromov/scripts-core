@@ -113,12 +113,14 @@ object RADEX_AQ_Cfg
   property temperatureInF;
   @label = I"Temperature 0F";
   @help = I"Toggle device temperature units between 0F or 0C";
+  @lookup = [[I"Centigrade (0C)", false], [I"Fahrenheit (0F)", true]];
   read: { return f_flags$temperatureInF; } 
   write: { f_flags$temperatureInF = __value; }
 
   property timeInAmPm;
   @label = I"AM/PM";
   @help = I"Toggle between AM/PM and 24 hour time format in device";
+  @lookup = [[I"24h", false], [I"12h AM/PM", true]];
   read: { return f_flags$timeInAmPm; } 
   write: { f_flags$timeInAmPm = __value; }
   
