@@ -535,7 +535,7 @@ object EsMcuprogNxp
   var destInfo, sectorTable,
     sector, sectorLen, sectorStart, sectorOffs, sectorChunk,
     copyLen, blockCrc, pos, line, block, copyResidual, fwSize,
-    progressTask;
+    progressTask = topTask;
   {
     // copy firmware binary buffer
     m_fw = m_moniker$binaryFw;
@@ -585,9 +585,7 @@ object EsMcuprogNxp
       }
       flashPrepareAndErase(chnl);
       
-      progressTask = new EsProgressMonitorTask("program");
       progressTask.initialize("Uploading firmware...", fwSize, 0);
-      progressTask.attachTo(__scriptHost$progressMonitor);
       
       while(1)
       {
