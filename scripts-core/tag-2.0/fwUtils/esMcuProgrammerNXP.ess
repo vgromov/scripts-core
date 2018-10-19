@@ -61,7 +61,7 @@ object EsMcuprogNxp
   var m_topTask,
       m_regex,
       m_flags,
-			m_noEcho,
+      m_noEcho,
       m_syncRetries,
       m_backtrackResend,
       m_blockBacktrack,
@@ -75,7 +75,7 @@ object EsMcuprogNxp
   {  
     m_backtrackResend = 3;
     m_blockBacktrack = [];
-    m_blockCrcBacktrack = [];
+    m_blockCrcBacktrack = "";
   }
       
   function mcuIdxCheck()
@@ -424,14 +424,16 @@ object EsMcuprogNxp
   function flashBlockWriteRequest(chnl, blockLen)
   var cmd = EsStr::format("W %d %d", ramBaseGet(), blockLen);
   {
-    requestSendCmdResponseGetAndVerify(chnl, 
-      cmd, "Error executing 'Write (" + cmd + ")' command: '%s'");
+    requestSendCmdResponseGetAndVerify(
+      chnl, 
+      cmd, 
+      "Error executing 'Write (" + cmd + ")' command: '%s'"
+    );
   }
   
   function blockStringWrite(chnl, str)
   var response, responseStr;
   {
-    //EsScriptDebug::log("blockStringWrite '%s'", str);
     requestStringSend(chnl, str);
     if( !m_noEcho )
     {
@@ -467,6 +469,7 @@ object EsMcuprogNxp
       
       bb[bCnt++] = b;
       blockCrc += b#asULong();
+      
       if( bCnt > 2 )
       {
         bCnt = 0;
@@ -477,6 +480,8 @@ object EsMcuprogNxp
         requestStr += c_uuencodeTable[ uue24        & 63]#asChar();
       }  
     }
+
+    //EsScriptDebug::log("blockCrc:%d hex:'%s' uue:'%s'", blockCrc, hex, requestStr);
 
     requestStr += "\n";
     
@@ -503,10 +508,10 @@ object EsMcuprogNxp
       expectedResponse = EsStr::toByteString(str) + B"OK\r\n";
     }
 
-//    EsScriptDebug::log("blockCrcWrite_request '%s'", requestStr);
+    //EsScriptDebug::log("blockCrcWrite_request '%s'", str);
     requestStringSend(chnl, str);
     response = dataReceive(chnl, c_responseLenMax, expectedNrs, 5000);
-//    EsScriptDebug::log("blockCrcWrite_response '%s'", EsStr::fromByteString(response));
+    //EsScriptDebug::log("blockCrcWrite_response '%s'", EsStr::fromByteString(response));
 
     if( response != expectedResponse )
     {
@@ -525,7 +530,7 @@ object EsMcuprogNxp
   function blockCrcWrite(chnl, crc)
   var requestStr = EsStr::format("%d\r\n", crc);
   {
-    m_blockCrcBacktrack += requestStr;
+    m_blockCrcBacktrack = requestStr;
   
     return blockCrcStringWrite(
       chnl,
@@ -583,7 +588,7 @@ object EsMcuprogNxp
   var destInfo, sectorTable,
     sector, sectorLen, sectorStart, sectorOffs, sectorChunk,
     copyLen, blockCrc, pos, line, block, copyResidual, fwSize,
-    progressTask = $topTask, idx;
+    progressTask = $topTask, idx, crcWriteResult;
   {
     // copy firmware binary buffer
     m_fw = m_moniker$binaryFw;
@@ -691,13 +696,23 @@ object EsMcuprogNxp
 
               if(20 == line)
               {
-                if( EsMcuprogNxpBlockCrcResult$$RESEND == blockCrcWrite(chnl, blockCrc) )
+                crcWriteResult = blockCrcWrite(chnl, blockCrc);
+
+label __linesResend:
+                if( EsMcuprogNxpBlockCrcResult$$RESEND == crcWriteResult )
                 {
+                  //EsScriptDebug::log("Resending backtrack %d", m_backtrackResend);
+
                   for( idx = 0; idx < m_blockBacktrack#countGet(); ++idx )
                   {
+                    //EsScriptDebug::log("Resending line %d", idx);
                     blockStringWrite( chnl, m_blockBacktrack[idx] );
-                    blockCrcStringWrite( chnl, m_blockCrcBacktrack[idx] );
                   }
+                  
+                  //EsScriptDebug::log("Resending CRC");
+                  crcWriteResult = blockCrcStringWrite( chnl, m_blockCrcBacktrack );
+                  if( EsMcuprogNxpBlockCrcResult$$RESEND == crcWriteResult )
+                    goto __linesResend;
                 }
                   
                 line = 0;
@@ -710,7 +725,27 @@ object EsMcuprogNxp
           }
 
           if( line != 0 )
-            blockCrcWrite(chnl, blockCrc);
+          {
+            crcWriteResult = blockCrcWrite(chnl, blockCrc);
+
+label __residualResend:
+            if( EsMcuprogNxpBlockCrcResult$$RESEND == crcWriteResult )
+            {
+              //EsScriptDebug::log("Resending backtrack %d", m_backtrackResend);
+
+              for( idx = 0; idx < m_blockBacktrack#countGet(); ++idx )
+              {
+                //EsScriptDebug::log("Resending line %d", idx);
+                blockStringWrite( chnl, m_blockBacktrack[idx] );
+              }
+              
+              //EsScriptDebug::log("Resending CRC");
+              crcWriteResult = blockCrcStringWrite( chnl, m_blockCrcBacktrack );
+              if( EsMcuprogNxpBlockCrcResult$$RESEND == crcWriteResult )
+                goto __residualResend;
+            }
+            backtrackResendReset();
+          }
 
           if( m_moniker$binaryOffs < ramStartGet() )
           {
