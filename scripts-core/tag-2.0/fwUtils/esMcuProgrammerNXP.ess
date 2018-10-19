@@ -52,7 +52,8 @@ const c_uuencodeTable = B" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRST
 // LPC programmer object
 object EsMcuprogNxp
 {
-  var m_regex,
+  var m_topTask,
+      m_regex,
       m_flags,
 			m_noEcho,
       m_syncRetries,
@@ -680,11 +681,22 @@ object EsMcuprogNxp
   // default ctor
   new(flags, retries, moniker)
   {
+    m_topTask = new EsProgressMonitorTask("program");
+    m_topTask.pulse(
+      EsStr::translate(
+        I"Preparing for a firmware upload..."
+      )
+    );
+    m_topTask.attachTo(__scriptHost$progressMonitor);
+    
     m_regex = new EsRegEx();
     m_flags = flags#asULong();
     m_syncRetries = retries#asULong();
     m_moniker = moniker;
 		m_noEcho = false;
   }
+  
+  property topTask;
+  read: { return m_topTask; }
 }
 
