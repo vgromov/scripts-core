@@ -47,6 +47,12 @@ enum EsMcuprogNxpFirmwareFlag
   NO_ECHO      = 0x10, "Disable ISP echo responses during programming";
 }
 
+enum EsMcuprogNxpBlockCrcResult
+{
+  OK      = 0;
+  RESEND  = 1;
+}
+
 const c_uuencodeTable = B" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_";
 
 // LPC programmer object
@@ -57,11 +63,21 @@ object EsMcuprogNxp
       m_flags,
 			m_noEcho,
       m_syncRetries,
+      m_backtrackResend,
+      m_blockBacktrack,
+      m_blockCrcBacktrack,
       m_bootloaderVer,
       m_mcuInfoIdx, 
       m_moniker,
       m_fw;
 
+  function backtrackResendReset()
+  {  
+    m_backtrackResend = 3;
+    m_blockBacktrack = [];
+    m_blockCrcBacktrack = [];
+  }
+      
   function mcuIdxCheck()
   {
     if( 0 == m_mcuInfoIdx )
@@ -411,10 +427,24 @@ object EsMcuprogNxp
     requestSendCmdResponseGetAndVerify(chnl, 
       cmd, "Error executing 'Write (" + cmd + ")' command: '%s'");
   }
+  
+  function blockStringWrite(chnl, str)
+  var response, responseStr;
+  {
+    //EsScriptDebug::log("blockStringWrite '%s'", str);
+    requestStringSend(chnl, str);
+    if( !m_noEcho )
+    {
+      response = dataReceive(chnl, c_responseLenMax, 1, 5000);
+      responseStr = EsStr::fromByteString(response);
+      if( responseStr != str )
+        throw "Error writing data, sent '" + str#asEscapedString() + "', got '" + responseStr#asEscapedString() + "'";
+    }
+  }
     
   function blockWrite(chnl, pos, block, blockCrc)
   var b, bCnt = 0, bb = B"\0\0\0", tmpPos, blockOffs, 
-      response, responseStr, uue24 = 0,
+      uue24 = 0,
       requestStr = "M"; // uuencoded block length (45 + ' '(\32) = 77 = M)
   {
     // Uuencode one 45 byte block
@@ -449,23 +479,19 @@ object EsMcuprogNxp
     }
 
     requestStr += "\n";
-    //EsScriptDebug::log("blockWrite '%s'", requestStr);
-    requestStringSend(chnl, requestStr);
-    if( !m_noEcho )
-    {
-      response = dataReceive(chnl, c_responseLenMax, 1, 5000);
-      responseStr = EsStr::fromByteString(response);
-      if( responseStr != requestStr )
-        throw "Error writing data at " + tmpPos + ", sent '" + requestStr#asEscapedString() + "', got '" + responseStr#asEscapedString() + "'";
-    }
+    
+    m_blockBacktrack += requestStr;
+    blockStringWrite(
+      chnl,
+      requestStr
+    );
     
     return blockCrc;
   }
   
-  function blockCrcWrite(chnl, crc)
-  var requestStr, expectedResponse, response, expectedNrs;
+  function blockCrcStringWrite(chnl, str)
+  var expectedResponse, response, expectedNrs;
   {
-    requestStr = EsStr::format("%d\r\n", crc);
     if( m_noEcho )
     {
       expectedNrs = 1;
@@ -474,15 +500,37 @@ object EsMcuprogNxp
     else
     {
       expectedNrs = 2;
-      expectedResponse = EsStr::toByteString(requestStr) + B"OK\r\n";
+      expectedResponse = EsStr::toByteString(str) + B"OK\r\n";
+    }
+
+//    EsScriptDebug::log("blockCrcWrite_request '%s'", requestStr);
+    requestStringSend(chnl, str);
+    response = dataReceive(chnl, c_responseLenMax, expectedNrs, 5000);
+//    EsScriptDebug::log("blockCrcWrite_response '%s'", EsStr::fromByteString(response));
+
+    if( response != expectedResponse )
+    {
+      if( 0 < m_backtrackResend && !response#find(B"RESEND")#isEmpty() )
+      {
+        --m_backtrackResend;
+        return EsMcuprogNxpBlockCrcResult$$RESEND;
+      }
+      else
+        throw "Error writing block CRC";
     }
     
-    //EsScriptDebug::log("blockCrcWrite_request '%s'", requestStr);
-    requestStringSend(chnl, requestStr);
-    response = dataReceive(chnl, c_responseLenMax, expectedNrs, 5000);
-    //EsScriptDebug::log("blockCrcWrite_response '%s'", EsStr::fromByteString(response));
-    if( response != expectedResponse )
-      throw "Error writing block CRC";
+    return EsMcuprogNxpBlockCrcResult$$OK;
+  }
+  
+  function blockCrcWrite(chnl, crc)
+  var requestStr = EsStr::format("%d\r\n", crc);
+  {
+    m_blockCrcBacktrack += requestStr;
+  
+    return blockCrcStringWrite(
+      chnl,
+      requestStr
+    );
   }
   
   function copyCommandSend(chnl, pos, copyLen)
@@ -535,7 +583,7 @@ object EsMcuprogNxp
   var destInfo, sectorTable,
     sector, sectorLen, sectorStart, sectorOffs, sectorChunk,
     copyLen, blockCrc, pos, line, block, copyResidual, fwSize,
-    progressTask = topTask;
+    progressTask = $topTask, idx;
   {
     // copy firmware binary buffer
     m_fw = m_moniker$binaryFw;
@@ -624,20 +672,37 @@ object EsMcuprogNxp
           flashBlockWriteRequest(chnl, copyLen);
           blockCrc = 0;
           line = 0;
+          
+          backtrackResendReset();
 
           // Transfer blocks of 45 * 4 bytes to RAM
           for(pos = sectorStart + sectorOffs; (pos < sectorStart + sectorOffs + copyLen) && (pos < fwSize); pos += c_4_45_block)
           {
             for (block = 0; block < 4; ++block)  // Each block 45 bytes
             {
-              blockCrc = blockWrite(chnl, pos, block, blockCrc);
+              blockCrc = blockWrite(
+                chnl, 
+                pos, 
+                block, 
+                blockCrc
+              );
+              
               ++line;
 
               if(20 == line)
               {
-                blockCrcWrite(chnl, blockCrc);
+                if( EsMcuprogNxpBlockCrcResult$$RESEND == blockCrcWrite(chnl, blockCrc) )
+                {
+                  for( idx = 0; idx < m_blockBacktrack#countGet(); ++idx )
+                  {
+                    blockStringWrite( chnl, m_blockBacktrack[idx] );
+                    blockCrcStringWrite( chnl, m_blockCrcBacktrack[idx] );
+                  }
+                }
+                  
                 line = 0;
                 blockCrc = 0;
+                backtrackResendReset();
               }                  
             }
 
@@ -690,6 +755,7 @@ object EsMcuprogNxp
     m_regex = new EsRegEx();
     m_flags = flags#asULong();
     m_syncRetries = retries#asULong();
+    backtrackResendReset();
     m_moniker = moniker;
 		m_noEcho = false;
   }
