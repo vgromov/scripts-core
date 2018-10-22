@@ -36,9 +36,10 @@ object EsUploaderBase
   //
   function configurePowerOn(chnl)
   {
+    EsScriptDebug::log("EsUploaderBase::configurePowerOn");
+      
     if( chnl.hasMethod("devicePowerSet", 1) )
     {  
-      //EsScriptDebug::log("configurePowerOn");
       chnl.devicePowerSet(true);
       EsThreadWorker::sleep(200);
     }
@@ -46,9 +47,10 @@ object EsUploaderBase
 
   function configurePowerOff(chnl)
   {
+    EsScriptDebug::log("EsUploaderBase::configurePowerOff");
+
     if( chnl.hasMethod("devicePowerSet", 1) )
     {  
-      //EsScriptDebug::log("configurePowerOff");
       chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
       chnl.devicePowerSet(false);
       EsThreadWorker::sleep(1000);
@@ -57,6 +59,8 @@ object EsUploaderBase
   
   function devicePowerOnInNormalMode(chnl)
   {
+    EsScriptDebug::log("EsUploaderBase::devicePowerOnInNormalMode");
+
     if( chnl.hasMethod("devicePowerSet", 1) )
     {
       chnl.open();
@@ -69,6 +73,8 @@ object EsUploaderBase
   
   function devicePowerOnInBootMode(chnl)
   {
+    EsScriptDebug::log("EsUploaderBase::devicePowerOnInBootMode");
+
     if( chnl.hasMethod("devicePowerSet", 1) )
     {  
       chnl.open();
@@ -95,13 +101,16 @@ object EsUploaderBase
   ///
   function doChnlPrepareForBootloader(chnl)
   {
-    //EsScriptDebug::log("doChnlPrepareForBootloader");
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForBootloader");
+    
     chnl$baud = m_preferredUploadBaud;  
   }
   
   function chnlPrepareForBootloader(chnl)
   var reopen = chnl.isOpen();
   {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForBootloader");
+    
     try
     {
       chnl.close();
@@ -120,13 +129,16 @@ object EsUploaderBase
   //
   function doChnlPrepareForDefaultNormalComm(chnl)
   {  
-    //EsScriptDebug::log("doChnlPrepareForDefaultNormalComm");
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForDefaultNormalComm");
+    
     chnl$baud = m_defaultBaud;
   }
     
   function chnlPrepareForDefaultNormalComm(chnl)
   var reopen = chnl.isOpen();
   {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForDefaultNormalComm");
+
     try
     {
       chnl.close();
@@ -145,13 +157,16 @@ object EsUploaderBase
   //
   function doChnlPrepareForNormalComm(chnl)
   {
-    //EsScriptDebug::log("chnlPrepareForNormalComm");
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForNormalComm");
+    
     chnl$baud = m_savedBaud;
   }  
   
   function chnlPrepareForNormalComm(chnl)
   var reopen = chnl.isOpen();
   {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForNormalComm");
+  
     try
     {
       chnl.close();
@@ -169,7 +184,7 @@ object EsUploaderBase
   ///
   function completeUpload(chnl)
   {
-    //EsScriptDebug::log("Completing upload");
+    EsScriptDebug::log("EsUploaderBase::completeUpload");
   
     chnlPrepareForDefaultNormalComm(chnl);
     // restore normal power
@@ -185,7 +200,8 @@ object EsUploaderBase
   function checkIfStartedInBoot(chnl, programmer)
   var deviceIsInBootMode = false;
   {
-    //EsScriptDebug::log("Preparing for default boot communication");
+    EsScriptDebug::log("EsUploaderBase::checkIfStartedInBoot");
+    
     chnl.close();
     // Prepare channel for bootloader communication
     chnlPrepareForBootloader(chnl);
@@ -231,41 +247,49 @@ object EsUploaderBase
   var chnl = rpcMaster$channel, swInfo,
     supportedRpcs, deviceIsInBootMode = false, alreadySynched = false;
   {  
+    EsScriptDebug::log("-----------------------------------------------------");
+    EsScriptDebug::log("EsUploaderBase::upload");
+  
     rpcMaster.deactivate();
     m_savedBaud = chnl$baud;
 
+    EsScriptDebug::log("...Checking if already in boot");
     deviceIsInBootMode = checkIfStartedInBoot(chnl, programmer);
     alreadySynched = deviceIsInBootMode;
     
-    // EsScriptDebug::log("In boot mode: %s", deviceIsInBootMode);
     if( !deviceIsInBootMode )
     {
-      //EsScriptDebug::log("Preparing for RPC-controlled communication");
+      EsScriptDebug::log("...Not in boot");
 
       // Prepare for normal communications
       chnlPrepareForDefaultNormalComm(chnl);
+      
       // Power device on in normal mode
       devicePowerOnInNormalMode(chnl);
+      
       // Wait extra time to allow device to boot-up
       EsThreadWorker::sleep(2000);
       rpcMaster.activate();
       
       try
       {
-        //EsScriptDebug::log("Getting implemented RPCs");
+        EsScriptDebug::log("...Getting implemented RPCs");
         
         supportedRpcs = rpcMaster.getImplementedRPCs();
+
+        EsScriptDebug::log("...Implemented RPCs acquired: %s", supportedRpcs);
+
         // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
         if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
             m_moniker.hasProperty("fwPrevCrc") )
         {
+          EsScriptDebug::log("...Query optional SW info");
+
           swInfo = new EsSoftwareInfo();
           swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
           m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
         }
         rpcMaster.deactivate();
-        
-        //EsScriptDebug::log("Implemented RPCs acquired");
       }
       catch
       {
@@ -274,7 +298,7 @@ object EsUploaderBase
         rpcMaster.deactivate();
       }
       
-      //EsScriptDebug::log("Trying to enter boot with RPC shutdown");
+      EsScriptDebug::log("...Trying to enter boot with RPC shutdown");
       deviceIsInBootMode = configureForBoot(
         programmer, 
         rpcMaster, 
@@ -285,7 +309,7 @@ object EsUploaderBase
     chnl.close();
     if( !deviceIsInBootMode )
     {
-      //EsScriptDebug::log("Performing dumb shutdown");
+      EsScriptDebug::log("...Still not in Boot. Performing dumb shutdown");
       deviceDumbShutdownWait(
         chnl, 
         c_dumbShutdownTmo, 
@@ -296,8 +320,6 @@ object EsUploaderBase
 
     try
     {
-      //EsScriptDebug::log("programmer.program with alreadySynched=%s", alreadySynched ? "Yes" : "No");
-      
       programmer.program(
         chnl, 
         alreadySynched

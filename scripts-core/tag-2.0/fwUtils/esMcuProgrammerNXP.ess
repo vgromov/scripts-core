@@ -590,6 +590,8 @@ object EsMcuprogNxp
     copyLen, blockCrc, pos, line, block, copyResidual, fwSize,
     progressTask = $topTask, idx, crcWriteResult;
   {
+    EsScriptDebug::log("EsMcuProgrammerNxp::program(alreadySynched=%s)", isAlreadySynched);
+  
     // copy firmware binary buffer
     m_fw = m_moniker$binaryFw;
     fwSize = m_fw#countGet();

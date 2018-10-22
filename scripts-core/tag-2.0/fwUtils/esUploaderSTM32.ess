@@ -19,12 +19,16 @@ object EsUploaderStm32 extends EsUploaderBase
   
   function doChnlPrepareForBootloader(chnl)
   {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForBootloader");
+
     EsUploaderBase::doChnlPrepareForBootloader(chnl);
     chnl$parity = EsEkonnectIoParity$$Even;  
   }
 
   function doChnlPrepareForDefaultNormalComm(chnl)
   {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForDefaultNormalComm");
+
     EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
     chnl$parity = EsEkonnectIoParity$$None;
   }  
@@ -33,6 +37,8 @@ object EsUploaderStm32 extends EsUploaderBase
   // using saved baudrate
   function doChnlPrepareForNormalComm(chnl)
   {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForNormalComm");
+
     EsUploaderBase::doChnlPrepareForNormalComm(chnl);
     chnl$parity = EsEkonnectIoParity$$None;
   }  
@@ -40,13 +46,16 @@ object EsUploaderStm32 extends EsUploaderBase
   function enterBootWithShutdown(progressTask, rpcMaster)
   var chnl = rpcMaster$channel;
   {
+    EsScriptDebug::log("EsUploaderStm32::enterBootWithShutdown");
+
     progressTask.pulse("Shutting down device...");
 
     rpcMaster.activate();
     // Command to power off the device
     rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
     configurePowerOff(chnl);
-//    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
+
+    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
     
     // Wait until device detects power off, and shuts down OK
     EsThreadWorker::sleep(2000);
@@ -63,10 +72,12 @@ object EsUploaderStm32 extends EsUploaderBase
     progressTask = new EsProgressMonitorTask("configureForBoot"),
     usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
   {
+    EsScriptDebug::log("EsUploaderStm32::configureForBoot");
+
     progressTask.attachTo(programmer$topTask);
     
     if( supportsPowerCtl && 
-        usesRS232 &&
+        !usesRS232 &&
         (EsRpcStdId$$SHUTDOWN in supportedRpcs) )
     {
       try

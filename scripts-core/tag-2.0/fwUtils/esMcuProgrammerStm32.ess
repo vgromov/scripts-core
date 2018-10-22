@@ -844,6 +844,8 @@ object EsMcuprogStm32
     pgInfos, sector = 0, sectors = [], sectorCnt,
     err;
   {
+    EsScriptDebug::log("EsMcuProgrammerStm32::program(alreadySynched=%s)", isAlreadySynched);
+  
     if( !isAlreadySynched )
       bootConnectAndIdentify(chnl, 1000);
     else
