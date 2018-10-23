@@ -268,8 +268,9 @@ object EsUploaderBase
       devicePowerOnInNormalMode(chnl);
       
       // Wait extra time to allow device to boot-up
-      EsThreadWorker::sleep(2000);
+      EsThreadWorker::sleep(1000);
       rpcMaster.activate();
+      EsThreadWorker::sleep(1500);
       
       try
       {

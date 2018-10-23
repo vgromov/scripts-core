@@ -442,6 +442,8 @@ object EsMcuprogNxp
       if( responseStr != str )
         throw "Error writing data, sent '" + str#asEscapedString() + "', got '" + responseStr#asEscapedString() + "'";
     }
+    else
+      EsThreadWorker::sleep(1); //< Do not force excessive host->device data flow on powerful PCs, to allow NXP bootloader code to parse incoming packets
   }
     
   function blockWrite(chnl, pos, block, blockCrc)
