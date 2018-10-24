@@ -255,6 +255,12 @@ label __packetRetry:
   {
     if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
     {
+      m_topTask.pulse(
+        EsStr::translate(
+          I"Performing Warm Boot..."
+        )
+      );
+
       try
       {
         rpcMaster.activate();
@@ -262,24 +268,19 @@ label __packetRetry:
           EsRpcStdId$$ENTER_BOOT, 
           4000 + 1000*((m_bin$byteSize * 30) / 115200) //< USB have high baud despite the configuration
         );
-        rpcMaster.deactivate();
-
-        m_topTask.pulse(
-          EsStr::translate(
-            I"Performing Warm Boot..."
-          )
-        );
-        EsThreadWorker::sleep(3000);
-    
-        return true;
       }
       catch
       {
-        rpcMaster.deactivate();
+        // Return true in any case, even if bootloade enter command is expired
+        // MR107 enters boot at the moment this RPC command is received,
+        // so proper response to it is never sent back
       }
+
+      rpcMaster.deactivate();
+      EsThreadWorker::sleep(3000);
     }
 
-    return false;
+    return true;
   }
 
   function checkIfStartedInBoot(chnl)
