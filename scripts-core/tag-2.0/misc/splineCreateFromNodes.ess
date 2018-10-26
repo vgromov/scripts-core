@@ -1,0 +1,76 @@
+##require("math/EsSpline.ess");
+
+/// Calculate fitting spline nodes for specified reference nodes
+/// If fitting spline could not be calculated, an empty value is returned
+///
+/// refnodes are [[in0, out0], [in1, out1], ...]
+
+function fittingSplineNodesCalculate(refnodes)
+var node, nodes, constraint = [],
+  fit, fitc = [], pfit, x = [], y = [], coeffs;
+{
+  if( refnodes#isCollection() && refnodes#countGet() >= 2 )
+  {
+    fit = new EsMathSpline();
+    
+    foreach(node in refnodes)
+    {
+      x += node[0];
+      y += node[1];
+    }
+    
+    constraint += x[0];
+    constraint += y[0];
+    constraint += EsMathFitConstraintKind$$Value;
+    fitc#append(constraint);
+    
+    pfit = new EsMathPolyFit();
+    
+    // Create linear fit to define additional conditions 
+    // for first derivatives in nodes
+    //
+    pfit.buildConstrained(x, y, 1, fitc);
+    coeffs = pfit$coefficients;
+    
+    // Build fitting with constraints
+    fit.akimaBuild(x, y);
+    
+    if( fit$isOk )
+    {
+      nodes = fit$nodes;
+      
+      // Tune up the last spline node - add linear segment
+      node = [];
+      node += nodes[nodes#countGet()-1][1]; // The end of the last spline segment is the start of linear segment
+      node += 0;                            // Use some dummy value as the linear segment ending, it's not used anyway
+      node += y[y#countGet()-1];            // Use the last reference value, as line segment starting point
+      node += coeffs[1];                    // Use the line segment inclination
+      node += 0;                            // Do not use any coeffs for members with power > 1
+      node += 0;
+      nodes#append(node);
+              
+      return nodes;
+    }
+  }
+} 
+
+// Demo code. Comment out if not needed
+//
+//var refnodes = [
+//  [0,0],
+//  [20,80],
+//  [95, 360],
+//  [50000, 200000]
+//];
+//
+//var idx = 0, node, splineNodes = fittingSplineNodesCalculate(refnodes);
+//
+//foreach( node in splineNodes )
+//{
+//  EsScriptDebug::log(
+//    "node[%d]={%s}",
+//    idx,
+//    node
+//  );
+//  ++idx;
+//}
