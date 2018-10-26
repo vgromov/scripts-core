@@ -1,6 +1,6 @@
 ##require("../core.ess");
 
-// ekosf firmware moniker services
+// ECO-E firmware moniker services
 //
 object EsFwMonikerBase
 {
@@ -120,7 +120,7 @@ object EsFwMonikerBase
   var id;
   { 
     foreach(id in m_tmpId)
-      id.f_serial.f_year = __value; 
+      id$year = __value; 
   }
 
   property order;
@@ -130,7 +130,7 @@ object EsFwMonikerBase
   { 
     foreach(id in m_tmpId)
     { 
-      id.f_serial.f_order = __value; 
+      id$order = __value; 
     }
   }
 

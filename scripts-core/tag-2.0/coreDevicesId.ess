@@ -5,9 +5,12 @@ object EsFirmwareId
   esU16 f_devType;
     @help = "Device type (model) id";
     
-  if( f_devType in EsQuartaDeviceType )
+  if( (f_devType in EsQuartaDeviceType) || (f_devType in [EsDeviceType$$LUPINX]) )
   {
-    esU16 f_dummy;
+    if( (f_devType in EsQuartaDeviceType) )
+    {
+      esU16 f_dummy;
+    }
     
     /// Order
     esU32 f_order;
@@ -124,6 +127,7 @@ object EsFirmwareId
     
     property order;
     read: { return f_order; }
+    write: { f_order = __value#asULong(); }
     
     property year;
     read: { return f_year; }
@@ -133,6 +137,38 @@ object EsFirmwareId
 
     property day;
     read: { return f_day; }
+    
+    property date;
+    read: var dt = EsDateTime::now(); 
+    { 
+      try
+      {
+        dt$year = f_year;
+        dt$month = f_month;
+        dt$day = f_day;
+      }
+      catch
+      {
+      }
+      
+      return dt; 
+    }
+    write: var dt = EsDateTime::now(); 
+    {
+      try
+      {
+        dt$year = __value$year;
+        dt$month = __value$month;
+        dt$day = __value$day;
+      }
+      catch
+      {
+      }
+      
+      f_year = dt$year;
+      f_month = dt$month;
+      f_day = dt$day;
+    }
 
     property countryCode;
     read: { return f_countryCode; }

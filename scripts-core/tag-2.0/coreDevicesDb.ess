@@ -23,7 +23,8 @@ enum EsDeviceType
   LD1V     = 8,       "LD1V    ";
   OAA      = 9,       "OAA     ";
   EL3C     = 10,      "EL3C    ";
-  EL3      = 11,      "EL3     "; //< ECOL1 HW with updated SW
+  ECLG1    = 11,      "ECLG1   ";
+  LUPINX   = 12,      "LUPINX  ";
 }
 
 // IDs of 3-rd party OCTAVA appliances
@@ -83,7 +84,9 @@ const c_deviceDatabase = [
   [EsDeviceKind$$Appliance,   "IRA-01",   "Измеритель ИК излучения ИКИ-01"],
   [EsDeviceKind$$Appliance,   "LD-01-V",  "Головка лазерная дозиметрическая ЛД-01-В"],
   [EsDeviceKind$$Appliance,   "OAA",      "Преобразователь ИГ Октава"],
-  [EsDeviceKind$$Appliance,   "EL-03-C",  I"Lighting meter eLight-03-C"]
+  [EsDeviceKind$$Appliance,   "EL-03-C",   I"Lighting meter eLight-03-C"],
+  [EsDeviceKind$$Appliance,   "eCLg-01",   I"Microclimate eCoLogger-01"],
+  [EsDeviceKind$$Appliance,   "Lupin-X",   I"Luxmeter Lupin-X"]
 ];
 
 const c_octavaDeviceDatabase = [

@@ -151,8 +151,11 @@ object EsFwBinary
           // [04] record as actual start-address.
           m_offs = realAddr & c_flashSizeMask;
         else if((realAddr & c_flashSizeMask) != m_offs)
-            throw EsStr::format("New Extended Linear Address Record [04] out of memory range\nCurrent Memory starts at: 0x%08X, new Address is: 0x%08X",
-              m_offs, realAddr);
+            throw EsStr::format(
+              "New Extended Linear Address Record [04] out of memory range\nCurrent Memory starts at: 0x%08X, new Address is: 0x%08X",
+              m_offs, 
+              realAddr
+            );
       }
       else if(0x05 == recType)     // 05 - Start linear address record
       {
