@@ -17,8 +17,11 @@ object UserAppHdr
 
 function extract(inFile, outFile, userAppOffset, crcInit)
 var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(), 
-  buffApp, hdrApp = new UserAppHdr(), crc = new EsCRC32_IEEE802_3(crcInit);
+  buffApp, hdrApp = new UserAppHdr(), crc = new EsCRC32_IEEE802_3(crcInit#asULong());
 {
+  // Ensure userAppOffset is interpreted as ulong, not string
+  userAppOffset = userAppOffset#asULong();
+
   //EsScriptDebug::log("cwd: %s", cwd);
   fp = EsPath::createFromFilePath(inFile);
   inFile = fp.pathGet(EsPathFlag$$Default, cwd);
@@ -33,13 +36,17 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(),
   EsScriptDebug::log("Converting hex to binary...");
   binary = new EsFwBinary(hex);
 
-  EsScriptDebug::log("Extracting user application header...");
+  EsScriptDebug::log("Binary length=%d", binary$length);
+
+  EsScriptDebug::log("Extracting user application header [%d, %d]...", userAppOffset, userAppOffset+hdrApp$size);
+  binary.fwOffsAndSizeCheck(userAppOffset, hdrApp$size);
   hdrApp$buffer = binary$fw#sliceGet(
     userAppOffset,
     userAppOffset+hdrApp$size
   );
 
-  EsScriptDebug::log("Extracting user application binary...");
+  EsScriptDebug::log("Extracting user application binary [%d, %d]...", userAppOffset+hdrApp$size, binary$length);
+  binary.fwOffsAndSizeCheck(userAppOffset+hdrApp$size, binary$length-userAppOffset-hdrApp$size);
   buffApp = binary$fw#sliceGet(
     userAppOffset+hdrApp$size,
     binary$length
@@ -53,8 +60,9 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(),
   // Calculate CRC of all header parts, except crc itself
   crc.update(hdrApp.f_size$buffer);
   crc.update(hdrApp.f_type$buffer);
-  crc.update(hdrApp.f_countryCode$buffer);
-  crc.update(hdrApp.f_fwVer$buffer);
+  crc.update(hdrApp.f_ccode$buffer);
+  crc.update(hdrApp.f_vmaj$buffer);
+  crc.update(hdrApp.f_vmin$buffer);
   crc.update(hdrApp.f_dummy$buffer);
   
   hdrApp.f_crc = crc$value;
