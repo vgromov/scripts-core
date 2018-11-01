@@ -56,21 +56,21 @@ var node, nodes, constraint = [],
 
 // Demo code. Comment out if not needed
 //
-//var refnodes = [
-//  [0,0],
+var refnodes = [
+  [0,0],
 //  [20,80],
 //  [95, 360],
-//  [50000, 200000]
-//];
-//
-//var idx = 0, node, splineNodes = fittingSplineNodesCalculate(refnodes);
-//
-//foreach( node in splineNodes )
-//{
-//  EsScriptDebug::log(
-//    "node[%d]={%s}",
-//    idx,
-//    node
-//  );
-//  ++idx;
-//}
+  [50000, 200000]
+];
+
+var idx = 0, node, splineNodes = fittingSplineNodesCalculate(refnodes);
+
+foreach( node in splineNodes )
+{
+  EsScriptDebug::log(
+    "node[%d]={%s}",
+    idx,
+    node
+  );
+  ++idx;
+}
