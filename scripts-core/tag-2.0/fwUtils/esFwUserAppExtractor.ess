@@ -4,8 +4,20 @@
 //
 ##require("esFwBinary.ess");
 
-function extract(inFile, outFile, userAppOffset)
-var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
+object UserAppHdr
+{
+  esU32 f_size;
+  esU32 f_crc;
+  esU16 f_type;
+  esU16 f_ccode;
+  esU8 f_vmaj;
+  esU8 f_vmin;
+  esU8 f_dummy[2];
+}
+
+function extract(inFile, outFile, userAppOffset, crcInit)
+var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(), 
+  buffApp, hdrApp = new UserAppHdr(), crc = new EsCRC32_IEEE802_3(crcInit);
 {
   //EsScriptDebug::log("cwd: %s", cwd);
   fp = EsPath::createFromFilePath(inFile);
@@ -21,10 +33,29 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
   EsScriptDebug::log("Converting hex to binary...");
   binary = new EsFwBinary(hex);
 
-  buff = binary$fw#sliceGet(
-    m_appHdr$size,
-    appSize
+  EsScriptDebug::log("Extracting user application binary...");
+  hdrApp$buffer = binary$fw#sliceGet(
+    userAppOffset,
+    hdrApp$size
   );
+  buffApp = binary$fw#sliceGet(
+    userAppOffset+hdrApp$size,
+    binary$length
+  );
+
+  hdrApp.f_size = hdrApp$size + buffApp#countGet();
+
+  // Update CRC from application
+  crc.update(buffApp);
+
+  // Calculate CRC of all header parts, except crc itself
+  crc.update(hdrApp.f_size$buffer);
+  crc.update(hdrApp.f_type$buffer);
+  crc.update(hdrApp.f_countryCode$buffer);
+  crc.update(hdrApp.f_fwVer$buffer);
+  crc.update(hdrApp.f_dummy$buffer);
+  
+  hdrApp.f_crc = crc$value;
 
   EsScriptDebug::log("Writing conversion result...");
   of = new EsFile(outFile, EsFileFlag$$Write|EsFileFlag$$Text);
@@ -34,9 +65,11 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet();
   of.stringWrite("const c_fileHexName = \"");
   of.stringWrite(EsFile::nameExtGet(inFile));
   of.stringWrite("\";\nconst c_start = ");
-  of.uint32Write(binary.m_startAddr);
+  of.uint32Write(userAppOffset);
+  of.stringWrite(";\nconst c_hdr = B\"");
+  of.binBufferWrite(hdrApp$buffer);
   of.stringWrite(";\nconst c_bin = B\"");
-  of.binBufferWrite(binary.m_fw);
+  of.binBufferWrite(buffApp);
   of.stringWrite("\";\nconst c_created = \"");
   of.stringWrite( EsDateTime::now() );
   of.stringWrite("\";\n");
