@@ -33,11 +33,13 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(),
   EsScriptDebug::log("Converting hex to binary...");
   binary = new EsFwBinary(hex);
 
-  EsScriptDebug::log("Extracting user application binary...");
+  EsScriptDebug::log("Extracting user application header...");
   hdrApp$buffer = binary$fw#sliceGet(
     userAppOffset,
-    hdrApp$size
+    userAppOffset+hdrApp$size
   );
+
+  EsScriptDebug::log("Extracting user application binary...");
   buffApp = binary$fw#sliceGet(
     userAppOffset+hdrApp$size,
     binary$length
