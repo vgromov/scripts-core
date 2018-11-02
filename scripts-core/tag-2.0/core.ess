@@ -32,6 +32,9 @@ enum EsRpcStdId
   FINDME             = 20,  "VOID_Call|Perform some kind of visual|audio device identification";
   SW_INFO_GET        = 21,  "esBA_Call|Query software identification block";
   FWID_MODERN_GET    = 22,  "esBA_Call|Query firmware identification block of modern devices which support dual ID feature";
+  FW_UPLOAD_START    = 23,  "esU32_Call_esU32_esBA|Request FW upload start. Payload: esU32(Max fw frame size)_RpcSig_esU32(Flags)_esBA(Optional start data)";
+  FW_UPLOAD          = 24,  "VOID_Call_esBA|Request FW portion upload. Payload: VOID_RpcSig_esBA(FW portion data)";
+  FW_UPLOAD_END      = 25,  "VOID_Call|Request FW upload end";
 }
 
 ##require("coreUtils.ess");

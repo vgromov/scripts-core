@@ -3,21 +3,12 @@
 // extract user application part from binary and save it as script file
 //
 ##require("esFwBinary.ess");
-
-object UserAppHdr
-{
-  esU32 f_size;
-  esU32 f_crc;
-  esU16 f_type;
-  esU16 f_ccode;
-  esU8 f_vmaj;
-  esU8 f_vmin;
-  esU8 f_dummy[2];
-}
+##require("esFwUserAppHeader.ess");
 
 function extract(inFile, outFile, userAppOffset, crcInit)
 var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(), 
-  buffApp, hdrApp = new UserAppHdr(), crc = new EsCRC32_IEEE802_3(crcInit#asULong());
+  buffApp, hdrApp = new EsFwUserAppHeader(), 
+  crc = new EsCRC32_IEEE802_3(crcInit#asULong());
 {
   // Ensure userAppOffset is interpreted as ulong, not string
   userAppOffset = userAppOffset#asULong();

@@ -1,0 +1,12 @@
+/// User application header object
+///
+object EsFwUserAppHeader
+{
+  esU32 f_size;
+  esU32 f_crc;
+  esU16 f_type;
+  esU16 f_ccode;
+  esU8 f_vmaj;
+  esU8 f_vmin;
+  esU8 f_dummy[2];
+}
