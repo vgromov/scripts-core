@@ -78,7 +78,7 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(),
   of.uint32Write(userAppOffset);
   of.stringWrite(";\nconst c_hdr = B\"");
   of.binBufferWrite(hdrApp$buffer);
-  of.stringWrite(";\nconst c_bin = B\"");
+  of.stringWrite("\";\nconst c_bin = B\"");
   of.binBufferWrite(buffApp);
   of.stringWrite("\";\nconst c_created = \"");
   of.stringWrite( EsDateTime::now() );
