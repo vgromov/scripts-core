@@ -97,6 +97,7 @@ object RADEX_AQ extends EsDeviceBase
       {
         result = new RADEX_AQ_Cfg();
         result$buffer = rpcResult#asBinBuffer();
+
         m_cfgCache = result;
       }
     case RADEX_AQ_Rpid$$DataBlockGet:
@@ -173,6 +174,8 @@ object RADEX_AQ extends EsDeviceBase
       return rpcResult;
     }
     
+    EsScriptDebug::log("RADEX_AQ::settingsDownload\n%s", settings.asString());
+    
     rpcResult = [];
     rpcResult += true;
     rpcResult += settings;
@@ -208,6 +211,8 @@ object RADEX_AQ extends EsDeviceBase
       );
       
       m_cfgCache = settings.f_cfg.clone();
+      
+      EsScriptDebug::log("RADEX_AQ::settingsUpload\n%s", settings.asString());
     }
     else
       task.end(

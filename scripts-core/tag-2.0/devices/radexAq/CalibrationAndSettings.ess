@@ -52,6 +52,31 @@ object RADEX_AQ_Cfg
     return 0;
   }
   
+  function asString()
+  var str = "Flags: ";
+  {
+    str += f_flags$soundStr + "; " + f_flags$alertStr + "; " + f_flags$nightModeStr + "; " + 
+      f_flags$sleepModeStr + "; " + f_flags$bluetoothStr + "; " + f_flags$continousMeasurementsStr + "; " +
+      f_flags$screenScrollingStr + "; " + f_flags$temperatureInFStr + "; " + f_flags$timeInAmPmStr;
+    
+    str += "\nScreens: ";
+    str += f_screens$currentDustStr + "; " + f_screens$currentDustMinStr + "; " + f_screens$currentDustMedStr + "; " +
+      f_screens$currentDustMaxStr + "; " + f_screens$currentDustHistogramStr + "; " + f_screens$dailyAvgDustMinStr + "; " +
+      f_screens$dailyAvgDustMedStr + "; " + f_screens$dailyAvgDustMaxStr + "; " + f_screens$dailyAvgDustHistogramStr + "; " +
+      f_screens$currentTemperatureStr + "; " + f_screens$currentTemperatureMinStr + "; " + f_screens$currentTemperatureMaxStr + "; " +
+      f_screens$currentTemperatureHistogramStr + "; " + f_screens$dailyAvgTemperatureMinStr + "; " + f_screens$dailyAvgTemperatureMedStr + "; " +
+      f_screens$dailyAvgTemperatureMaxStr + "; " + f_screens$dailyAvgTemperatureHistogramStr + "; " + f_screens$currentHumidityStr + "; " +
+      f_screens$currentHumidityMinStr + "; " + f_screens$currentHumidityMaxStr + "; " + f_screens$currentHumidityHistogramStr + "; " + 
+      f_screens$dailyAvgHumidityMinStr + "; " + f_screens$dailyAvgHumidityMedStr + "; " + f_screens$dailyAvgHumidityMaxStr + "; " +
+      f_screens$dailyAvgHumidityHistogramStr + "; " + f_screens$clockStr;
+    
+    str += "\nScreenChangeTmo: " + f_screenChangeTmo#asString() + "; SleepModeTmo: " + f_sleepModeTmo#asString();
+    str += "\nMsrPeriod: " + f_msrPeriod#asString() + "; DustType: " + f_dustType#asString();
+    str += "\nAlertThreshold: " + f_alertThreshold#asString() + "; Lang: " + f_lang$buffer;
+    
+    return str;
+  }
+  
   // Flags 
   //
   property flags;
@@ -400,6 +425,12 @@ object RADEX_AQ_Settings
     );
     
     f_fwId.copyFrom(fwId);
+  }
+  
+  function asString()
+  {
+    return "FW ID: " + f_fwId.asString() + "\nCFG: " +
+      f_cfg.asString();
   }
   
   /// Propertires
