@@ -72,7 +72,7 @@ object RADEX_AQ_Cfg
     
     str += "\nScreenChangeTmo: " + f_screenChangeTmo#asString() + "; SleepModeTmo: " + f_sleepModeTmo#asString();
     str += "\nMsrPeriod: " + f_msrPeriod#asString() + "; DustType: " + f_dustType#asString();
-    str += "\nAlertThreshold: " + f_alertThreshold#asString() + "; Lang: " + f_lang$buffer;
+    str += "\nAlertThreshold: " + f_alertThreshold#asString() + "; Lang: " + EsStr::fromByteString(f_lang$buffer, EsStrByteEncoding$$CP1251);
     
     return str;
   }
