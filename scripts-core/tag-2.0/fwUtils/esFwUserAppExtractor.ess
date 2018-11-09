@@ -49,14 +49,7 @@ var hex, binary, inf, of, fp, cwd = EsPath::cwdGet(),
   crc.update(buffApp);
 
   // Calculate CRC of all header parts, except crc itself
-  crc.update(hdrApp.f_size$buffer);
-  crc.update(hdrApp.f_type$buffer);
-  crc.update(hdrApp.f_ccode$buffer);
-  crc.update(hdrApp.f_vmaj$buffer);
-  crc.update(hdrApp.f_vmin$buffer);
-  crc.update(hdrApp.f_dummy$buffer);
-  
-  hdrApp.f_crc = crc$value;
+  hdrApp.crcUpdate(crc);
 
   EsScriptDebug::log("Writing conversion result...");
   of = new EsFile(outFile, EsFileFlag$$Write|EsFileFlag$$Text);

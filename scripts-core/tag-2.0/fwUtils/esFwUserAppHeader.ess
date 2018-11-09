@@ -4,9 +4,21 @@ object EsFwUserAppHeader
 {
   esU32 f_size;
   esU32 f_crc;
-  esU16 f_type;
+  esU16 f_devType;
   esU16 f_ccode;
   esU8 f_vmaj;
   esU8 f_vmin;
   esU8 f_dummy[2];
+  
+  function crcUpdate(crc)
+  {
+    crc.update(f_size$buffer);
+    crc.update(f_devType$buffer);
+    crc.update(f_ccode$buffer);
+    crc.update(f_vmaj$buffer);
+    crc.update(f_vmin$buffer);
+    crc.update(f_dummy$buffer);
+    
+    f_crc = crc$value;
+  }
 }
