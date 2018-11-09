@@ -21,4 +21,20 @@ object EsFwUserAppHeader
     
     f_crc = crc$value;
   }
+
+  function asString()
+  {
+    return EsStr::format(
+      "EsFwUserAppHeader: size=%d(0x%0.8X); crc=0x%0.8X; devType=%d;",
+      f_size, f_size,
+      f_crc,
+      f_devType
+    ) + 
+    EsStr::format(
+      " ccode=%d; ver=%d.%d",
+      f_ccode,
+      f_vmaj,
+      f_vmin
+    );
+  }
 }
