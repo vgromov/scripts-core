@@ -145,7 +145,7 @@ object EsFirmwareId
       {
         dt$year = f_year;
         dt$month = f_month;
-        dt$day = f_day;
+        dt$dayOfMonth = f_day;
       }
       catch
       {
@@ -159,7 +159,7 @@ object EsFirmwareId
       {
         dt$year = __value$year;
         dt$month = __value$month;
-        dt$day = __value$day;
+        dt$dayOfMonth = __value$day;
       }
       catch
       {
@@ -167,7 +167,7 @@ object EsFirmwareId
       
       f_year = dt$year;
       f_month = dt$month;
-      f_day = dt$day;
+      f_day = dt$dayOfMonth;
     }
 
     property countryCode;

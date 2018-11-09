@@ -790,7 +790,12 @@ object EsMcuprogStm32
 //    EsScriptDebug::log("Pages count: %d", pgCnt);    
     
     // Initialize progress task, upload firmware
-    progressTask.initialize("Verifying uploaded firmware...", pgCnt-1, 0);
+    progressTask.initialize(
+      "Verifying uploaded firmware...", 
+      pgCnt-1, 
+      0
+    );
+    
     while( pgIdx < pgCnt )
     {
       pgSize = stm32McuDbFlashPageSizeGet(pgIdx, pgInfos);
@@ -801,7 +806,11 @@ object EsMcuprogStm32
       while( pgVerified < pgSize )
       {
         // Prepare verification chunk
-        chunk = m_fw#sliceGet(fwOffs, fwOffs+m_packetSize);
+        chunk = m_fw#sliceGet(
+          fwOffs, 
+          fwOffs+m_packetSize
+        );
+        
         chunkSze = chunk#countGet();
 
 //        EsScriptDebug::log("Verifying chunk of %d bytes at addr %0X", chunkSze, addr);
@@ -815,14 +824,22 @@ object EsMcuprogStm32
             EsScriptDebug::log("Read at addr: %0X", addr);
             EsScriptDebug::log(m_response);
  */
-            throw EsStr::format("Flash verification failed at page '%d', '%0X'", pgIdx, addr);
+            throw EsStr::format(
+              "Flash verification failed at page '%d', '%0X'", 
+              pgIdx, 
+              addr
+            );
           }
           
           pgVerified += chunkSze;
           fwOffs += chunkSze;
         }  
         else
-          throw EsStr::format("Flash read failed at page '%d', addr. '%0X'", pgIdx, addr);
+          throw EsStr::format(
+            "Flash read failed at page '%d', addr. '%0X'", 
+            pgIdx, 
+            addr
+          );
           
         if( fwOffs >= fwAlignedSize ) // The last chunk was verified
           break;
