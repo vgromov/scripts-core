@@ -351,9 +351,11 @@ object EsFirmwareId
     
     property year;
     read: { return f_serial$year; }
+    write: { f_serial$year = __value#asULong(); }
 
     property order;
     read: { return f_serial$order; }
+    write: { f_serial$order = __value#asULong(); }
   }
   
   new()
