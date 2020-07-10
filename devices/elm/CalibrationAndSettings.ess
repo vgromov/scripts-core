@@ -1,0 +1,129 @@
+/// ELM Calibration and settings data blocks
+///
+##require("calibration/Consts.ess");
+
+function elmClearCalibrationTypeCheck(type)
+{
+  if( type != EsDataType$$Illuminance )
+    throw EsStr::format(
+      "ELM calibration type %d is invalid",
+      type
+    );
+}
+
+/// ELM calibration data
+object ELM_Calibration
+{
+  EsSpline f_illum;    ///< Illuminance calibration
+  
+  // We should have separate initialization 
+  // method to work-around cases, when this object is used as field
+  // in other compound object(s), and default ctors are not being called for fields
+  // 
+  function init()
+  {
+    f_illum$maxLen = c_ELM_CalibrationNodesCnt;
+  }
+  
+  /// Default constructor
+  new()
+  {
+    init();
+  }  
+  
+  /// Update all crc blocks if needed
+  function crcUpdate()
+  {
+    f_illum.crcUpdate();
+  }
+  
+  /// Properties
+  ///
+  
+  /// Return true if all blocks have valid crc
+  property crcIsOk;
+  read: { return f_illum$crcIsOk; }
+  
+  /// Overall validity check
+  property valid;
+  read: { return f_illum$valid; }
+  
+  /// Illuminance calibration access
+  property illuminance;
+  read: { return f_illum; }
+}
+
+/// ELM device settings
+object ELM_Settings
+{
+  var m_prevType;
+  
+  // settings block
+  EsFirmwareId f_fwId;
+
+  // Calibration data
+  ELM_Calibration f_cal;
+    
+  function calInit()
+  {
+    f_cal.init();
+  }
+    
+  // Return calibration spline by data type
+  function calGet(type)
+  {
+    elmClearCalibrationTypeCheck(type);
+    if( EsDataType$$Illuminance == type )
+      return f_cal$calIlluminance;
+  }
+
+  /// Calculate calibrated value
+  function calibratedValueCalculate(type, val)
+  { 
+    elmClearCalibrationTypeCheck(type);
+    return f_cal.f_illum.calculate(val);
+  }
+    
+  /// Update CRC data
+  function crcUpdate()
+  {
+    f_cal.crcUpdate();
+  }
+
+  /// Constructors
+  new()
+  {
+    f_fwId.copyFrom( 
+      new EsFirmwareId(EsDeviceType$$ELM) 
+    );
+    this.calInit();
+  }
+  
+  new(fwId)
+  {
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$ELM, 
+      "ELM settings"
+    );
+    f_fwId.copyFrom(fwId);
+    this.calInit();
+  }
+
+  /// Propertires
+  ///
+  property devType;
+  read: { return f_fwId$devType; }
+  
+  property fwId;
+  read: { return f_fwId.clone(); }
+
+  property countryCode;
+  read: { return f_fwId$countryCode; }
+
+  property calibration;
+  read: { return f_cal; }
+
+  property crcIsOk;
+  read: { return f_cal$crcIsOk; }
+}

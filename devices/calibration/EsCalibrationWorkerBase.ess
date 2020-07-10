@@ -1,0 +1,1709 @@
+##require("devices.ess");
+##require("EsCalibrationDataIntegrationHelperBase.ess");
+
+const c_packetTmoDefault                = 1500;
+const c_stalledThreshold                = 4;
+const c_wrkPreferredCycleSpan           = 800;
+const c_wrkPauseMin                     = 50;
+//-----------------------------------------------------------------------------
+
+// Device online states
+//
+enum EsOnlineState
+{
+  Offline                               = 0, "Offline";
+  Stalled                               = 1, "Stalled";
+  Online                                = 2, "Online";
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+const ES_EVTC_IOTHREAD                  = "iothread";
+const ES_EVTC_IOTHREADREQ               = "req_iothread";
+//-----------------------------------------------------------------------------
+
+// IoThread event IDs
+// ES_EVTC_IOTHREAD
+//
+enum EsEvtIoThread 
+{
+  Starting                              = 0;    //< Worker Thread is starting. Payload: top worker uuid
+  Started                               = 1;    //< Worker Thread is started. Payload: top worker uuid
+  Stopping                              = 2;    //< Worker Thread is stopping. Payload: top worker uuid
+  Stopped                               = 3;    //< Worker Thread is stopped. Payload: [<top worker uuid>, <logged errors, if any, or an empty collection>]
+  OnlineStateChanged                    = 4;    //< Device online state is changed. Payload: [<top worker uuid>, devIdStr, EsOnlineState<, optionalStateBatchResponse if going online>]
+  DataRead                              = 5;    //< Device live data is read, raw, or calibrated. Payload: [<top worker uuid>, devIdStr, dataObject]
+  IntegratorStarted                     = 6;    //< Integrator helper is started for the device. Payload: [<top worker uuid>, devIdStr, dataType, stepsCountMax]
+  IntegratorProgress                    = 7;    //< Integrator helper is working for the device. Payload: [<top worker uuid>, devIdStr, dataType, stepsCurrent]
+  IntegratorComplete                    = 8;    //< Integrator helper is complete for the device. Payload: [<top worker uuid>, devIdStr, dataType, integratedData], where integrated data may be a collection of raw values, indexed by sensor kind, or calibrated value
+  IntegratorStopped                     = 9;    //< Integrator helper is stopped for the device. Payload: [<top worker uuid>, devIdStr, dataType]
+  DevicesStatuses                       = 10;   //< Devices status response to corresponding request. Payload: [<top worker uuid>, [<status0>, ... <statusN>]], where statusN is [devIdStr, EsOnlineState]
+  SessLoaded                            = 11;   //< Session object is loaded into worker. Payload: [<top worker uuid>, sessionObject]
+  DataTypeChanged                       = 12;   //< Payload: [<top worker uuid>, dataType]
+  CalibrationUploaded                   = 13;   //< Calibration is uploaded to device. Payload: [<top worker uuid>, devId]
+}
+//-----------------------------------------------------------------------------
+
+// IoThread request event IDs
+// ES_EVTC_IOTHREADREQ
+//
+enum EsEvtIoThreadReq
+{
+  Integrate                             = 0;    //< Request integration start. Payload: [<top worker uuid>, profileNodeIdx]
+  IntegrationCancel                     = 1;    //< Request to cancel an active integration. Payload: top worker uuid
+  DevicesStatuses                       = 2;    //< Request all devices states report. Payload: <top worker uuid>
+  CalibrationUpload                     = 3;    //< Request calibration upload for all online devices. Payload: [<top worker uuid>, <calibration object, or null, if internal one is implied>]
+  CalibrationRestore                    = 4;    //< Request to restore calibration settings for all online devices. Payload: <top worker uuid>
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+// IO worker object base implementation. 
+// Implemented are call signatures for scripted
+// thread worker and async event handler.
+//
+object EsCalibrationWorkerBase
+{
+  var 
+    m_uuid,                     //< Unique worker ID
+    m_thread,                   //< IO Calibrator Thread object
+    m_child,                    //< First spawned worker
+    m_owner,                    //< Weak reference to the owning thread object (for spawned workers only)
+    m_subscriber,               //< Event subscription
+    m_devicesActive,            //< Active devices
+    m_devicesStalled,           //< Stalled devices
+    m_devicesInactive,          //< Inactive devices
+    m_integrators;              //< Device integrator objects collection, indexed by devId strings
+
+    if( m_owner#isEmpty() )     //< The following variables exist only in root worker
+    {
+      var 
+        m_systickOld,
+        m_onlineState,          //< Global online state
+        m_newModeIsCalibration, //< New session will emerge in calibration mode. Otherwise - in verification
+        m_activeSessionsPath,   //< Active (incomplete) sessions root
+        m_completeSessionsPath, //< Complete sessions root
+        m_profilesGlobal,       //< Global profiles, used in new session creation
+        m_devType,              //< Device type, this worker is dedicated to
+        m_curDataType,          //< Currently selected data type, being calibrated.
+        m_devicesCountMax,      //< Maximum device count supported by worker instance
+        m_integratorStepsCntMax,//< Maximum count of integration steps
+        m_session;              //< Managed Session object, either new, or loaded
+    }
+
+
+  function rootWorkerGet()
+  var result; //< Temporary work-around to #953
+  {
+    if( m_owner#isEmpty() )
+      result = this;
+    else
+      result = m_owner.rootWorkerGet();
+
+    return result;
+  }
+
+  function deviceTypeCheck(devType, allowableType)
+  {
+    if( !(devType in allowableType) )
+      throw EsStr::format(
+        "Unsupported device type %s",
+        deviceDescriptionShortGet(devType)
+      );
+  }
+
+  /// Device-specific overrides should implement the following:
+  ///
+  /// function devicePrepareForOffline(dev)                                                                                   : Mandatory
+  /// function deviceStateRequest(dev)                                                                                        : Mandatory
+  /// function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )                                                      : Mandatory
+  /// function checkDeviceOpmodeIsSetForDataType( dev, dataType )                                                             : Mandatory
+  /// function doDeviceLiveDataRequest( dev, doRawRequest )                                                                   : Mandatory
+  /// function integrationDataPrepare( integrator, inData, isRaw )                                                            : Optional
+  /// function childWorkerObjectCreate()                                                                                      : Mandatory
+  /// function nonBusyChannelsEnumerate(chnlType)                                                                             : Mandatory
+  /// function deviceChannelCreate(chnlPath, chnlType)                                                                        : Mandatory
+  /// function channelTypesForDevType()                                                                                       : Mandatory
+  /// function deviceCalibrationUpload(device, calibration )                                                                  : Mandatory
+  /// function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )                                  : Optional
+  /// function supportsIntegration()                                                                                          : Optional
+  /// function doLiveReadResultGet(result)                                                                                    : Optional
+  /// new(owner)                                                                                                              : Optional
+  /// new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)                                 : Optional
+  ///
+  
+  // Overridables
+  //
+  
+  function devicePrepareForOffline(dev)
+  {}
+  
+  // Request device state in batch mode
+  function deviceStateRequest(dev)
+  {}
+
+  // Check if data type is supported by selected device type
+  function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::checkDataTypeIsSupportedByDeviceType"
+    );
+
+    if( doThrow )
+      throw EsStr::format(
+        I"Data type %s is not supported by this calibration software",
+        EsDataType.valueLabelGet(dataType)
+      );
+
+    return false;
+  }
+
+  function checkDeviceOpmodeIsSetForDataType( dev, dataType )
+  {
+    return false;
+  }
+
+  function doDeviceLiveDataRequest( dev, doRawRequest )
+  {
+    return [false, null];
+  }
+  
+  function childWorkerObjectCreate()
+  {}
+  
+  function channelTypesForDevType()
+  {
+    return [];
+  }
+  
+  function nonBusyChannelsEnumerate(chnlType)
+  {
+    return [];
+  }
+  
+  /// Prepare channel properties for device communication
+  function deviceChannelCreate(chnlPath, chnlType)
+  {}
+  
+  /// Create specific device integrator object
+  function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )
+  {}
+
+  /// Return true, if integration is supported by worker and specific data type
+  function supportsIntegration()
+  {
+    return false;
+  }
+  
+  /// Prepare live data for integration. inData argument presents device-specific live data, while
+  /// result returned must be an EsAssocContainer, where data value nodes, prepared for integration,
+  /// must be indexed by data sensor kind
+  ///
+  function integrationDataPrepare( integrator, inData, isRaw )
+  var result = new EsAssocContainer(__metaclass), kind;
+  {
+    foreach(kind in integrator$kinds)
+    {
+      result.newValueSet(
+        kind,
+        inData.valueGet(
+          integrator$dataType,
+          kind
+        )
+      );
+    }
+
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::integrationDataPrepare(integrator=%s, inData=%s, isRaw=%s)->%s",
+      integrator#trace(),
+      inData#trace(),
+      isRaw#trace(),
+      result#trace()
+    );
+
+    return result;
+  }
+
+  function deviceCalibrationUpload(device, calibration)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceCalibrationUpload(device=%s, calibration=%s)",
+      device#trace(),
+      calibration#trace()
+    );  
+  }
+
+  function doLiveReadResultGet(result)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::doLiveReadResultGet(result=%s)",
+      result#trace()
+    );
+
+    // Extract last step's result - it would contain data object
+    // batch result validity is already checked in base object
+    // before this function is called
+    //
+    return result[result#countGet()-1][1];
+  }
+
+  // Overridable constructor for child workers creation
+  new(owner)
+  {
+    EsScriptDebug::log( "EsCalibrationWorker::new child worker" );
+
+    m_owner = owner$weakReference;
+    m_uuid = EsUUID::generate();
+
+    m_devicesActive = new EsAssocContainer(__metaclass);
+    m_devicesStalled = new EsAssocContainer(__metaclass);
+    m_devicesInactive = new EsAssocContainer(__metaclass);
+    m_integrators = new EsAssocContainer(__metaclass);    
+  }
+
+  // Overridable constructor for the root worker
+  new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorker::new(activeSessionsPath=%s, completeSessionsPath=%s, devType=%s, profilesGlobal=%s) root worker",
+      activeSessionsPath#trace(), 
+      completeSessionsPath#trace(), 
+      devType#trace(), 
+      profilesGlobal#trace()
+    );
+  
+    m_uuid = EsUUID::generate();
+
+    this.m_newModeIsCalibration = true;
+    this.m_activeSessionsPath = activeSessionsPath;
+    this.m_completeSessionsPath = completeSessionsPath;
+    
+    this.m_profilesGlobal = profilesGlobal;
+    if( !this.m_profilesGlobal#isKindOf( "EsAssocContainer" ) )
+      throw EsStr::format(
+        I"Global Profiles argument type does not match. Expected: 'EsAssocContainer', got %s.",
+        this.m_profilesGlobal#trace()
+      );
+
+    this.m_devType = devType;
+    this.m_curDataType = deviceDefaultDataTypeGet(devType);
+
+    this.m_onlineState = EsOnlineState$$Offline;
+    
+    m_devicesActive = new EsAssocContainer(__metaclass);
+    m_devicesStalled = new EsAssocContainer(__metaclass);
+    m_devicesInactive = new EsAssocContainer(__metaclass);
+    m_integrators = new EsAssocContainer(__metaclass);
+    
+    this.m_devicesCountMax = devicesCountMax;
+    this.m_integratorStepsCntMax = EsCalibrationDataIntegrationCnt$$Default;
+  }
+
+  //
+  // Overridables end
+
+  function eventSubscriberCreate()
+  {
+    if(!m_subscriber#isEmpty())
+      return;
+    
+    m_subscriber = EsEventHandler::createAsync(
+      this, 
+      ES_EVTC_TO_DEVICE + "," +
+      ES_EVTC_IOTHREADREQ
+    );
+    m_subscriber$active = false;
+  }
+
+  function start()
+  {
+    if( EsThreadState$$Running == m_thread$state )
+      return;
+
+    if( !this$isChildWorker ) //< For top worker object only
+    __scriptHost.eventPost(
+      ES_EVTC_IOTHREAD, 
+      EsEvtIoThread$$Starting,
+      m_uuid.asString()
+    );
+    
+    if( m_child )
+      m_child.start();
+    
+    m_thread.start();
+  }
+
+  function stop()
+  var devItem, state = m_thread$state;
+  {
+    if( state in [EsThreadState$$Running, EsThreadState$$Suspended] )
+    {
+      if( !this$isChildWorker ) //< For top worker object only
+        __scriptHost.eventPost(
+          ES_EVTC_IOTHREAD, 
+          EsEvtIoThread$$Stopping,
+          m_uuid.asString()
+        );
+
+      // Stop and delete spawned child first, if any
+      if( m_child )
+      {
+        m_child.stop();
+        m_child = null;
+      }
+
+      m_thread.stopAndWait();
+      m_devicesActive.clear();
+      m_devicesStalled.clear();
+      m_devicesInactive.clear();
+      m_integrators.clear();
+    }
+  }
+
+  function activeSessionsPathGet()
+  var path = EsPath::createFromPath( rootWorkerGet().m_activeSessionsPath );
+  {
+    return path.pathGet(
+      EsPathFlag$$Default,
+      ""
+    );
+  }
+  
+  function devicesStatusesReport()
+  var report = [], key, keys;
+  {
+    keys = m_devicesActive$keys;
+    foreach(key in keys)
+      report += [key, EsOnlineState$$Online];
+      
+    keys = m_devicesStalled$keys;
+    foreach(key in keys)
+      report += [key, EsOnlineState$$Stalled];
+
+    keys = m_devicesInactive$keys;
+    foreach(key in keys)
+      report += [key, EsOnlineState$$Offline];
+      
+    __scriptHost.eventPost(
+      ES_EVTC_IOTHREAD, 
+      EsEvtIoThread$$DevicesStatuses,
+      [
+        rootWorkerGet()$uuid,
+        report
+      ]
+    );    
+  }
+
+  function deviceIsOnline(devId)
+  var worker, online;
+  {
+    worker = this;
+    
+    do {
+      online = worker.m_devicesActive.keyExists(devId);
+      worker = worker.m_child;
+      
+    } while( 
+      !online && 
+      !worker#isEmpty() 
+    );
+    
+    return online;
+  }
+
+  function thisDeviceFindById(devId)
+  {
+    if( m_devicesActive.keyExists(devId) )
+      return [
+        m_devicesActive.valueGet(devId),
+        EsOnlineState$$Online
+      ];
+    
+    if( m_devicesStalled.keyExists(devId) )
+      return [
+        m_devicesStalled.valueGet(devId),
+        EsOnlineState$$Stalled
+      ];
+      
+    if( m_devicesInactive.keyExists(devId) )
+      return [
+        m_devicesInactive.valueGet(devId),
+        EsOnlineState$$Offline
+      ];
+  }
+
+  /// If device record is found in this, or child threads, return [device, <online state>]
+  function deviceFindById(devId)
+  var worker, result;
+  {
+    worker = this;
+    
+    do {
+      result = worker.thisDeviceFindById(devId);
+      worker = worker.m_child;
+      
+    } while( 
+      result#isEmpty() && 
+      !worker#isEmpty() 
+    );
+    
+    return result;
+  }
+
+  // Create integrator object for the specific device
+  function deviceIntegratorCreate(devId, profileNodeIdx)
+  var integrator, root = rootWorkerGet();
+  {
+    if( !root$integrationIsSupported )
+      return;
+  
+    if( !m_integrators.keyExists(devId) )
+    {
+      integrator = deviceIntegratorCreate(
+        devId,
+        root.m_curDataType,
+        root.m_integratorStepsCntMax,
+        profileNodeIdx
+      );
+    
+      m_integrators.newValueSet(
+        devId,
+        integrator
+      );
+      
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD,
+        EsEvtIoThread$$IntegratorStarted,
+        [
+          root$uuid,
+          devId,
+          integrator$dataType,
+          integrator$integrationCycles
+        ]
+      );      
+    }
+  }
+  
+  // Remove integrator object from the specific device
+  function deviceIntegratorRemove(devId)
+  var integratorDataType;
+  {
+    if( m_integrators.keyExists(devId) )
+    {
+      integratorDataType = m_integrators.valueGet( devId )$dataType;
+      
+      m_integrators.valueDelete( devId );
+      
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD,
+        EsEvtIoThread$$IntegratorStopped,
+        [
+          rootWorkerGet()$uuid,
+          devId,
+          integratorDataType
+        ]
+      );      
+    }
+  }
+
+  // Stop all current integration
+  function integrationStop()
+  {
+    while( !m_integrators$empty )
+      deviceIntegratorRemove(
+        m_integrators[0][0]
+      );
+  }
+
+  // Start integration on all online devices
+  function integrationStart( profileNodeIdx )
+  var devItem;
+  {
+    // Stop all current integration first
+    integrationStop();
+
+    if( !rootWorkerGet()$integrationIsSupported )
+      return;
+
+    foreach(devItem in m_devicesActive)
+    {
+      deviceIntegratorCreate(
+        devItem[1]$fwIdStringEssential,
+        profileNodeIdx
+      );
+    }
+  }
+
+  // Check if all devices went offline
+  function allDevicesAreOffline()
+  var worker, offline;
+  {
+    if( this$isChildWorker )
+      return rootWorkerGet().allDevicesAreOffline();
+      
+    // Root worker branch
+    worker = this;
+    
+    do {
+      offline = worker.m_devicesActive$empty && 
+        worker.m_devicesStalled$empty;
+      worker = worker.m_child;
+      
+    } while( 
+      offline && 
+      !worker#isEmpty() 
+    );
+    
+    return offline;
+  }
+
+  /// Generalized root worker session re-creation
+  /// If worker is online, an exception is thrown
+  ///
+  function sessionReset()
+  var session, root = rootWorkerGet();
+  {
+    if( root$isThreadRunning )
+      throw "Could not reset session in active calibration job. Stop calibration job before resetting session";
+
+    EsScriptDebug::log(" ...resetting session in root worker");  
+    
+    allCalibrationSessionsDelete(
+      activeSessionsPathGet(),
+      deviceDescriptionShortGet(root.m_devType)
+    );
+    
+    session = activeCalibrationSessionCreate(
+      calibrationSessionTypeGet( root.m_devType ),
+      activeSessionsPathGet(),
+      root.m_devType,
+      root.m_profilesGlobal,
+      root.m_newModeIsCalibration ?
+        EsCalibrationSessionMode$$Calibration :
+        EsCalibrationSessionMode$$Verification
+    );    
+    
+    if( !session#isEmpty() )
+    {
+      root.m_session = session; //< Install newly created/loaded session into root worker object
+      EsScriptDebug::log(" ...new session assigned to root worker");
+    
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD,
+        EsEvtIoThread$$SessLoaded,
+        [
+          root$uuid,
+          root.m_session
+        ]
+      );
+    }    
+  }
+  
+  /// Save current worker session, if assigned
+  function sessionSave()
+  var root = rootWorkerGet();
+  {
+    if( root.m_session )
+      root.m_session.save(
+        activeSessionsPathGet()
+      );  
+  }
+  
+  /// Generalized session loader into root worker
+  /// This should be called as the last instruction in derived constructors.
+  /// When worker is running, an Online handler calls this implicitly as well,
+  /// to create and install new session into new worker object.
+  ///
+  function sessionLoadOrCreate()
+  var session, root = rootWorkerGet();
+  {
+    if( !root.m_session#isEmpty() )
+      return;
+
+    EsScriptDebug::log(" ...creating or loading session into root worker");
+  
+    session = activeCalibrationSessionLoadOrCreate(
+      calibrationSessionTypeGet( root.m_devType ),
+      activeSessionsPathGet(),
+      root.m_devType,
+      root.m_profilesGlobal,
+      root.m_newModeIsCalibration ?
+        EsCalibrationSessionMode$$Calibration :
+        EsCalibrationSessionMode$$Verification
+    );
+
+    // Actually, there may be cases, when we could not create or load new session
+    // for instance, if device disconnected when requesting settings for new session
+    //
+    if( !session#isEmpty() )
+    {
+      root.m_session = session; //< Install newly created/loaded session into root worker object
+      EsScriptDebug::log(" ...session assigned to root worker");
+    
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD,
+        EsEvtIoThread$$SessLoaded,
+        [
+          root$uuid,
+          root.m_session
+        ]
+      );
+    }
+  }
+  
+  function rootWorkerOnlineStateNotify(state)
+  var root = rootWorkerGet();
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::rootWorkerOnlineStateNotify(state=%s)",
+      EsOnlineState.valueLabelGet(state)
+    );
+  
+    switch( state )
+    {
+    case EsOnlineState$$Offline:
+      if(
+        EsOnlineState$$Offline != root.m_onlineState &&
+        allDevicesAreOffline()
+      )
+      {
+        root.m_onlineState = EsOnlineState$$Offline;
+        
+        // If all devices become offline - save current session to file,
+        // mark worker state as offline, post session saved
+        //
+        sessionSave();
+      }
+    case EsOnlineState$$Online:
+      if(EsOnlineState$$Online != root.m_onlineState)
+      {
+        // If there is no current session still, try to load or create one, and attach it to worker
+        sessionLoadOrCreate();
+        
+        root.m_onlineState = EsOnlineState$$Online;
+      }
+    }
+  }
+
+  function deviceOfflineSet(dev)
+  var devId;
+  {
+    devId = dev$fwIdStringEssential;
+    
+    if( m_devicesInactive.keyExists(devId) )
+      return;
+    
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceOfflineSet(%s)",
+      devId
+    );
+    
+    if( 
+      m_devicesActive.keyExists(devId) ||
+      m_devicesStalled.keyExists(devId)
+    )
+    {
+      EsScriptDebug::log(" ...preparing for offline");    
+
+      devicePrepareForOffline(dev);
+      dev$ioMaster.deactivate();
+      
+      if( m_devicesActive.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...removing from active list");
+        m_devicesActive.valueDelete(devId);
+      }
+
+      if( m_devicesStalled.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...removing from stalled list");
+        m_devicesStalled.valueDelete(devId);
+      }
+      
+      if( !m_devicesInactive.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...adding to inactive list");
+        
+        m_devicesInactive.newValueSet(
+          devId,
+          dev
+        );
+      }
+      
+      // Post device deactivation event
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD,
+        EsEvtIoThread$$OnlineStateChanged,
+        [
+          rootWorkerGet()$uuid,
+          devId,
+          EsOnlineState$$Offline
+        ]
+      );
+      
+      deviceIntegratorRemove(devId);
+    }
+
+    if( 
+      !m_devicesActive$empty ||
+      !m_devicesStalled$empty
+    )
+    {
+      EsScriptDebug::log(" ...there still are active and/or stalled devices in linst");  
+      return;
+    }
+
+    // We're all offline, inform the root worker
+    EsScriptDebug::log(" ...active and stalled list are empty - notifying root globally offline");    
+    rootWorkerOnlineStateNotify(EsOnlineState$$Offline);
+  }
+
+  function deviceStalledSet(dev)
+  var devId;
+  {
+    devId = dev$fwIdStringEssential;
+    
+    if( m_devicesStalled.keyExists(devId) )
+      return;
+
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceStalledSet(devId=%s)",
+      devId
+    );
+
+    if( m_devicesActive.keyExists(devId) )
+    {
+      EsScriptDebug::log(" ..removing from active list");
+      
+      m_devicesActive.valueDelete(devId);
+    }
+    
+    if( m_devicesInactive.keyExists(devId) )
+    {
+      EsScriptDebug::log(" ..removing from inactive list");
+    
+      m_devicesInactive.valueDelete(devId);
+    }
+    
+    if( !m_devicesStalled.keyExists(devId) )
+    {
+      EsScriptDebug::log(" ..adding to stalled list");
+    
+      m_devicesStalled.newValueSet(
+        devId,
+        dev
+      );
+    }
+    
+    __scriptHost.eventPost(
+      ES_EVTC_IOTHREAD, 
+      EsEvtIoThread$$OnlineStateChanged,
+      [
+        rootWorkerGet()$uuid,
+        devId,
+        EsOnlineState$$Stalled
+      ]
+    );
+      
+    if( 
+      !m_devicesActive$empty ||
+      !m_devicesInactive$empty
+    )
+    {
+      EsScriptDebug::log(" ..still have active and/or inactive records");
+
+      return;
+    }
+
+    // We're all stalled at worker level, inform the root worker
+    EsScriptDebug::log(" ..no more active or inactive records - notify root stalled globally");
+    rootWorkerOnlineStateNotify(EsOnlineState$$Stalled);
+  }
+
+  function deviceOnlineSet(dev)
+  var wasActive, devId, response, session;
+  {
+    devId = dev$fwIdStringEssential;
+    
+    if( m_devicesActive.keyExists(devId) )
+      return;
+    
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceOnlineSet(dev=%s)",
+      devId
+    );
+    
+    wasActive = dev$ioMaster.isActive();
+    if( !wasActive )
+    {
+      dev$ioMaster.activate();
+      
+      if( !dev$ioMaster.isActive() ) //< Still not in active state - move to inactive
+      {
+        EsScriptDebug::log(" ...device io master could not activate - falling back to offline");
+        deviceOfflineSet( dev );
+        return;
+      }
+    }
+  
+    response = deviceStateRequest(dev);
+
+    if( deviceCheckBatchResultOk(response) )
+    {
+      if( m_devicesStalled.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...removing device from stalled list");
+        m_devicesStalled.valueDelete(devId);
+      }
+      
+      if( m_devicesInactive.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...removing device from inactive list");
+        m_devicesInactive.valueDelete(devId);
+      }
+      
+      /// Request settings object
+      EsScriptDebug::log(" ...requesting device settings download once");
+      response = dev.settingsDownload();
+      if( !response[0] )
+      {
+        EsScriptDebug::log(" ...failed settings download, skipping");        
+        goto __handleInitIoFailure;
+      }
+      
+      if( !m_devicesActive.keyExists(devId) )
+      {
+        EsScriptDebug::log(" ...adding device to active list");
+        m_devicesActive.newValueSet(
+          devId,
+          dev
+        );
+      }
+      
+      // We have at least one device online, notify the root worker
+      EsScriptDebug::log(" ...we have at least one device online, notifying a global root");      
+      rootWorkerOnlineStateNotify(EsOnlineState$$Online);
+
+      session = rootWorkerGet().m_session;
+
+      // After the call above, m_session should already exist, so we may attach device record to session,
+      // or update device data with current settings
+      //
+      if( session.deviceDataExists( devId ) )
+      {
+        EsScriptDebug::log(
+          " ...updating an existing session with device data for %s",
+          devId
+        );
+      
+        // Update existing device data record with settings 
+        session.deviceSettingsUpdate(
+          devId,
+          response[1]
+        );
+      }
+      else
+      {
+        EsScriptDebug::log(
+          " ...attaching new %s device data to session",
+          devId
+        );
+      
+        // Create new device data record with settings
+        session.deviceAttach(
+          dev$fwId,
+          response[1]
+        );
+      }
+      
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD, 
+        EsEvtIoThread$$OnlineStateChanged,
+        [
+          rootWorkerGet()$uuid,
+          devId,
+          EsOnlineState$$Online,
+          response
+        ]
+      );
+      
+      return;
+    }
+    
+  label __handleInitIoFailure:
+    if( wasActive )
+    {
+      EsScriptDebug::log(" ...initial settings failed for previously active device io, set device stalling");
+      deviceStalledSet(dev);
+    }
+    else
+    {
+      // Set IO inactive just in case
+      dev$ioMaster.deactivate();
+    }
+  }
+
+  function deviceTypeCheck(deviceType)
+  var node;
+  {
+    foreach( node in c_calibrationMeta )
+    {
+      if( deviceType in node[0] )
+        return;
+    }
+
+    throw EsStr::format(
+      I"Device type %s is not supported in this version of calibration software",
+      deviceDescriptionShortGet(deviceType)
+    );
+  }
+
+  function deviceCreate(fwId, caps, master)
+  var dev, devType = fwId$devType;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceCreate(fwId=%s, caps=%s, master=%s)",
+      fwId#trace(), 
+      caps#trace(), 
+      master#trace()
+    );
+  
+    deviceTypeCheck(devType);
+    
+    if( rootWorkerGet().m_devType != devType )
+      throw EsStr::format(
+        I"Connected device type '%s' does not match device type '%s', selected in current instance of Calibration Worker",
+        deviceDescriptionLongGet(devType),
+        deviceDescriptionLongGet(rootWorkerGet().m_devType)
+      );
+
+    dev = devicesDeviceCreate(
+      fwId,
+      caps
+    );
+
+    if( !dev#isObject() )
+      return;
+
+    dev$ioMaster = master;
+    
+    try
+    {
+      deviceOnlineSet(dev);
+
+      // Synchronize DateTime once, for devices that support it
+      if( EsRpcStdId$$DATETIME_SET in caps )
+        dev.rpcCall(
+          EsRpcStdId$$DATETIME_SET,
+          EsDateTime::now()
+        );
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Exception occurred in deviceCreate, in deviceOnlineSet:%s",
+        __exception$reason
+      );
+    }
+  }
+
+  function deviceConnectionCheck(dev)
+  var existingId, id, idStrCur, idStr, result, caps;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceConnectionCheck(dev=%s)",
+      dev#isEmpty() ?
+        "(null)" : 
+        dev$fwIdStringEssential
+    );
+
+    idStr = dev$fwIdStringEssential;
+
+    // query device firmware id
+    result = dev.fwIdQuery();
+    if( result[0] )
+    {
+      // check if requested firmware id is the same as device's
+      id = result[1];
+      idStrCur = id$fwIdStringEssential;
+      if( idStr != idStrCur )
+        deviceOfflineSet(dev);
+      else
+        deviceOnlineSet(dev);
+    }
+    else
+    {
+      // query io errors count from device, if greater than threshold -
+      // move to the inactive collection, otherwise, just send stalled event
+      if( dev$ioErrorCount > c_stalledThreshold )
+        deviceOfflineSet(dev);
+      else
+        deviceStalledSet(dev);
+    }
+  }
+
+  function deviceWorkmodeIsSetForDataType( dev, dataType )
+  {
+    checkDataTypeIsSupportedByDeviceType(
+      dataType,
+      true
+    );
+
+    return checkDeviceOpmodeIsSetForDataType(
+      dev,
+      dataType
+    );
+  }
+
+  function dataTypeSelect( dataType )
+  var item, root = rootWorkerGet();
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::dataTypeSelect(%s)",
+      dataType#trace()
+    );
+
+    if( root.m_curDataType != dataType )
+    {
+      if( !dataType#isEmpty() )
+        checkDataTypeIsSupportedByDeviceType(
+          dataType,
+          true
+        );
+
+      root.m_curDataType = dataType;
+      
+      foreach( item in m_devicesActive )
+      {
+        if( !root.m_curDataType#isEmpty() )
+          deviceWorkmodeIsSetForDataType( 
+            item[1],
+            root.m_curDataType 
+          );
+      }
+      
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD, 
+        EsEvtIoThread$$DataTypeChanged,
+        [
+          root$uuid,
+          root.m_curDataType
+        ]
+      );
+    }
+  }
+
+  // Upload optional external calibration to device.
+  // If no external calibration is provided, upload an internal current one
+  function calibrationUpload(devId, calibration)
+  var devState, devData;
+  {
+    devState = thisDeviceFindById(devId);
+    if( 
+      devState#isEmpty() ||
+      EsOnlineState$$Online != devState[1]
+    )
+    {
+      EsScriptDebug::log("calibrationUpload skipped - device not found or not online");
+        
+      return;
+    }
+     
+    devData = this$session.deviceDataFind(devId);
+    if( devData#isEmpty() )
+    {
+      EsScriptDebug::log("calibrationUpload skipped - deviceDataFind returned null");
+
+      return;
+    }
+    
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::calibrationUpload(devId=%s, calibration=%s)",
+      devId#trace(),
+      calibration#trace()
+    );
+    
+    deviceCalibrationUpload(
+      devState[0],
+      calibration#isEmpty() ?
+        devData$settingsCurrent :
+        calibration
+    );
+    
+    // Post calibration upload
+    __scriptHost.eventPost(
+      ES_EVTC_IOTHREAD, 
+      EsEvtIoThread$$CalibrationUploaded,
+      [
+        rootWorkerGet()$uuid,
+        devId
+      ]
+    );    
+  }
+  
+  // Handle calibration upload request with optional non-null parameter
+  function devicesCalibrationUpload(calibration)
+  var devId, activeDevIds = m_devicesActive$keys;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::devicesCalibrationUpload(calibration=%s)",
+      calibration#trace()
+    );
+  
+    foreach( devId in activeDevIds )
+      calibrationUpload(
+        devId,
+        calibration
+      );
+  }
+  
+  function devicesCalibrationRestore()
+  var devId, activeDevIds = m_devicesActive$keys,
+    settings;
+  {
+    if( this$session#isEmpty() )
+      return;
+  
+    foreach( devId in activeDevIds )
+    {
+      settings = this$session.deviceDataFind(devId);
+      if( settings#isEmpty() )
+        continue;
+    
+      calibrationUpload(
+        devId,
+        settings
+      );
+    }
+  }
+
+  // Async Event handling. This handler is executed in IO thread context
+  //
+  function onEvent( evt )
+  var cat = evt$category, id = evt$id, reqUuid,
+    payload = evt$payload, devState, devId;
+  {
+    switch( cat )
+    {
+    case ES_EVTC_TO_DEVICE:
+      {
+        devId = payload[0];
+        devState = deviceFindById(devId);
+
+        if( 
+          !devState#isEmpty() &&
+          EsOnlineState$$Online == devState[1]
+        )
+        {
+          devState[0].evtHandle(
+            id, 
+            payload
+          );
+          evt.consume();
+        }
+      }
+    case ES_EVTC_IOTHREADREQ:
+      {
+        if( payload#isCollection() )
+          reqUuid = payload[0];
+        else
+          reqUuid = payload;
+          
+        if( rootWorkerGet()$uuid != reqUuid )  
+          return;
+
+        switch(id)
+        {
+        case EsEvtIoThreadReq$$Integrate:
+          integrationStart( 
+            payload[1] //< profileNodeIdx 
+          );
+        case EsEvtIoThreadReq$$IntegrationCancel:
+          integrationStop();
+        case EsEvtIoThreadReq$$DevicesStatuses:
+          devicesStatusesReport();
+        case EsEvtIoThreadReq$$CalibrationUpload:
+          devicesCalibrationUpload(
+            payload[1] //< Optional calibration object
+          );
+        case EsEvtIoThreadReq$$CalibrationRestore:
+          devicesCalibrationRestore();          
+        }
+      }
+    }
+  }
+
+  function deviceLiveDataRequest(dev, doRawRequest)
+  var result, devId = dev$fwIdStringEssential, 
+    devData, dataNode,
+    integrator, integratedItem, integratedResult, 
+    root = rootWorkerGet();
+  {
+    result = doDeviceLiveDataRequest(
+      dev,
+      doRawRequest
+    );
+  
+    EsScriptDebug::log(
+      "EsCalibrationWorkerBase::deviceLiveDataRequest(dev=%s, doRawRequest=%d)=>%s",
+      devId,
+      doRawRequest,
+      result#trace()
+    );
+
+    if( deviceCheckBatchResultOk(result) )
+    {
+      result = doLiveReadResultGet(result); //< After this call, result should contain an actual device-specific data object, extracted from IO batch response
+    
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD, 
+        EsEvtIoThread$$DataRead,
+        [
+          root$uuid,
+          devId,
+          result,
+          doRawRequest
+        ]
+      );
+      
+      if( m_integrators.keyExists(devId) )
+      {
+        integrator = m_integrators.valueGet(devId);
+        
+        // Process incoming data until integrator's object accumulate() method returns true
+        if( 
+          integrator.accumulate(
+            integrationDataPrepare(
+              integrator,
+              result,
+              doRawRequest
+            )
+          ) 
+        )
+        {
+          __scriptHost.eventPost(
+            ES_EVTC_IOTHREAD, 
+            EsEvtIoThread$$IntegratorProgress,
+            [
+              root$uuid,
+              devId,
+              integrator$dataType, 
+              integrator$accumCnt
+            ]
+          );          
+        }
+        else
+        {
+          // Apply accumulated data to session storage
+          integratedResult = integrator$result;
+          
+          devData = root.m_session.deviceDataFind(devId);
+          if( !devData#isEmpty() )
+          {
+            dataNode = devData.nodeGet(
+              integrator$dataType,
+              integrator$profileNodeIdx
+            );
+            
+            // TODO: NB! This branch is for calibration
+            // A similar approach should be used for verification, except fro the dependentRecalc call
+            //
+            foreach( integratedItem in integratedResult )
+              dataNode.rawSet(
+                integratedItem[1],
+                integratedItem[0]
+              );
+            
+            devData.dependentRecalc(integrator$dataType);
+            
+            //
+            ////////////////////////////
+          }
+        
+          // Post integration completion
+          __scriptHost.eventPost(
+            ES_EVTC_IOTHREAD, 
+            EsEvtIoThread$$IntegratorComplete,
+            [
+              root$uuid,
+              devId,
+              integrator$dataType, 
+              integratedResult
+            ]
+          );
+
+          // Remove integrator and post notification
+          deviceIntegratorRemove(devId);
+        }
+      }
+    }
+  }
+
+  function deviceMaintenance(dev)
+  var root = rootWorkerGet();
+  {
+    // Check if we're in proper mode
+    if( 
+      !root.m_session#isEmpty() &&
+      deviceWorkmodeIsSetForDataType(
+        dev,
+        root.m_curDataType
+      )
+    )
+      deviceLiveDataRequest(
+        dev,
+        root.m_session$isCalibrating
+      );
+  }
+
+  // Return count of devices associated with this worker
+  function devicesCountGet()
+  {
+    return m_devicesActive$count + 
+      m_devicesStalled$count + 
+      m_devicesInactive$count;
+  }
+
+  function childWorkerSpawn()
+  {
+    EsScriptDebug::log("EsCalibrationWorkerBase::childWorkerSpawn");
+    
+    // Spawn child worker
+    m_child = childWorkerObjectCreate();
+    m_child.start();
+  }
+  
+  /// Check if device exists and responds properly on master channel
+  /// Return [fwId, caps] on success, null otherwise
+  ///
+  function deviceFwIdAndCapsRequest(master)
+  var caps, fwId;
+  {
+    master$packetTimeout = c_packetTmoDefault;
+    master.activate();
+    
+    if( !master.ping() )
+      return null;
+    
+    caps = master.getImplementedRPCs();
+    if( !caps#isEmpty() )
+    {
+      fwId = deviceKnownCapsFwIdRead(
+        master,
+        caps
+      );
+      
+      if( !fwId#isEmpty() )
+        return [fwId, caps];
+    }
+  }
+
+  function newDevicesLookup()
+  var chnlType, chnlTypes,
+    chnlPath, channels, master, fwIdAndCaps;
+  {
+    chnlTypes = channelTypesForDevType();
+
+    EsScriptDebug::log( 
+      "EsCalibrationWorkerBase::newDevicesLookup for %s",
+      chnlTypes#trace()
+    );
+
+    foreach( chnlType in chnlTypes )
+    {
+      channels = nonBusyChannelsEnumerate(chnlType);
+      foreach(chnlPath in channels)
+      {
+        master = new EsRpcMaster();
+        master$channel = deviceChannelCreate(
+          chnlPath,
+          chnlType
+        );
+        fwIdAndCaps = deviceFwIdAndCapsRequest(master);
+        if( fwIdAndCaps#isEmpty() )
+          continue;
+          
+        deviceCreate(
+          fwIdAndCaps[0], //< fwId
+          fwIdAndCaps[1], //< caps
+          master
+        );
+        
+        if( devicesCountGet() >= rootWorkerGet().m_devicesCountMax )
+          goto __exit;
+      }
+    }
+    
+    label __exit:
+  }
+  
+  // Device entries manipulation - allowed for inactive workers only
+  function devicesRemove(devIds)
+  var devId;
+  {
+    if( this$isThreadRunning )
+      throw I"Could not clear device entries, while calibration worker is running";
+    
+    if( this$session#isEmpty() )
+      return;
+    
+    foreach(devId in devIds)
+    {
+      this$session.deviceDetach(
+        devId
+      );
+    }
+
+    sessionSave();
+  }
+  
+  function onThreadWork()
+  var devs, dev, span, dtNow, 
+    dtPrev = EsDateTime::now();
+  {
+    if( devicesCountGet() < rootWorkerGet().m_devicesCountMax )
+      newDevicesLookup();
+    else if( m_child#isEmpty() )
+      childWorkerSpawn();
+    
+    try
+    {
+      devs = m_devicesActive$values;
+      foreach( dev in devs )
+        deviceConnectionCheck(dev);
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadWork, actives->check connection: %s",
+        __exception$reason
+      );
+    }
+    
+    try
+    {
+      devs = m_devicesStalled$values;
+      foreach( dev in devs )
+        deviceConnectionCheck(dev);
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadWork, stalled->check connection: %s",
+        __exception$reason
+      );
+    }
+    
+    try
+    {
+      devs = m_devicesInactive$values;
+      foreach( dev in devs )
+        deviceOnlineSet(dev);
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadWork, offline->try set online: %s",
+        __exception$reason
+      );
+    }
+    
+    m_subscriber.eventProcess();
+
+    try
+    {
+      devs = m_devicesActive$values;
+      foreach( dev in devs )
+        deviceMaintenance(dev);
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadWork, actives->maintenance: %s",
+        __exception$reason
+      );
+    }
+    
+    dtNow = EsDateTime::now();
+    span = dtNow-dtPrev;
+    dtPrev = dtNow;
+
+    span = span$allMilliseconds;
+    if( span >= c_wrkPreferredCycleSpan )
+      span = c_wrkPauseMin;
+    else
+      span = c_wrkPreferredCycleSpan-span;
+
+    m_thread$stoppingWaitTmo = span;
+  }
+
+  function onThreadEnter()
+  var dev, devs;
+  {
+    EsScriptDebug::log( "EsCalibrationWorkerBase::onThreadEnter" );
+
+    if( !this$isChildWorker )
+      rootWorkerGet().m_systickOld = EsUtilities::systickChange(1);
+
+    m_subscriber$active = true;
+
+    if( !this$isChildWorker ) //< For top worker object only    
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD, 
+        EsEvtIoThread$$Started,
+        m_uuid.asString()
+      );
+
+    try
+    {
+      devs = m_devicesInactive$values;
+      foreach(dev in devs)
+        deviceOnlineSet(dev);
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadEnter: %s",
+        __exception$reason
+      );
+    }
+  }
+
+  function onThreadExit()
+  var dev, devs;
+  {
+    EsScriptDebug::log( "EsCalibrationWorkerBase::onThreadExit" );
+
+    try
+    {
+      devs = m_devicesActive$values;
+      foreach(dev in devs)
+        deviceOfflineSet( dev );
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadExit, active->offline: %s",
+        __exception$reason
+      );
+    }
+
+    try
+    {
+      devs = m_devicesStalled$values;
+      foreach(dev in devs)
+        deviceOfflineSet( dev );
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        "Caught an exception in onThreadExit, stalled->offline: %s",
+        __exception$reason
+      );
+    }
+      
+    m_subscriber$active = false;
+
+    m_devicesActive.clear();
+    m_devicesStalled.clear();
+    m_devicesInactive.clear();
+
+    if( !this$isChildWorker ) //< For top worker object only
+    {
+      __scriptHost.eventPost(
+        ES_EVTC_IOTHREAD, 
+        EsEvtIoThread$$Stopped,
+        [
+          m_uuid.asString(),
+          m_thread$errorLog
+        ]
+      );
+
+      EsUtilities::systickRestore( rootWorkerGet().m_systickOld );
+    }
+  }
+  
+  /// Return true if there is any active integrator objects
+  function anyIntegrationIsRunning()
+  var worker = rootWorkerGet();
+  {
+    while( !worker#isEmpty() )
+    {
+      if( !worker.m_integrators$empty )
+        return true;
+        
+      worker = worker.m_child;
+    }
+    
+    return false;
+  }  
+
+  // Properties
+  //
+  
+  // IO Thread execution state
+  //
+  property isThreadRunning;
+  read: { return EsThreadState$$Running == rootWorkerGet().m_thread$state; }
+
+  property uuid;
+  read: { return rootWorkerGet().m_uuid.asString(); }
+
+  // Control new session mode
+  //
+  property newSessionModeIsCalibration;
+  read: { return rootWorkerGet().m_newModeIsCalibration; }
+  write: { rootWorkerGet().m_newModeIsCalibration = __value#asBool(); }
+
+  // Current session access
+  //
+  property session;
+  read: { return rootWorkerGet().m_session; }
+
+  // Return true if session may be closed
+  //
+  property sessionCanClose;
+  read: { return !rootWorkerGet().m_session#isEmpty() && !rootWorkerGet()$isThreadRunning; }
+
+  // Global profile(s) access
+  property globalProfiles;
+  read: { return rootWorkerGet().m_profilesGlobal; }
+
+  // Read-only Device type access
+  property devType;
+  read: { return rootWorkerGet().m_devType; }
+
+  property supportedDataTypes;
+  read: { return deviceDataTypesGet(rootWorkerGet().m_devType); }
+  
+  property supportedDataTypeNames;
+  read: { return dataTypeNamesGet( $supportedDataTypes ); }
+
+  // Data type manual selection | selected access
+  property dataType;
+  read: { return rootWorkerGet().m_curDataType; }
+  write: { dataTypeSelect(__value); }
+
+  // Current online state access
+  property onlineState;
+  read: { return rootWorkerGet().m_onlineState; }
+
+  // Return true if this worker instance is a spawned child one
+  property isChildWorker;
+  read: { return !m_owner#isEmpty(); }
+  
+  // Check if integration is supported
+  property integrationIsSupported;
+  read: { return supportsIntegration(); }
+  
+  property integrationIsRunning;
+  read: { return anyIntegrationIsRunning(); }
+  
+  // Control integration steps count
+  property integrationSteps;
+  @default = EsCalibrationDataIntegrationCnt$$Default;
+  @restriction = [EsCalibrationDataIntegrationCnt$$Minimum .. EsCalibrationDataIntegrationCnt$$Maximum];
+  read: { return rootWorkerGet().m_integratorStepsCntMax; }
+  write: { rootWorkerGet().m_integratorStepsCntMax = __value; }
+}
+//-----------------------------------------------------------------------------

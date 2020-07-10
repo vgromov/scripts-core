@@ -1,0 +1,96 @@
+// @file: esUploaderStm32.ess
+// STM32-specific extension of FW uploader object
+//
+##require("esUploaderBase.ess");
+##require("esMcuProgrammerStm32.ess");
+
+object EsUploaderStm32 extends EsUploaderBase
+{
+  /// Base class overrides
+  ///
+  function programmerCreate()
+  {
+    return new EsMcuprogStm32(
+      EsStm32Flag$$UseReadProt |
+      EsStm32Flag$$Verify, 
+      m_moniker
+    );
+  }
+  
+  function doChnlPrepareForBootloader(chnl)
+  {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForBootloader");
+
+    EsUploaderBase::doChnlPrepareForBootloader(chnl);
+    chnl$parity = EsEkonnectIoParity$$Even;  
+  }
+
+  function doChnlPrepareForDefaultNormalComm(chnl)
+  {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForDefaultNormalComm");
+
+    EsUploaderBase::doChnlPrepareForDefaultNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
+
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using saved baudrate
+  function doChnlPrepareForNormalComm(chnl)
+  {
+    EsScriptDebug::log("EsUploaderStm32::doChnlPrepareForNormalComm");
+
+    EsUploaderBase::doChnlPrepareForNormalComm(chnl);
+    chnl$parity = EsEkonnectIoParity$$None;
+  }  
+  
+  function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
+  {
+    EsScriptDebug::log("EsUploaderStm32::enterBootWithShutdown");
+
+    progressTask.pulse("Shutting down device...");
+
+    rpcMaster.activate();
+    // Command to power off the device
+    rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+    configurePowerOff(chnl);
+
+    EsScriptDebug::log("Shutdown confirmed, recycle power for boot mode");
+    
+    // Wait until device detects power off, and shuts down OK
+    EsThreadWorker::sleep(2000);
+    chnlPrepareForBootloader(chnl);
+    configurePowerOn(chnl);
+
+    rpcMaster.deactivate();
+  }
+  
+  // Configure and enter boot mode, before programming device with ISP
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
+  var chnl = rpcMaster$channel, 
+    supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+    progressTask = new EsProgressMonitorTask("configureForBoot"),
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
+  {
+    EsScriptDebug::log("EsUploaderStm32::configureForBoot");
+
+    progressTask.attachTo(programmer$topTask);
+    
+    if( supportsPowerCtl && 
+        !usesRS232 &&
+        (EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+    {
+      try
+      {
+        enterBootWithShutdown(progressTask, rpcMaster);
+        return true;
+      }
+      catch
+      {
+        rpcMaster.deactivate();
+      }
+    }
+
+    return false;
+  }  
+}

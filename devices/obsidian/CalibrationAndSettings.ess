@@ -1,0 +1,486 @@
+// OBSIDIAN configuration object
+//
+object OBSIDIAN_Cfg
+{
+  esU8            f_units;
+  esU8            f_tmoScreenOn;
+  esU8            f_tmoAlarm;
+  esU8            f_deviationShow;
+  esF             f_thresholdMed1;
+  esF             f_thresholdMed2;
+  esF             f_thresholdDose;
+  esF             f_thresholdBeta;
+  esU8            f_cfgDoseReset;
+  esU8            f_tmoSearchAccum;
+  esF             f_bgnd;
+  esU8            f_lang;
+  esU8            f_tmoSave;
+  esU8            f_cfgTemp;
+  esU8            f_cfgCurrentUser;
+  esU16           f_cfgFlags;
+  esU8            f_thresholdLowDeviation;
+  esU8            f_reserved;
+  esU8            f_thresholdCountingFall;
+  esU8            f_thresholdCountingRise;
+  esU8            f_modbusAddr;
+  esU8            f_baudUsbBridge;
+  // Protected part
+  esF             f_sensivityCurrentPulsesAmplSumToDER;
+  esF             f_sensivityDCtoDER;
+  esF             f_sensivityCountingRateToBetaFlow;
+  esU16           f_thresholdComparator;
+  esU16           f_thresholdACDC;
+  esU16           f_thresholdADClowEnergy;
+  esU16           f_vDAC;
+  esF             f_chnlCs137toVbias;
+  esU16           f_chnlCs137;
+  esU8            f_kpuTemp;
+  esU8            f_vbiasAndCompCtl;
+  esU8            f_tmoZeroCountErrorThreshold;
+  esU8            f_deviceVariant;
+  esU16           f_serNum;
+  esU8            f_ser[7];
+  esU8            f_fwLocaleId;
+
+  function asString()
+  {
+    return __metaclass.propertyLabelGet($type, "units") + ": " + OBSIDIAN_Unit.valueLabelGet( this$units ) + "\n" +
+      __metaclass.propertyLabelGet($type, "displayOnTimeout") + ": " + OBSIDIAN_DisplayOnTmo.valueLabelGet( this$displayOnTimeout ) + "\n" +
+      __metaclass.propertyLabelGet($type, "soundVibroAlarmInterval") + ": " + OBSIDIAN_SndVibroAlarm.valueLabelGet( this$soundVibroAlarmInterval ) + "\n" +
+      __metaclass.propertyLabelGet($type, "deviationShow") + ": " + OBSIDIAN_DeviationShow.valueLabelGet( this$deviationShow ) + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDERwarning") + ": " + this$thresholdDERwarning + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDERdanger") + ": " + this$thresholdDERdanger + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDose") + ": " + this$thresholdDose + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdBeta") + ": " + this$thresholdBeta + "\n" +
+      __metaclass.propertyLabelGet($type, "doseResetKind") + ": " + OBSIDIAN_DoseReset.valueLabelGet( this$doseResetKind ) + "\n" +
+      __metaclass.propertyLabelGet($type, "searchAccumDuration") + ": " + this$searchAccumDuration + "\n" +
+      __metaclass.propertyLabelGet($type, "background") + ": " + this$background + "\n" +
+      __metaclass.propertyLabelGet($type, "language") + ": " + OBSIDIAN_Language.valueLabelGet(this$language) + "\n" +
+      __metaclass.propertyLabelGet($type, "loggingPeriod") + ": " + OBSIDIAN_LoggingPeriod.valueLabelGet(this$loggingPeriod) + "\n" +
+      __metaclass.propertyLabelGet($type, "temperaturePresentation") + ": " + OBSIDIAN_TempShow.valueLabelGet(this$temperaturePresentation) + "\n" +
+      __metaclass.propertyLabelGet($type, "currentUser") + ": " + this$currentUser + "\n" +
+      __metaclass.propertyLabelGet($type, "soundEnabled") + ": " + this$soundEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "vibroEnabled") + ": " + this$vibroEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "measurementWithClosedFilterEnabled") + ": " + this$measurementWithClosedFilterEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "bgndSubtractionEnabled") + ": " + this$bgndSubtractionEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDERwarningEnabled") + ": " + this$thresholdDERwarningEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDERdangerEnabled") + ": " + this$thresholdDERdangerEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdDoseEnabled") + ": " + this$thresholdDoseEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "thresholdBetaEnabled") + ": " + this$thresholdBetaEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "BLEenabled") + ": " + this$BLEenabled + "\n" +
+      __metaclass.propertyLabelGet($type, "loggingDERandDoseEnabled") + ": " + this$loggingDERandDoseEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "loggingBetaEnabled") + ": " + this$loggingBetaEnabled + "\n" +
+      __metaclass.propertyLabelGet($type, "timeFormatIs12h") + ": " + this$timeFormatIs12h + "\n" +
+      __metaclass.propertyLabelGet($type, "defaultSettings") + ": " + this$defaultSettings + "\n" +
+      __metaclass.propertyLabelGet($type, "doseIsRunningForUser1") + ": " + this$doseIsRunningForUser1 + "\n" +
+      __metaclass.propertyLabelGet($type, "doseIsRunningForUser2") + ": " + this$doseIsRunningForUser2 + "\n" +
+      __metaclass.propertyLabelGet($type, "betaExpertMode") + ": " + this$betaExpertMode;
+  }
+
+  property units;
+  @label = I"Measurement units";
+  @help = I"Select dose/activity measurement units";
+  @lookup = [
+    [I"Micro Roentgen per hour", OBSIDIAN_Unit$$uQRh], 
+    [I"Micro Sievert per hour", OBSIDIAN_Unit$$uSvh], 
+    [I"Counts per second", OBSIDIAN_Unit$$CPS], 
+    [I"Counts per minute", OBSIDIAN_Unit$$CPM]
+  ];
+  @default = OBSIDIAN_Unit$$uSvh;
+  read: { return f_units; }
+  write: { f_units = __value; }
+
+  property displayOnTimeout;
+  @label = I"Display timeout";
+  @help = I"Configure display ON period timeout";
+  @restriction = OBSIDIAN_DisplayOnTmo;
+  @default = OBSIDIAN_DisplayOnTmo$$_30s;
+  read: { return f_tmoScreenOn; }
+  write: { f_tmoScreenOn = __value; }
+
+  property soundVibroAlarmInterval;
+  @label = I"Snd./vibro interval";
+  @help = I"Select sound/vibro alarm signal duration";
+  @restriction = OBSIDIAN_SndVibroAlarm;
+  @default = OBSIDIAN_SndVibroAlarm$$_30s;
+  read: { return f_tmoAlarm; }
+  write: { f_tmoAlarm = __value; }
+
+  property deviationShow;
+  @label = I"Show Deviation";
+  @help = I"Configure data deviation presentation";
+  @restriction = OBSIDIAN_DeviationShow;
+  @default = OBSIDIAN_DeviationShow$$Relative;
+  read: { return f_deviationShow; }
+  write: { f_deviationShow = __value; }
+
+  property thresholdDERwarning;
+  @label = I"DER warning";
+  @help = I"DER warning threshold";
+  @restriction = [0 .. 999.99];
+  @default = 0.3;
+  read: { return f_thresholdMed1; }
+  write: { f_thresholdMed1 = __value; }
+
+  property thresholdDERdanger;
+  @label = I"DER danger";
+  @help = I"DER danger threshold";
+  @restriction = [0 .. 9999.99];
+  @default = 0.6;
+  read: { return f_thresholdMed2; }
+  write: { f_thresholdMed2 = __value; }
+
+  property thresholdDose;
+  @label = I"Dose threshold";
+  @help = I"Configure Dose threshold";
+  @restriction = [0 .. 99999.9];
+  @default = 1000.;
+  read: { return f_thresholdDose; }
+  write: { f_thresholdDose = __value; }
+
+  property thresholdBeta;
+  @label = I"Beta threshold";
+  @help = I"Configure Beta threshold";
+  @restriction = [0 .. 999999];
+  @default = 100.;
+  read: { return f_thresholdBeta; }
+  write: { f_thresholdBeta = __value; }
+
+  property doseResetKind;
+  @label = I"Dose reset control";
+  @help = I"Select Dose reset control";
+  @restriction = OBSIDIAN_DoseReset;
+  @default = OBSIDIAN_DoseReset$$MenuOnly;
+  read: { return f_cfgDoseReset; }
+  write: { f_cfgDoseReset = __value; }
+
+  property searchAccumDuration;
+  @label = I"Search accum. [s]";
+  @help = I"Configure Search mode accumulation duration";
+  @lookup = [[I"1 s", 1], [I"2 s", 2], [I"3 s", 3], [I"4 s", 4], [I"5 s", 5], [I"6 s", 6],
+    [I"7 s", 7], [I"8 s", 8], [I"9 s", 9], [I"10 s", 10]];
+  @default = 3;
+  read: { return f_tmoSearchAccum; }
+  write: { f_tmoSearchAccum = __value; }
+
+  property background;
+  @label = I"Background to subtract";
+  read: { return f_bgnd; }
+
+  property language;
+  @label = I"Language";
+  @help = I"Select device language";
+  @restriction = OBSIDIAN_Language;
+//  @default = OBSIDIAN_Language$$English;
+  read: { return f_lang; }
+  write: { f_lang = __value; }
+
+  property loggingPeriod;
+  @label = I"Logging period";
+  @help = I"Select data logging period";
+  @restriction = OBSIDIAN_LoggingPeriod;
+  @default = OBSIDIAN_LoggingPeriod$$_1m;
+  read: { return f_tmoSave; }
+  write: { f_tmoSave = __value; }
+
+  property temperaturePresentation;
+  @label = I"Temperature presentation";
+  @help = I"Select temperature data presentation";
+  @restriction = OBSIDIAN_TempShow;
+  @default = OBSIDIAN_TempShow$$Celcius;
+  read: { return f_cfgTemp; }
+  write: { f_cfgTemp = __value; }
+
+  property currentUser;
+  @label = I"Current user";
+  @help = I"Select current user profile";
+  @lookup = [[I"User 1", 1], [I"User 2", 2]];
+  @default = 1;
+  read: { return f_cfgCurrentUser; }
+  write: { f_cfgCurrentUser = __value; }
+
+  // Configuration flags access
+  //
+  property soundEnabled;
+  @label = I"Enable sound";
+  @help = I"Enable sound on device";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$SoundOn == (f_cfgFlags & OBSIDIAN_Flags$$SoundOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$SoundOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$SoundOn;
+  }
+  
+  property vibroEnabled;
+  @label = I"Enable vibro.";
+  @help = I"Enable vibration on device";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$VibroOn == (f_cfgFlags & OBSIDIAN_Flags$$VibroOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$VibroOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$VibroOn;
+  }
+
+  property measurementWithClosedFilterEnabled;
+  @label = I"Enable CFM";
+  @help = I"Enable closed filter measurement and search";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$MsrClosedFilterOn == (f_cfgFlags & OBSIDIAN_Flags$$MsrClosedFilterOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$MsrClosedFilterOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$MsrClosedFilterOn;
+  }
+
+  property bgndSubtractionEnabled;
+  @label = I"Enable bgnd. sub.";
+  @help = I"Enable background subtraction";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$BgndSubOn == (f_cfgFlags & OBSIDIAN_Flags$$BgndSubOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$BgndSubOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$BgndSubOn;
+  }
+
+  property thresholdDERwarningEnabled;
+  @label = I"Enable DER warn. thld.";
+  @help = I"Enable threshold for DER warning level";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$Threshold1on == (f_cfgFlags & OBSIDIAN_Flags$$Threshold1on); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$Threshold1on;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$Threshold1on;
+  }
+
+  property thresholdDERdangerEnabled;
+  @label = I"Enable DER dang. thld.";
+  @help = I"Enable threshold for dangerous DER level";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$Threshold2on == (f_cfgFlags & OBSIDIAN_Flags$$Threshold2on); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$Threshold2on;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$Threshold2on;
+  }
+
+  property thresholdDoseEnabled;
+  @label = I"Enable Dose thld.";
+  @help = I"Enable threshold for Dose level";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$ThresholdDoseOn == (f_cfgFlags & OBSIDIAN_Flags$$ThresholdDoseOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$ThresholdDoseOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$ThresholdDoseOn;
+  }
+
+  property thresholdBetaEnabled;
+  @label = I"Enable Beta thld.";
+  @help = I"Enable threshold for Beta level";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$ThresholdBetaOn == (f_cfgFlags & OBSIDIAN_Flags$$ThresholdBetaOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$ThresholdBetaOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$ThresholdBetaOn;
+  }
+
+  property BLEenabled;
+  @label = I"Enable BLE";
+  @help = I"Enable Bluetooth LE peripheral";
+  @default = true;
+  read: { return OBSIDIAN_Flags$$BLEon == (f_cfgFlags & OBSIDIAN_Flags$$BLEon); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$BLEon;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$BLEon;
+  }
+
+  property loggingDERandDoseEnabled;
+  @label = I"DER and Dose logging";
+  @help = I"Enable logging for DER and Dose";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$DERloggingOn == (f_cfgFlags & OBSIDIAN_Flags$$DERloggingOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$DERloggingOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$DERloggingOn;
+  }
+
+  property loggingBetaEnabled;
+  @label = I"Beta logging";
+  @help = I"Enable logging for Beta";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$BetaLoggingOn == (f_cfgFlags & OBSIDIAN_Flags$$BetaLoggingOn); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$BetaLoggingOn;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$BetaLoggingOn;
+  }
+
+  property timeFormatIs12h;
+  @label = I"Time format";
+  @help = I"Select 24h or 12h Time format";
+  @lookup = [[I"24h", false], [I"12h", true]];
+  @default = false;
+  read: { return OBSIDIAN_Flags$$TimeFormat12h == (f_cfgFlags & OBSIDIAN_Flags$$TimeFormat12h); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$TimeFormat12h;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$TimeFormat12h;
+  }
+
+  property defaultSettings;
+  @label = I"Reset settings";
+  @help = I"Reset settings to hardware defaults";
+  read: { return OBSIDIAN_Flags$$DefaultSettings == (f_cfgFlags & OBSIDIAN_Flags$$DefaultSettings); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$DefaultSettings;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$DefaultSettings;
+  }
+
+  property doseIsRunningForUser1;
+  @label = I"User 1 Dose running";
+  @help = I"Show if Dose accumulation is active for User 1";
+  read: { return OBSIDIAN_Flags$$User1doseRunning == (f_cfgFlags & OBSIDIAN_Flags$$User1doseRunning); }
+
+  property doseIsRunningForUser2;
+  @label = I"User 2 Dose running";
+  @help = I"Show if Dose accumulation is active for User 2";
+  read: { return OBSIDIAN_Flags$$User2doseRunning == (f_cfgFlags & OBSIDIAN_Flags$$User2doseRunning); }
+
+  property doseIsRunningForCurrentUser;
+  @label = I"Toggle Dose accumulation";
+  @help = I"Toggle Dose accumulation for the Current User";
+  read: { return (1 == $currentUser) ? $doseIsRunningForUser1 : $doseIsRunningForUser2; }
+
+  property betaExpertMode;
+  @label = I"Beta expert mode";
+  @help = I"Toggle express/expert Beta measurements mode";
+  @default = false;
+  read: { return OBSIDIAN_Flags$$BetaExpertMode == (f_cfgFlags & OBSIDIAN_Flags$$BetaExpertMode); }
+  write: 
+  { 
+    f_cfgFlags &= ~OBSIDIAN_Flags$$BetaExpertMode;
+    if( __value )
+      f_cfgFlags |= OBSIDIAN_Flags$$BetaExpertMode;
+  }
+
+  // Derivative properties
+  property derUnitsSelectedStr;
+  read: { 
+    return labelShortGet(
+      OBSIDIAN_Unit.valueLabelGet( 
+        obsidianDEReffectiveUnitsGet( this$units ) 
+      )
+    ); 
+  }
+
+  property doseUnitsSelectedStr;
+  read: { 
+    return (OBSIDIAN_Unit$$uSvh == obsidianDEReffectiveUnitsGet( this$units )) ? 
+      dataUnitLabelShortGet(
+        EsDataUnits$$Sievert,
+        1.e-6
+      ) :
+      dataUnitLabelShortGet(
+        EsDataUnits$$QuartaRoentgen,
+        1.e-6
+      );
+  }
+
+  property countRateUnitsSelectedStr;
+  read: { 
+    return labelShortGet(
+      OBSIDIAN_Unit.valueLabelGet( 
+        obsidianCountRateEffectiveUnitsGet( this$units ) 
+      )
+    ); 
+  }
+
+  property flowDensityUnitsSelectedStr;
+  read: { 
+    return labelShortGet(
+      EsStr::translate(
+        OBSIDIAN_lblFlowDensity
+      )
+    );
+  }
+
+  property temperatureUnitsSelectedStr;
+  read: { 
+    return ($temperaturePresentation == OBSIDIAN_TempShow$$None) ?
+      "" :
+      OBSIDIAN_TempShow.valueLabelGet( $temperaturePresentation );
+  }
+}
+
+// OBSIDIAN settings object
+//
+object OBSIDIAN_Settings
+{
+  EsFirmwareId f_fwId;
+  OBSIDIAN_Cfg f_cfg;
+
+  /// Constructors
+  new()
+  {
+    f_fwId.copyFrom( 
+      new EsFirmwareId(
+        EsQuartaDeviceType$$OBSIDIAN
+      ) 
+    );
+  }
+  
+  new(fwId)
+  {
+    fwIdValidate(
+      fwId, 
+      EsQuartaDeviceType$$OBSIDIAN, 
+      "OBSIDIAN_Settings"
+    );
+    
+    f_fwId.copyFrom(fwId);
+  }
+  
+  function asString()
+  {
+    return "FW ID: " + f_fwId.asString() + "\nCFG: " +
+      f_cfg.asString();
+  }
+  
+  /// Propertires
+  ///
+  property devType;
+  read: { return f_fwId$devType; }
+  
+  property fwId;
+  read: { return f_fwId.clone(); }
+  
+  property fwIdStringEssential;
+  read: { return f_fwId$fwIdStringEssential; }
+
+  property countryCode;
+  read: { return f_fwId$countryCode; }
+ 
+  property config;
+  read: { return f_cfg.clone(); }
+}

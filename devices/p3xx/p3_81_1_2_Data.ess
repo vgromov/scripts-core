@@ -1,0 +1,303 @@
+/// P3_81_1_2 Device data objects
+///
+
+// P3_81_1_2
+object P3_81_1_2_Node
+{
+	esF f_mx;
+	esF f_my;
+	esF f_mz;
+	esF f_mxyz;
+	esF f_mxy;
+	esF f_mdb;
+	esF f_mdbMin;
+	esF f_mdbMax;
+}
+
+object P3_81_1_2_Data
+{
+	var m_devType, // some formatting procs are device type-dependent
+			// timestamp is not included in object data structure,
+			// P3_80E does not have RTC. Use simulated one (ts. at the moment of reception)
+			m_ts,
+			// Calculated minimax variables			
+			m_h0Min, 
+			m_h0Max,
+			m_h25Min, 
+			m_h25Max,
+			m_h50Min, 
+			m_h50Max,
+			// Aux vars for Geomagnetic measurements
+			m_hAux,
+			m_tsAux;
+						
+	P3XX_State f_state;		// data state flags
+		@label = "Measurement state";	
+	esU32 f_msrLen; 			// measurement length in sec
+		@label = "Measurement length in s";	
+	esF f_calibration;	// calibration value in db
+	esF f_refLevel; 		// reference level in db
+	esF f_sensitivity; 	// sensor sensitivity factor
+	P3_81_1_2_Node	f_m0;
+	P3_81_1_2_Node	f_m50;
+	P3_81_1_2_Node	f_m25;
+	
+	/// Services
+	///
+	function attGet(val)
+	var att;
+	{
+		if( !m_hAux#isEmpty() && !val#isEmpty() &&
+				m_hAux > c_math_FLT_EPSILON && val > c_math_FLT_EPSILON )
+		{
+			att = m_hAux / val;
+			if( att < 1. )
+				att = 1.;
+			
+			return att;
+		}
+	}
+	
+	function valueFmt(val)
+	var fmt;
+	{
+		if( val < 0 )
+			val = 0;
+			
+		if( val < 10 && EsOctavaDeviceType$$P3811 == m_devType )
+			fmt = "%0.1f";
+		else
+			fmt = "%0.0f";
+		
+		return EsStr::format(fmt, val);
+	}
+
+	function strMultiGet( val, isAm )
+	var result = [], unitIdx = 0;
+	{
+		result += valueFmt( val );
+
+		if( val > 1000. )
+		{
+			if( val < 1000000. )
+			{
+				unitIdx = 1;
+				val /= 1000.;
+			}
+			else 
+			{
+				unitIdx = 2;
+				val /= 1000000.;
+			}
+		}
+		
+		result += valueFmt( val );
+		result += isAm ? c_p3_81xx_unitsH[unitIdx] : c_p3_81xx_unitsB[unitIdx];
+		
+		return result;
+	}	
+	
+	function reset()
+	{
+		m_ts = EsDateTime::now();
+		f_msrLen = 0;	
+		f_m0.f_mxyz = 0;
+		m_h0Min = 0; m_h0Max = 0;
+		f_m25.f_mxyz = 0;
+		m_h25Min = 0; m_h25Max = 0;
+		f_m50.f_mxyz = 0;
+		m_h50Min = 0; m_h50Max = 0;
+		m_hAux = null;
+		m_tsAux = null;
+	}
+	
+	/// Properties
+	///
+	/// State object access
+	property state;
+	read: { return f_state; }
+	
+	/// Timestamp access
+	property ts;
+	read: { return m_ts; }
+	/// Timestamp string
+	property tsStr;
+	read: { return m_ts.asString(); }	
+	
+	/// Measurement duration
+	property duration;
+	read: { return f_msrLen$value; }	
+	
+	/// Teslas (field induction)
+	///
+	/// Const|Geostatic 
+	property b0;
+	read: { return P3_81_1_2_am2mkt(f_m0.f_mxyz$value); }
+	property b0StrMulti;
+	read: { return strMultiGet( $b0, false ); }
+	property b0Str;
+	read: { return P3_81_1_2_fromStrMulti( $b0StrMulti ); }
+	
+	property b0Min;
+	read: { return P3_81_1_2_am2mkt(m_h0Min); }
+	property b0MinStrMulti;
+	read: { return strMultiGet( $b0Min, false ); }
+	property b0MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b0MinStrMulti ); }
+	
+	property b0Max;
+	read: { return P3_81_1_2_am2mkt(m_h0Max); }
+	property b0MaxStrMulti;
+	read: { return strMultiGet( $b0Max, false ); }
+	property b0MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b0MaxStrMulti ); }	
+	
+	/// 25 Hz
+	property b25;
+	read: { return P3_81_1_2_am2mkt(f_m25.f_mxyz$value); }
+	property b25StrMulti;
+	read: { return strMultiGet( $b25, false ); }
+	property b25Str;
+	read: { return P3_81_1_2_fromStrMulti( $b25StrMulti ); }
+	
+	property b25Min;
+	read: { return P3_81_1_2_am2mkt(m_h25Min); }
+	property b25MinStrMulti;
+	read: { return strMultiGet( $b25Min, false ); }
+	property b25MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b25MinStrMulti ); }
+	
+	property b25Max;
+	read: { return P3_81_1_2_am2mkt(m_h25Max); }
+	property b25MaxStrMulti;
+	read: { return strMultiGet( $b25Max, false ); }
+	property b25MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b25MaxStrMulti ); }
+
+	/// 50 Hz
+	property b50;
+	read: { return P3_81_1_2_am2mkt(f_m50.f_mxyz$value); }
+	property b50StrMulti;
+	read: { return strMultiGet( $b50, false ); }
+	property b50Str;
+	read: { return P3_81_1_2_fromStrMulti( $b50StrMulti ); }
+	
+	property b50Min;
+	read: { return P3_81_1_2_am2mkt(m_h50Min); }
+	property b50MinStrMulti;
+	read: { return strMultiGet( $b50Min, false ); }
+	property b50MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $b50MinStrMulti ); }
+	
+	property b50Max;
+	read: { return P3_81_1_2_am2mkt(m_h50Max); }
+	property b50MaxStrMulti;
+	read: { return strMultiGet( $b50Max, false ); }
+	property b50MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $b50MaxStrMulti ); }	
+
+	/// A/m (field strength)
+	///
+	/// Const|Geostatic 
+	property h0;
+	read: { return f_m0.f_mxyz$value; }
+	property h0StrMulti;
+	read: { return strMultiGet( $h0, true ); }
+	property h0Str;
+	read: { return P3_81_1_2_fromStrMulti( $h0StrMulti ); }
+	
+	property h0Min;
+	read: { return m_h0Min; }
+	property h0MinStrMulti;
+	read: { return strMultiGet( $h0Min, true ); }
+	property h0MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h0MinStrMulti ); }
+	
+	property h0Max;
+	read: { return m_h0Max; }
+	property h0MaxStrMulti;
+	read: { return strMultiGet( $h0Max, true ); }
+	property h0MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h0MaxStrMulti ); }	
+	
+	/// 25 Hz
+	property h25;
+	read: { return f_m25.f_mxyz$value; }
+	property h25StrMulti;
+	read: { return strMultiGet( $h25, true ); }
+	property h25Str;
+	read: { return P3_81_1_2_fromStrMulti( $h25StrMulti ); }
+	
+	property h25Min;
+	read: { return m_h25Min; }
+	property h25MinStrMulti;
+	read: { return strMultiGet( $h25Min, true ); }
+	property h25MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h25MinStrMulti ); }
+	
+	property h25Max;
+	read: { return m_h25Max; }
+	property h25MaxStrMulti;
+	read: { return strMultiGet( $h25Max, true ); }
+	property h25MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h25MaxStrMulti ); }
+
+	/// 50 Hz
+	property h50;
+	read: { return f_m50.f_mxyz$value; }
+	property h50StrMulti;
+	read: { return strMultiGet( $h50, true ); }
+	property h50Str;
+	read: { return P3_81_1_2_fromStrMulti( $h50StrMulti ); }
+	
+	property h50Min;
+	read: { return m_h50Min; }
+	property h50MinStrMulti;
+	read: { return strMultiGet( $h50Min, true ); }
+	property h50MinStr;
+	read: { return P3_81_1_2_fromStrMulti( $h50MinStrMulti ); }
+	
+	property h50Max;
+	read: { return m_h50Max; }
+	property h50MaxStrMulti;
+	read: { return strMultiGet( $h50Max, true ); }
+	property h50MaxStr;
+	read: { return P3_81_1_2_fromStrMulti( $h50MaxStrMulti ); }	
+	
+	/// Aux field
+	///
+	property hasOutdoors;
+	read: { return !m_tsAux#isEmpty(); }
+	
+	/// Teslas
+	property bOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_am2mkt(m_hAux); }
+	property bOutdoorsStrMulti;
+	read: { if( !m_tsAux#isEmpty() ) return strMultiGet( $bOutdoors, false ); }
+	property bOutdoorsStr;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_fromStrMulti( $bOutdoorsStrMulti ); }	
+	
+	/// A/m
+	property hOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return m_hAux; }
+	property hOutdoorsStrMulti;
+	read: { if( !m_tsAux#isEmpty() ) return strMultiGet( $hOutdoors, true ); }
+	property hOutdoorsStr;
+	read: { if( !m_tsAux#isEmpty() ) return P3_81_1_2_fromStrMulti( $hOutdoorsStrMulti ); }	
+
+	/// Aux timestamp
+	property tsOutdoors;
+	read: { if( !m_tsAux#isEmpty() ) return m_tsAux; }
+	
+	/// Attenuation
+	property att;
+	read: { if( !m_tsAux#isEmpty() ) return attGet($h0); }
+	property attStr;
+	read: { if( !m_tsAux#isEmpty() ) return EsStr::format("%0.2f", $att); }
+	
+	/// Max attenuation
+	property attMax;
+	read: { if( !m_tsAux#isEmpty() ) return attGet(m_h0Min); }
+	property attMaxStr;
+	read: { if( !m_tsAux#isEmpty() ) return EsStr::format("%0.2f", $attMax); }
+}

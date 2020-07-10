@@ -1,0 +1,501 @@
+/// RADEX_AQ data point structure
+///
+object RADEX_AQ_LiveData
+{
+  var m_isF;
+
+  esDT f_ts; 
+  RADEX_AQ_DataFlags f_flags;
+  esF f_dust;
+  esF f_dustMean;
+  esF f_dustMin;
+  esF f_dustMax;
+  esF f_dustDailyAvgMean;
+  esF f_dustDailyAvgMin;
+  esF f_dustDailyAvgMax;
+  esF f_temperature;
+  esF f_temperatureMin;
+  esF f_temperatureMax;
+  esF f_temperatureDailyAvgMean;
+  esF f_temperatureDailyAvgMin;
+  esF f_temperatureDailyAvgMax;
+  esF f_humidity;
+  esF f_humidityMin;
+  esF f_humidityMax;
+  esF f_humidityDailyAvgMean;
+  esF f_humidityDailyAvgMin;
+  esF f_humidityDailyAvgMax;
+  
+  /// Properties
+  ///
+  
+  /// Services
+  property isF;
+  read: { return m_isF#isEmpty() ? false : m_isF#asBool(); }
+  write: { m_isF = __value#asBool(); }
+  
+  property temperatureDisplayUnit;
+  read: { return $isF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
+  
+  /// Data header
+  ///
+  
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
+  
+  /// Data flags
+  property flags;
+  read: { return f_flags; }
+  
+  /// Value fields
+  ///
+  
+  /// Dust concentration
+  property dust;
+  read: { return f_dust$value; }
+  
+  property dustStrMulti;
+  read: { return RADEX_AQ_strMultiGet($dust, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
+  
+  property dustStr;
+  @label=I"Current Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustStrMulti ); }
+
+  property dustMin;
+  read: { return f_dustMin$value; }
+  
+  property dustMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustMin, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMinvalid, false); }
+  
+  property dustMinStr;
+  @label=I"Minimum Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustMinStrMulti ); }
+
+  property dustMean;
+  read: { return f_dustMean$value; }
+  
+  property dustMeanStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustMean, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMeanvalid, false); }
+  
+  property dustMeanStr;
+  @label=I"Average Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustMeanStrMulti ); }
+  
+  property dustMax;
+  read: { return f_dustMax$value; }
+  
+  property dustMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustMax, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustMaxvalid, false); }
+  
+  property dustMaxStr;
+  @label=I"Maximum Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustMaxStrMulti ); }
+ 
+  property dustDailyAvgMin;
+  read: { return f_dustDailyAvgMin$value; }
+  
+  property dustDailyAvgMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMin, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMinvalid, false); }
+  
+  property dustDailyAvgMinStr;
+  @label=I"Daily avg. minimum Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustDailyAvgMinStrMulti ); }
+
+  property dustDailyAvgMean;
+  read: { return f_dustDailyAvgMean$value; }
+  
+  property dustDailyAvgMeanStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMean, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMeanvalid, false); }
+  
+  property dustDailyAvgMeanStr;
+  @label=I"Daily avg. mean Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustDailyAvgMeanStrMulti ); }
+  
+  property dustDailyAvgMax;
+  read: { return f_dustDailyAvgMax$value; }
+  
+  property dustDailyAvgMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dustDailyAvgMax, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustDailyAvgMaxvalid, false); }
+  
+  property dustDailyAvgMaxStr;
+  @label=I"Daily avg. maximum Dust concentration";
+  read: { return RADEX_AQ_fromStrMulti( $dustDailyAvgMaxStrMulti ); }
+  
+  /// Temperature
+  property temperature;
+  read: { return f_temperature$value; }
+  
+  property temperatureDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperature) : $temperature; }
+  
+  property temperatureStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureDisplay, $temperatureDisplayUnit, 0, f_flags$temperaturevalid, true); }
+  
+  property temperatureStr;
+  @label=I"Current temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureStrMulti ); }
+
+  property temperatureMin;
+  read: { return f_temperatureMin$value; }
+  
+  property temperatureMinDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureMin) : $temperatureMin; }
+  
+  property temperatureMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureMinDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureMinvalid, true); }
+  
+  property temperatureMinStr;
+  @label=I"Minimum temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureMinStrMulti ); }
+
+  property temperatureMax;
+  read: { return f_temperatureMax$value; }
+  
+  property temperatureMaxDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureMax) : $temperatureMax; }
+  
+  property temperatureMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureMaxDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureMaxvalid, true); }
+  
+  property temperatureMaxStr;
+  @label=I"Maximum temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureMaxStrMulti ); }
+ 
+  property temperatureDailyAvgMin;
+  read: { return f_temperatureDailyAvgMin$value; }
+  
+  property temperatureDailyAvgMinDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMin) : $temperatureDailyAvgMin; }
+  
+  property temperatureDailyAvgMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMinDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMinvalid, true); }
+  
+  property temperatureDailyAvgMinStr;
+  @label=I"Daily avg. minimum temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgMinStrMulti ); }
+
+  property temperatureDailyAvgMean;
+  read: { return f_temperatureDailyAvgMean$value; }
+  
+  property temperatureDailyAvgMeanDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMean) : $temperatureDailyAvgMean; }
+  
+  property temperatureDailyAvgMeanStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMeanDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMeanvalid, true); }
+  
+  property temperatureDailyAvgMeanStr;
+  @label=I"Daily avg. mean temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgMeanStrMulti ); }
+  
+  property temperatureDailyAvgMax;
+  read: { return f_temperatureDailyAvgMax$value; }
+  
+  property temperatureDailyAvgMaxDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperatureDailyAvgMax) : $temperatureDailyAvgMax; }
+  
+  property temperatureDailyAvgMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureDailyAvgMaxDisplay, $temperatureDisplayUnit, 0, f_flags$temperatureDailyAvgMaxvalid, true); }
+  
+  property temperatureDailyAvgMaxStr;
+  @label=I"Daily avg. maximum temperature";
+  read: { return RADEX_AQ_fromStrMulti( $temperatureDailyAvgMaxStrMulti ); }  
+  
+  /// Humidity
+  property humidity;
+  read: { return f_humidity$value; }
+  
+  property humidityStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidity, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityvalid, false); }
+  
+  property humidityStr;
+  @label=I"Current humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityStrMulti ); }
+
+  property humidityMin;
+  read: { return f_humidityMin$value; }
+  
+  property humidityMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityMin, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityMinvalid, false); }
+  
+  property humidityMinStr;
+  @label=I"Minimum humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityMinStrMulti ); }
+
+  property humidityMax;
+  read: { return f_humidityMax$value; }
+  
+  property humidityMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityMax, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityMaxvalid, false); }
+  
+  property humidityMaxStr;
+  @label=I"Maximum humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityMaxStrMulti ); }
+ 
+  property humidityDailyAvgMin;
+  read: { return f_humidityDailyAvgMin$value; }
+  
+  property humidityDailyAvgMinStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMin, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityDailyAvgMinvalid, false); }
+  
+  property humidityDailyAvgMinStr;
+  @label=I"Daily avg. minimum humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMinStrMulti ); }
+
+  property humidityDailyAvgMean;
+  read: { return f_humidityDailyAvgMean$value; }
+  
+  property humidityDailyAvgMeanStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMean, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityDailyAvgMeanvalid, false); }
+  
+  property humidityDailyAvgMeanStr;
+  @label=I"Daily avg. mean humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMeanStrMulti ); }
+  
+  property humidityDailyAvgMax;
+  read: { return f_humidityDailyAvgMax$value; }
+  
+  property humidityDailyAvgMaxStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidityDailyAvgMax, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityDailyAvgMaxvalid, false); }
+  
+  property humidityDailyAvgMaxStr;
+  @label=I"Daily avg. maximum humidity";
+  read: { return RADEX_AQ_fromStrMulti( $humidityDailyAvgMaxStrMulti ); }  
+   
+  /// Overall validation checking
+  property valid;
+  read: { return 0 != f_flags; }
+  
+  /// Parsed Flags properties delegation
+  ///
+  property manual;
+  read: { return f_flags$manual; }
+
+  property thresholdOverflow;
+  read: { return f_flags$thresholdOverflow; }
+
+  property dustvalid;
+  read: { return f_flags$dustvalid; }
+
+  property dustMinvalid;
+  read: { return f_flags$dustMinvalid; }
+
+  property dustMeanvalid;
+  read: { return f_flags$dustMeanvalid; }
+
+  property dustMaxvalid;
+  read: { return f_flags$dustMaxvalid; }
+  
+  property dustDailyAvgMinvalid;
+  read: { return f_flags$dustDailyAvgMinvalid; }
+
+  property dustDailyAvgMeanvalid;
+  read: { return f_flags$dustDailyAvgMeanvalid; }
+
+  property dustDailyAvgMaxvalid;
+  read: { return f_flags$dustDailyAvgMaxvalid; }
+  
+  property humidityvalid;
+  read: { return f_flags$humidityvalid; }
+
+  property humidityMinvalid;
+  read: { return f_flags$humidityMinvalid; }
+
+  property humidityMaxvalid;
+  read: { return f_flags$humidityMaxvalid; }
+
+  property humidityDailyAvgMinvalid;
+  read: { return f_flags$humidityDailyAvgMinvalid; }
+
+  property humidityDailyAvgMeanvalid;
+  read: { return f_flags$humidityDailyAvgMeanvalid; }
+
+  property humidityDailyAvgMaxvalid;
+  read: { return f_flags$humidityDailyAvgMaxvalid; }
+
+  property temperaturevalid;
+  read: { return f_flags$temperaturevalid; }
+
+  property temperatureMinvalid;
+  read: { return f_flags$temperatureMinvalid; }
+
+  property temperatureMaxvalid;
+  read: { return f_flags$temperatureMaxvalid; }
+
+  property temperatureDailyAvgMinvalid;
+  read: { return f_flags$temperatureDailyAvgMinvalid; }
+
+  property temperatureDailyAvgMeanvalid;
+  read: { return f_flags$temperatureDailyAvgMeanvalid; }
+
+  property temperatureDailyAvgMaxvalid;  
+  read: { return f_flags$temperatureDailyAvgMaxvalid; }
+}
+
+/// Persistent data structure
+///
+object RADEX_AQ_LiveDataRaw
+{
+  esU32 f_dust;
+  esU32 f_dustStatCnt;
+  esU32 f_dustLongStatCnt;
+  esF   f_rawTemp;
+  esF   f_temp;
+  esF   f_humidity;
+}
+
+/// Persistent data structure
+///
+object RADEX_AQ_PersistentData
+{
+  var m_isF;
+
+  esDT  f_ts;
+  RADEX_AQ_DataFlags f_flags;
+  esF   f_dust;
+  esF   f_temp;
+  esF   f_humidity;
+  esU16 f_seriesIdx;
+  esU8  f_crc;
+
+  /// Helper services
+  function asString()
+  var str = [];
+  {
+    if( this$isCrcOk )
+      str += "CRC OK";
+    else
+      str += "CRC NOK";
+
+    str += EsStr::format(
+      "FLAGS: 0x%08X",
+      f_flags$value
+    );
+
+    if( this$manualStart )
+      str += "Manual";
+    
+    if( this$thresholdOverflow )
+      str += "Threshold OVR";
+
+    str += "Series: " + this$seriesIdx;
+    str += "TS: " + this$tsStr;
+    str += "DUST: " + this$dustStr;
+    str += "T: " + this$temperatureStr;
+    str += "rH: " + this$humidityStr;
+
+    return EsStr::fromArray(str, "; ", "", "");
+  }
+
+  /// Services
+  property crc;
+  read: { return f_crc$value; }
+
+  property isCrcOk;
+  read: 
+  var crc = new EsCRC8($buffer, RADEX_AQ_Defs$$CrcPersistentDataDef);
+  { return 0 == crc$value; }
+
+  property isF;
+  read: { return m_isF#isEmpty() ? false : m_isF#asBool(); }
+  write: { m_isF = __value#asBool(); }
+  
+  property temperatureDisplayUnit;
+  read: { return $isF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
+  
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
+  
+  property seriesIdx;
+  read: { return f_seriesIdx$value; }
+
+  // Common flag delegates
+  property thresholdOverflow;
+  read: { return f_flags$thresholdOverflow; }
+  
+  property manualStart;
+  read: { return f_flags$manual; }
+  
+  // Dust
+  property dust;
+  read: { return f_dust$value; }
+  
+  property dustStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $dust, c_RADEX_AQ_unitDust, c_RADEX_AQ_baseUnitDust, f_flags$dustvalid, false); }
+  
+  property dustStr;
+  read: { return RADEX_AQ_fromStrMulti( $dustStrMulti ); }
+
+  // Temperature
+  property temperature;
+  read: { return f_temp$value; }
+
+  property temperatureDisplay;
+  read: { return $isF ? RADEX_AQ_c2f($temperature) : $temperature; }
+  
+  property temperatureStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $temperatureDisplay, $temperatureDisplayUnit, 0, f_flags$temperaturevalid, true); }
+  
+  property temperatureStr;
+  read: { return RADEX_AQ_fromStrMulti( $temperatureStrMulti ); }
+
+  // Humidity
+  property humidity;
+  read: { return f_humidity$value; }
+  
+  property humidityStrMulti;
+  read: { return RADEX_AQ_strMultiGet( $humidity, c_RADEX_AQ_unitHumidity, 0, f_flags$humidityvalid, false); }
+  
+  property humidityStr;
+  read: { return RADEX_AQ_fromStrMulti( $humidityStrMulti ); }
+
+  // Validity  
+  property dustvalid;
+  read: { return f_flags$dustvalid; }
+
+  property temperaturevalid;
+  read: { return f_flags$temperaturevalid; }
+  
+  property humidityvalid;
+  read: { return f_flags$humidityvalid; }
+}
+
+object RADEX_AQ_PersistentDataBlock
+{
+  var m_cnt;
+  RADEX_AQ_PersistentData f_nodes[m_cnt#isEmpty() ? 0 : m_cnt#asULong()];
+  
+  new(buff)
+  {
+    m_cnt = EsVar::asULong(buff#countGet() / 27);//RADEX_AQ_PersistentData$size);
+    this$buffer = buff;
+    
+    EsScriptDebug::log(
+      "RADEX_AQ_PersistentDataBlock created with count: %d", 
+      m_cnt
+    );
+  }
+ 
+  property isF;
+  write: 
+  var node;
+  {  
+    foreach(node in f_nodes)
+      node$isF = __value;
+  }
+ 
+  property count;
+  read: { return m_cnt; }
+  
+  property nodes;
+  read: { return f_nodes; }
+}

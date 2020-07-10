@@ -1,0 +1,51 @@
+// Quarta Opaque user firmware part binary format
+// It's being built upon opaque binary data, which do not allow any form of ID info
+// extraction from its internals. Only external ID information is supported
+//
+object EsQuartaFwBinaryOpaque
+{
+  var 
+    m_data,
+    m_descr,
+    m_id;
+  
+  // misc checks
+  function emptyCheck()
+  {
+    if( m_data#isEmpty() )
+      throw EsStr::translate(
+        I"Firmware image is empty"
+      );
+  }
+
+  new(hexData, typeExpected, verMajor, verMinor, descr)
+  {
+    m_data = EsStr::hexToBin(hexData);
+    m_descr = descr;
+
+    m_id = new EsFirmwareId(typeExpected);
+    m_id.f_fwVer$major = verMajor;
+    m_id.f_fwVer$minor = verMinor;
+  }
+
+  property description;
+  read: { return m_descr#asString(); }
+
+  property binaryData;
+  read: { return m_data#asBinBuffer(); }
+
+  property byteSize;
+  read: { return m_data#countGet(); }
+
+  property firmwareId;
+  read: { return m_id.clone(); }
+
+  property deviceType;
+  read: { return m_id$deviceType; }
+
+  property versionMajor;
+  read: { return m_id$version$major; }
+
+  property versionMinor;
+  read: { return m_id$version$minor; }
+}

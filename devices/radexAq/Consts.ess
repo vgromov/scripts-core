@@ -1,0 +1,94 @@
+/// RADEX_AQ contants
+///
+
+const c_RADEX_AQ_unitDust = [
+  I"ug/m^3",
+  I"mg/m^3",
+  I"g/m^3"
+];
+const c_RADEX_AQ_baseUnitDust = 0;
+const c_RADEX_AQ_unitTemp = "°C";
+const c_RADEX_AQ_unitTempF = "°F";
+const c_RADEX_AQ_unitHumidity = "%";
+const c_RADEX_AQ_maxNodesPerBlock = 18;
+const c_RADEX_AQ_timeAlign = 24*60*60*1000;
+const c_RADEX_AQ_nightMode12H = 12*60*60*1000;
+const c_RADEX_AQ_nightMode1H = 1*60*60*1000;
+const c_RADEX_AQ_nightModeStartMin = 16*60*60*1000;
+const c_RADEX_AQ_nightModeStartDef = 20*60*60*1000;
+const c_RADEX_AQ_nightModeEndMax = 11*60*60*1000;
+const c_RADEX_AQ_nightModeEndDef = 7*60*60*1000;
+
+// RADEX_AQ-specific rpcs 
+enum RADEX_AQ_Rpid
+{
+  ExitBoot                  = 2048, "VOID_Call|Exit core bootloader";
+  LiveDataGet               = 2049, "esBA_Call|Live data get";
+  SavedDataCountGet         = 2050, "esU16_Call|Return count of saved data nodes";
+  SaveDataNodeGet           = 2051, "esBA_Call_esU16|Return saved data node at specific index";
+  SavedDataNodesClear       = 2052, "VOID_Call|Delete all saved data nodes";
+  SavedDataAllFramesCntGet  = 2053, "esU16_Call|Get all saved data frames count";
+  SavedDataAllFrameGet      = 2054, "esBA_Call_esU16|Get saved data frame at specified index";
+  DataSaveManual            = 2055, "VOID_Call|Initiate manual data node measurement and save";
+  LiveDataGetRaw            = 2056, "esBA_Call|Get raw (uncalibrated) live data";
+  SettingsGet               = 2057, "esBA_Call|Get device settings block";
+  SettingsSet               = 2058, "VOID_Call_esBA|Assign device settigns block";
+  CalibrationGet            = 2059, "esBA_Call|Retrieve device calibration block";
+  CalibrationSet            = 2060, "VOID_Call_esBA|Assign device calibration block";
+  ContMeasurementsStart     = 2061, "VOID_Call_esBL|Start or stop continuous measurements mode";
+}
+
+// Settings defaults
+//
+
+// Dust type awareness
+enum RADEX_AQ_Dust
+{
+  Type0                     = 0, I"Dust type 0";
+  Type1                     = 1, I"Dust type 1";
+  Type2                     = 2, I"Dust type 2";
+  Type3                     = 3, I"Dust type 3";
+  Type4                     = 4, I"Dust type 4";
+  Type5                     = 5, I"Dust type 5";
+  Type6                     = 6, I"Dust type 6";
+  Type7                     = 7, I"Dust type 7";
+}
+
+// Val defaults
+enum RADEX_AQ_Defs
+{
+  // Maximum calibration spline nodes count
+  CalNodesCntMax            = 10;
+
+  // Temperature factors node count
+  CalTempFactorNodesCnt     = 3;
+
+  // Current versions
+  CalVersion                = 0;
+  CfgVersion                = 0;
+
+  // Default CRCs
+  CrcCfgDef                 = 0xBB;
+  CrcCalDef                 = 0xFA;
+  CrcPersistentDataDef      = 0xAA;
+
+  // Measurement period, s
+  MsrPeriodMin              = 60;
+  MsrPeriodMax              = 86400;
+  MsrPeriodDef              = 60;
+  
+  // Screen update period, s
+  ScrUpdateMin              = 5;
+  ScrUpdateMax              = 240;
+  ScrUpdateDef              = 10;
+  
+  // Sleep mode, s
+  SleepModeTmoMin           = 5;
+  SleepModeTmoMax           = 300;
+  SleepModeTmoDef           = 5;
+  
+  // Dust concentration alert, ug/m^3
+  DustAlertMin              = 100;
+  DustAlertMax              = 999;
+  DustAlertDef              = 100;
+}

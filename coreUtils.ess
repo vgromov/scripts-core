@@ -1,0 +1,132 @@
+/// @file: coreUtils.ess
+/// Misc. common utility functions and classes used across all the scripts
+///
+
+const c_noDataStr = "--";
+
+/// Check parameter is not null. Otherwise, throw an exception
+function coreUtilsCheckParamNotNull(param, paramName)
+{
+  if( param#isEmpty() )
+    throw EsStr::format(
+      "Parameter '%s' is null", 
+      paramName
+    );
+}
+
+/// Check parameter is not null and of specific type. Otherwise, throw an exception
+function coreUtilsCheckParamNotNullOfType(param, paramName, paramType)
+{
+  coreUtilsCheckParamNotNull(
+    param, 
+    paramName
+  );
+
+  if( !param.isKindOf(paramType) )
+    throw EsStr::format(
+      "Parameter '%s' type is incompatible with type '%s'", 
+      paramName, 
+      paramType 
+    );
+}
+
+/// Extract Short label sub-string from label string.
+/// If short sub-string is not found, return an empty string
+///
+function labelShortGet(labelStr)
+var pos = labelStr#findFirstOf('|');
+{
+  if( !pos#isEmpty() )
+    return labelStr#sliceGet(
+      0, 
+      pos
+    );
+
+  return "";
+}
+
+/// Extract Long label sub-string from label string.
+/// If long sub-string is not found, return entire label string.
+///
+function labelLongGet(labelStr)
+var pos = labelStr#findFirstOf('|');
+{
+  if( !pos#isEmpty() )
+    return labelStr#sliceGet(
+      pos+1, 
+      labelStr#countGet()
+    );
+
+  return labelStr;
+}
+
+/// RPC signature string from full RPC label string.
+/// Throw an exception if signatire string may not be found
+///
+function rpcSigGet(rpcIdLabel)
+var str = labelShortGet(rpcIdLabel);
+{
+  if( str == "" )
+    throw EsStr::format(
+      "Could not find RPC signature string in '%s'", 
+      rpcIdLabel#asString()
+    );
+    
+  return str;
+}
+
+/// Fixed accuracy formatting
+///
+function fixedAccuracyValueFmt(val, emptyStr, decimalCnt)
+var fmt;
+{
+  if( val#isEmpty() )
+    return emptyStr;
+
+  if( 
+    decimalCnt#isEmpty() || 
+    (decimalCnt < 0)
+  )
+    decimalCnt = 0;
+
+  fmt = EsStr::format(
+    "%%0.%df",
+    decimalCnt
+  );
+  
+  return EsStr::lformat(
+    EsStr::localeIdGet(), 
+    fmt, 
+    val
+  );
+}
+
+/// Relative accuracy formatting
+function relativeAccuracyValueFmt(val, emptyStr, decimalCntAt1)
+var fmt, valAbs, decimalCnt = ( decimalCntAt1#isEmpty() || (decimalCntAt1 < 0) ) ? 0 : decimalCntAt1#asULong();
+{
+  if( val#isEmpty() )
+    return emptyStr;
+
+  valAbs = EsMath::abs(val)#asULong();
+
+  while( 
+    valAbs >= 10 && 
+    decimalCnt > 0 
+  )
+  {
+    --decimalCnt;
+    valAbs /= 10;
+  }
+
+  fmt = EsStr::format(
+    "%%0.%df",
+    decimalCnt
+  );
+  
+  return EsStr::lformat(
+    EsStr::localeIdGet(), 
+    fmt, 
+    val
+  );
+}

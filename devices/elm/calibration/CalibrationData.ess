@@ -1,0 +1,170 @@
+##require("devices/elm/calibration/CalibrationDataNode.ess");
+
+/// Calibration session data container node base object
+///
+object ELM_CalibrationData extends EsCalibrationSessionDataBase
+{
+  /// Overridables:
+  ///
+  /// settingsValidate(settings)                                                  : Optional, but highly recommended
+  /// calibrationSessionNodeCreateForProfileNode(profileNode, dataType)           : Mandatory
+  /// dependentRecalc( dataType )                                                 : Optional
+  /// internalOnNodeRawDataReset( node, dataType )                                : Optional
+  /// internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )              : Optional
+  /// nodesGet( dataType )                                                        : Optional
+  /// nodeGet( dataType, nodeIdx )                                                : Optional
+  /// calibratedValueGetFromRaw( dataType, dataKind, rawVal )                     : Mandatory
+  /// calibratedValueGetFromRaw( dataType, inRaw )                                : Optional
+  /// calibratedVectorGetFromRawVector( dataType, inRaw )                         : Optional
+  ///
+
+  /// Overridables
+  ///
+
+  /// Overridable method to validate settings object
+  /// Do nothing by default
+  ///
+  function settingsValidate(settings)
+  {
+    // TODO:
+  }
+
+  /// Default calibration session node creator returns a node with an empty raw and verified value cells
+  /// Default implementation returns an empty calibration session node object
+  ///
+  function calibrationSessionNodeCreateForProfileNode(idx, profileNode, dataType)
+  var node;
+  {
+    if( dataType == EsDataType$$Illuminance )
+    {
+      node = new ELM_CalibrationNode();
+      node.m_kinds = [EsCalibrationNodeKind$$Slow];
+    }
+
+    return node;
+  }
+
+  /// Calculate fitting spline nodes for specified node types, and node kind (fast | slow)
+  /// If fitting spline could not be calculated, an empty value is returned
+  ///
+  function fittingSplineCalculate(dataType, nodeKind)
+  var node, 
+    nodes = nodesWithRawDataGet(
+      dataType, 
+      nodeKind
+    ), 
+    constraint = [],
+    fit, fitc = [], pfit, x = [], y = [], 
+    coeffs;
+  {
+    if( nodes#countGet() >= 2 && nodes#countGet() <= 8 )
+    {
+      fit = new EsMathSpline();
+      
+      foreach(node in nodes)
+      {
+        x += node[1].rawGet(nodeKind);
+        y += node[0]$ref;
+      }
+      
+      constraint += x[0];
+      constraint += y[0];
+      constraint += EsMathFitConstraintKind$$Value;
+      fitc#append(constraint);
+      
+      pfit = new EsMathPolyFit();
+      
+      // Create linear fit to define additional conditions 
+      // for first derivatives in nodes
+      //
+      pfit.buildConstrained(x, y, 1, fitc);
+      coeffs = pfit$coefficients;
+      
+      // Build fitting with constraints
+      fit.akimaBuild(x, y);
+      
+      if( fit$isOk )
+      {
+        nodes = fit$nodes;
+        
+        // Tune up the last spline node - add linear segment
+        node = [];
+        node += nodes[nodes#countGet()-1][1]; // The end of the last spline segment is the start of linear segment
+        node += 0;                            // Use some dummy value as the linear segment ending, it's not used anyway
+        node += y[y#countGet()-1];            // Use the last reference value, as line segment starting point
+        node += coeffs[1];                    // Use the line segment inclination
+        node += 0;                            // Do not use any coeffs for members with power > 1
+        node += 0;
+        nodes#append(node);
+                
+        return nodes;
+      }
+    }
+  } 
+    
+  // Update linked splines of specific type
+  function dependentRecalc(dataType)
+  var nodesSlow, splineSlow;
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationData::dependentRecalc(%s)",
+      dataType#trace()
+    );
+  
+    EsCalibrationSessionDataBase::dependentRecalc(dataType);
+  
+    if( m_settingsCur#isEmpty() )
+      return;
+
+    nodesSlow = fittingSplineCalculate(
+      dataType, 
+      EsCalibrationNodeKind$$Slow
+    );
+    
+    splineSlow = m_settingsCur$calibration$illuminance;
+
+    //EsScriptDebug::log(nodesSlow);
+    splineSlow.fromMathNodes(nodesSlow);
+  }
+
+  function internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )
+  var node, otherType;
+  {
+    // If we're setting raw values for default zero node in Illuminance
+    if( 0 == nodeIdx ) //< system zero point
+        node.rawSet(
+          rawVal,
+          nodeKind
+        );
+
+    return EsCalibrationSessionDataBase::internalOnNodeRawValSet( 
+      dataType, 
+      nodeKind,
+      nodeIdx, 
+      rawVal 
+    );
+  }
+
+  function calibratedValueGetFromRaw( dataType, dataKind, rawVal )
+  var spline = m_settingsCur$calibration$illuminance;
+  {
+    if( !spline#isEmpty() )
+      return spline.calculate( rawVal );
+  }
+
+  ///
+  /// Overridables end
+  
+  /// Parametrized constructor
+  new(session, fwId, settings)
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationData::new(session=%s, fwId=%s, settings=%s)",
+      session#trace(),
+      fwId#trace(),
+      settings#trace()
+    );
+
+    nodesInitFromProfiles();    
+  }
+}

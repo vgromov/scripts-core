@@ -1,0 +1,592 @@
+// --------------------------- standard device objects
+// software information
+object EsSoftwareCrcInfo
+{
+  esU32 f_crcPrev;  // previous CRC32 (as calculated by CRC32 IEEE 802.3)
+  esU32 f_crcCur;   // current CRC32 (as calculated by CRC32 IEEE 802.3)
+  esDT f_ts;        // CRC change timestamp
+  
+  property timestamp;
+  read: { return f_ts; }
+  write: { f_ts = __value; }
+
+  property crcPrevious;
+  read: { return f_crcPrev; }
+  write: { f_crcPrev = __value#asULong(); }
+  
+  property crcCurrent;
+  read: { return f_crcCur; }
+  write: { f_crcCur = __value#asULong(); }
+}
+
+object EsFirmwareSwInfo
+{
+  esU8 f_name[64];
+  esU8 f_file[32];
+  EsSoftwareCrcInfo f_crc;
+  
+  function nameFromString(str)
+  var idx = 0, ch, name = EsStr::toByteString(str, EsStrByteEncoding$$CP1251);
+  {
+    foreach( ch in name )
+    {
+      f_name[idx] = ch;
+      ++idx;
+      if( idx >= 64 )
+        break;
+    }
+    // add zero-terminator if name string is shorter than 64 symbols, and there is no terminator at the end already
+    if( idx < 64 && 0 != f_name[idx-1] )
+      f_name[idx] = 0;  
+  }
+  
+  function nameAsString()
+  {
+    return EsStr::fromByteString(f_name$buffer, EsStrByteEncoding$$CP1251);
+  }
+  
+  function fileFromString(str)
+  var idx = 0, ch, file = EsStr::toByteString(EsStr::toUpper(str), EsStrByteEncoding$$CP1251);
+  {
+    foreach( ch in file )
+    {
+      f_file[idx] = ch;
+      ++idx;
+      if( idx >= 32 )
+        break;
+    }
+    // add zero-terminator if file string is shorter than 32 symbols, and there is no terminator at the end already
+    if( idx < 32 && 0 != f_file[idx-1] )
+      f_file[idx] = 0;
+  }
+  
+  function fileAsString()
+  {
+    return EsStr::fromByteString(f_file$buffer, EsStrByteEncoding$$CP1251);
+  }
+  
+/// Custom stream reader
+  function streamRead(stream)
+  var str, crc;
+  {
+    str = stream.valueRead("name", "");
+    nameFromString(str);
+    str = stream.valueRead("file", "");
+    fileFromString(str);
+    f_crc.copyFrom( stream.valueRead("crc", null) );
+  }
+  
+/// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite("name", nameAsString());
+    stream.valueWrite("file", fileAsString());
+    stream.valueWrite("crc", f_crc);    
+  }
+  
+/// Properties  
+  property name;
+  read: { return nameAsString(); }
+  write: { nameFromString(__value); }
+  
+  property file;
+  read: { return fileAsString(); }
+  write: { fileFromString(__value); }
+
+  property crcInfo;
+  read: { return f_crc; }
+}
+
+/// New universal hardware and firmware info structure definition
+///
+
+/// Standard hardware configuration bits
+enum EsHwConfigBitsStd
+{
+  BluetoothClassic  = 0x0001, I"Classic Bluetooth";
+  BluetoothLE       = 0x0002, I"Bluetooth Low Energy";
+  WiFi              = 0x0004, "Wi-Fi";
+  USBSlave          = 0x0008, I"USB slave";
+  Accumulator       = 0x0010, I"Rechargeable battery";
+}
+
+/// Universal hardware information
+//
+object EsHwConfigInfo
+{
+/// Hardware configuration
+  esU16 f_standard;
+  esU16 f_custom;
+  
+  function asString()
+  {
+    return EsStr::format(
+      "0x%08X:0x%08X",
+      f_standard,
+      f_custom
+    );
+  }
+  
+/// Properties 
+  property standard;
+  read: { return f_standard#asULong(); }
+  write: { f_standard = __value#asULong(); }
+  
+  property custom;
+  read: { return f_custom#asULong(); }
+  write: { f_custom = __value#asULong(); }
+}
+
+/// Universal 64 byte firmware information
+///
+object EsFwInfo
+  @fixedSize = 64;
+  @help = "Universal firmware and hardware identification object";
+{
+  /// Device type
+  esU16 f_type;
+    @help = "Device type (model) id";
+    
+  /// Order
+  esU32 f_order;
+  /// Year
+  esU16 f_year;
+  /// Month
+  esU8 f_month;
+  /// Day of month
+  esU8 f_day;
+  /// Version
+  EsVerInfo f_ver;
+  /// Country code, as in ISO 3166-1-numeric 
+  esU16 f_countryCode;
+  /// Hardware configuration
+  EsHwConfigInfo f_hwConfig;
+  
+  /// Services
+  ///
+  
+  function comparePartial(other, flags)
+  var result = -1;
+  {
+    if( other.isKindOf("EsFwInfo") )
+    {
+      if( f_type > other.f_type )
+        result = 1;
+      else if( f_type == other.f_type )
+        result = 0;
+        
+      if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Serial))
+      {
+        if( f_order > other.f_order )
+          result = 1;
+        else if( f_order < other.f_order )
+          result = -1;
+        else 
+          result = 0;
+
+        if( 0 == result )
+        {
+          if(f_year > other.f_year )
+            result = 1;
+          else if( f_year < other.f_year )
+            result = -1;
+          else
+            result = 0;
+        }
+
+        if( 0 == result )
+        {
+          if(f_month > other.f_month )
+            result = 1;
+          else if( f_month < other.f_month )
+            result = -1;
+          else
+            result = 0;
+        }
+
+        if( 0 == result )
+        {
+          if(f_day > other.f_day )
+            result = 1;
+          else if( f_day < other.f_day )
+            result = -1;
+          else
+            result = 0;
+        }
+      }
+      
+      if( 0 == result && (flags & EsFirmwareIdCmpFlag$$Version))
+      {
+        if( f_ver > other.f_ver )
+          result = 1;
+        else if( f_ver < other.f_ver )
+          result = -1;
+      }
+    }
+    
+    return result;
+  }
+
+  function compare(other)
+  {
+    return comparePartial(other, EsFirmwareIdCmpFlag$$Significant);
+  }
+  
+  function asString(flags)
+  @help = "Return string representation of the hardware id depending on formatting flags";
+  {
+    return fmtEcoE(flags, f_type, f_year, f_order, f_month, f_day, null, null, f_ver.f_major, f_ver.f_minor, f_countryCode, f_hwConfig.f_standard, f_hwConfig.f_custom);
+  }
+
+  function asString()
+    @help = "Return standard string representation of the hardware id";
+  {
+    return asString(EsFirmwareIdFmtFlag$$DescrLong|
+                    EsFirmwareIdFmtFlag$$Serial|
+                    EsFirmwareIdFmtFlag$$Version
+    );
+  }
+  
+  /// Return firmware ID string in universal parseable form
+  function asIdString(flags)
+  {
+    return fmtUniversal(flags, f_type, f_year, f_order, f_month, f_day, null, null, f_ver.f_major, f_ver.f_minor, f_countryCode, f_hwConfig.f_standard, f_hwConfig.f_custom);
+  }
+
+  function asIdString()
+  {
+    return asIdString(EsFirmwareIdFmtFlag$$Serial|
+                      EsFirmwareIdFmtFlag$$Version
+    );
+  }
+  
+  new()
+  {
+    f_type = EsDeviceType$$ECOL1;
+  }
+  
+  new(type)
+  {
+    f_type = type;
+  }
+  
+  /// Properties
+  ///
+  
+  property fwIdString;
+  read: { return asString(); }
+  
+  // read-only access to the dev id components
+  property devType;
+  read: { return f_type$value; }
+  
+  property devTypeName;
+  read: { return EsStr::translate( deviceDescriptionLongGet(f_type) ); }
+
+  property ver;
+  read: { return f_ver; }
+  
+  property verMajor;
+  read: { return f_ver$major; }
+
+  property verMinor;
+  read: { return f_ver$minor; }
+
+  property order;
+  read: { return f_order$value; }  
+
+  property year;
+  read: { return f_year$value; }
+
+  property month;
+  read: { return f_month$value; }
+
+  property day;
+  read: { return f_day$value; }
+  
+  property countryCode;
+  read: { return f_countryCode$value; }
+  
+  property hwConfigInfo;
+  read: { return f_hwConfig; }
+}
+
+/// 192-byte Software information block now includes universal 64 bit firmware information block
+object EsSoftwareInfo 
+  @fixedSize = 192;
+{
+  EsFirmwareSwInfo f_fwSwInfo;
+  EsSoftwareCrcInfo f_crcCalibration;
+  EsFwInfo f_fwInfo;
+  
+/// Properties 
+/// 
+  property fwSoftwareInfo;
+  read: { return f_fwSwInfo; }
+  
+  property calibrationCrcInfo;
+  read: { return f_crcCalibration; }
+  
+  property fwInfo;
+  read: { return f_fwInfo; }
+}
+
+/// Power status flag masks
+enum EsPowerStatusFlag
+{
+  BATTERY       = 0x01, I"Battery attached";
+  AUX           = 0x02, I"Auxiliary power is ON";
+  CHARGING      = 0x04, I"Battery is charging";
+  FAST_CHARGING = 0x08, I"Battery is fast charging";
+}
+
+/// Power status structure
+object EsPowerStatus
+  @help = "Device power status object";
+{
+  esU16 min;
+  esU16 cur;
+  esU16 max;
+  esU8  flags;
+  
+  function percentGet()
+    @help = "Return power level in percents";
+    var deltaFull = max-min, deltaCur = cur-min;
+  {
+    if( 0 == deltaFull )
+      return 0.;
+  
+    if( deltaCur < 0 )
+      deltaCur = 0;
+    
+    if( deltaCur > deltaFull )
+      deltaCur = deltaFull;
+      
+    return 100. * deltaCur / deltaFull;
+  }
+  
+  // handy flags components reading
+  function isOnBattery()
+  {
+    return flags & EsPowerStatusFlag$$BATTERY;
+  }
+
+  function isOnAuxPower()
+  {
+    return flags & EsPowerStatusFlag$$AUX;
+  }
+
+  function isCharging()
+  {
+    return flags & EsPowerStatusFlag$$CHARGING;
+  }
+
+  function asString()
+  var flagsStr = "";
+  {
+    if( isOnBattery() ) 
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$BATTERY$$label
+      );
+    
+    if( isOnAuxPower() )
+    {
+      if( flagsStr )
+        flagsStr += ", ";
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$AUX$$label
+      );
+    }
+    
+    if( isCharging() )
+    {
+      if( flagsStr )
+        flagsStr += ", ";
+      flagsStr += EsStr::translate(
+        EsPowerStatusFlag$$CHARGING$$label
+      );
+    }
+    
+    return EsStr::lformat(
+      EsStr::osLocaleIdGet("-"),
+      EsStr::translate(I"Power level: %0.0f%%, status: %s"), 
+      percentGet(), 
+      flagsStr
+    );
+  }  
+  
+  property level;
+  read: { return percentGet(); }
+  
+  property usesBattery;
+  read: { return isOnBattery(); }
+
+  property usesAuxPower;
+  read: { return isOnAuxPower(); }
+  
+  property charging;
+  read: { return isCharging(); }
+}
+
+// memory space units
+enum EsMemoryUnit
+{
+  Bytes   = 0, I"Bytes";
+  Kbytes  = 1, I"Kilobytes";
+  Mbytes  = 2, I"Megabytes";
+  Gbytes  = 3, I"Gigabytes";
+}
+
+object EsMemSpaceInfo 
+{
+  esU16 count;
+  esU16 frac;
+  esU8 unit;
+    @restriction = EsMemoryUnit;
+  esU8 dummy;
+}
+
+/// RPC accessed filesystem - related structs and enums
+
+/// File system item attribute enumeration
+enum EsFsItemAttribute
+{
+  ReadOnly          = 0x01, I"Read only";
+  Hidden            = 0x02, I"Hidden";
+  System            = 0x04, I"System";
+  VolumeLabel       = 0x08, I"Volume";
+  Directory         = 0x10, I"Directory";
+  Archive           = 0x20, I"Archive";
+}
+
+/// File system request result enumeration
+enum EsFsResult 
+{
+  OK                    = 0,  I"Succeeded";
+  ErrHardware           = 1,  I"A hardware error occurred in the low level storage I/O layer";
+  ErrInternal           = 2,  I"Internal storage engine operation failed";
+  ErrNotReady           = 3,  I"The storage hardware is not ready";
+  ErrNoFile             = 4,  I"File is not found";
+  ErrNoPath             = 5,  I"Path is not found";
+  ErrNameInvalid        = 6,  I"The filesystem object's name is invalid";
+  ErrAccessDenied       = 7,  I"Access to filesystem object is denied";
+  ErrExist              = 8,  I"Filesystem object already exists";
+  ErrObjectInvalid      = 9,  I"Filesystem object is invalid";
+  ErrWriteProtected     = 10, I"The storage is write protected";
+  ErrDriveInvalid       = 11, I"The logical drive is invalid";
+  ErrNoWorkarea         = 12, I"The volume has no work area";
+  ErrNoFilesystem       = 13, I"There is no valid filesystem found";
+  ErrMakeFilesystem     = 14, I"The 'make filesystem' call was aborted due to any parameter error";
+  ErrAccessTmo          = 15, I"Could not acquire access the filesystem within defined period";
+  ErrLocked             = 16, I"The filesystem operation was rejected due to sharing violation";
+  ErrNotEnoughMem       = 17, I"Working buffer could not be allocated, not enough memory";
+  ErrTooManyOpenFiles   = 18, I"Open files count exceeds the allowed margin";
+  ErrParamInvalid       = 19, I"Filesystem low level operation parameter is invalid";
+}
+
+// File system item struct. used in rpc
+// directory listing, rpc FS functions
+//
+object EsFsItem
+{
+  esU32 f_size;    /// <file size
+  esDT f_ts;    /// <file time stamp
+  esU8  f_attrs;    /// <file attributes
+  esU8 f_name[13];  /// <file name (short)
+  
+/// Properties
+///
+/// Item name access as string
+  property name;
+  read: { return EsStr::fromByteString(f_name$buffer); }
+  write: 
+  var bs = EsStr::toByteString(__value);
+  {  
+    bs#countSet(13);
+    bs[12] = 0;
+    f_name$buffer = bs; 
+  }
+}
+
+/// File system enumeration|search result struct
+object EsFsItemResult
+{
+  esU16 f_result;
+  if( EsFsResult$$OK == f_result )
+    EsFsItem f_item;
+
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
+
+  property item;
+  read: {     
+    if( hasField("f_item") )
+      return fieldGet("f_item");
+  }
+}
+
+/// File system space info
+object EsFsSpaceInfo
+{
+  EsMemSpaceInfo f_total;
+  EsMemSpaceInfo f_free;
+}
+
+/// File system free space info query result
+object EsFsSpaceInfoResult
+{
+  esU16 f_result;
+  if( EsFsResult$$OK == f_result )
+    EsFsSpaceInfo f_info;
+    
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
+  
+  property info;
+  read: { 
+    if( hasField("f_info") )
+      return fieldGet("f_info");
+  }
+}
+
+/// File read request result
+object EsFsFileReadRequest
+{
+  esU16 f_result;
+  if( EsFsResult$$OK == f_result )
+    esU32 f_chunks;
+    
+  property isOk;
+  read: { return EsFsResult$$OK == f_result; }
+  
+  property result;
+  read: { return f_result$value; }
+  
+  property chunks;
+  read: { 
+    if( hasField("f_chunks") )
+      return fieldGet("f_chunks")$value;
+  }
+}
+
+function fsResultStringGet(fsResult)
+{
+  if( fsResult in EsFsResult )
+    return EsFsResult.valueLabelGet(fsResult);
+  
+  if( !fsResult#isEmpty() )
+    return EsStr::lformat(
+      EsStr::osLocaleIdGet("-"),
+      EsStr::translate(I"Unknown filesystem operation result code: %d"), 
+      fsResult
+    );
+    
+  return "";
+}
+// --------------------------- end standard device objects

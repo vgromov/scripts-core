@@ -1,0 +1,227 @@
+##require("core.ess");
+
+// Lazily-resolved (external) reflected objects
+extern object EsDocumentManager;
+
+// Calibration profile types && calibration session types compatible by each device type
+// Structure is [types 0] ... [types N], where [types i] is [[device type(s)], [profile type(s)], <session type>, <calibration worker type>],
+// where profile types is [[profile Type 0], ... [profile type N]],
+// where profile type is [profile type Name, isVector (true|false)]
+//
+const c_calibrationMeta = [
+  [
+    [EsDeviceType$$EL3C],
+    [
+      ["EL3C_ClearCalibrationProfile", true], 
+      ["EL3C_ColorCalibrationProfile", false]
+    ],
+    "EL3C_CalibrationSession",
+    "EsCalibrationWorkerEL3C"
+  ],
+  [
+    [EsDeviceType$$ELM],
+    [
+      ["ELM_CalibrationProfile", true]
+    ],
+    "ELM_CalibrationSession",
+    "EsCalibrationWorkerELM"
+  ]
+];
+//-----------------------------------------------------------------------------
+
+function isKnownCalibrationProfileType(typeName)
+var metaNode, profileNode;
+{
+  foreach( metaNode in c_calibrationMeta )
+  {
+    foreach( profileNode in metaNode[1])
+    {
+      if(typeName == profileNode[0])
+        return true;
+    }
+  }
+
+  return false;
+}
+//-----------------------------------------------------------------------------
+
+function isVectorCalibrationProfile(profileTypeName)
+var metaNode, profileNode;
+{
+  foreach( metaNode in c_calibrationMeta )
+  {
+    foreach( profileNode in metaNode[1])
+    {
+      if(profileTypeName == profileNode[0])
+        return profileNode[1];
+    }
+  }
+
+  return false;
+}
+//-----------------------------------------------------------------------------
+
+// Return supported calibration session types
+function calibrationSupportedSessionTypesGet()
+var calibrationMetaNode, result = [];
+{
+  foreach( calibrationMetaNode in c_calibrationMeta )
+  {
+    result += calibrationMetaNode[2];
+  }
+
+  return result;
+}
+//-----------------------------------------------------------------------------
+
+// Return supported device types, as [[dev types 0], .. [dev types N]]
+function calibrationSupportedDevicesGet()
+var calibrationMetaNode, result = [];
+{
+  foreach( calibrationMetaNode in c_calibrationMeta )
+  {
+    result#append(
+      calibrationMetaNode[0]
+    );
+  }
+
+  return result;
+}
+//-----------------------------------------------------------------------------
+
+// Access meta node by device type. Return null if none is found
+function calibrationMetaNodeGetByDevType(deviceType)
+var metaNode;
+{
+  foreach( metaNode in c_calibrationMeta )
+  {
+    if( !(deviceType in metaNode[0]) )
+      continue;
+
+    return metaNode;
+  }
+}
+//-----------------------------------------------------------------------------
+
+// Return profile types for deviceType
+function calibrationProfileTypesGet(deviceType)
+var metaNode = calibrationMetaNodeGetByDevType(deviceType), 
+  profileNode, profileTypes = [];
+{
+  if( !metaNode#isEmpty() )
+  {
+    foreach( profileNode in metaNode[1])
+      profileTypes += profileNode[0];
+  }
+
+  return profileTypes;
+}
+//-----------------------------------------------------------------------------
+
+// Return calibration session type for device type
+function calibrationSessionTypeGet(deviceType)
+var metaNode = calibrationMetaNodeGetByDevType(deviceType);
+{
+  if( !metaNode#isEmpty() )
+    return metaNode[2];
+}
+//-----------------------------------------------------------------------------
+
+function calibrationWorkerTypeFromDevType(deviceType)
+var metaNode = calibrationMetaNodeGetByDevType(deviceType), type;
+{
+  if( !metaNode#isEmpty() )
+    type = metaNode[3];
+
+  if( type#isEmpty() )
+    throw EsStr::format(
+      I"Could not find calibration worker object type for device type '%s'",
+      deviceDescriptionShortGet(deviceType)
+    );
+
+  return type;
+}
+//-----------------------------------------------------------------------------
+
+function calibrationWorkerDocumentTypeFromDevType(deviceType)
+{
+  return "EsDocumentCalibrationWorker:" + calibrationWorkerTypeFromDevType( deviceType );
+}
+//-----------------------------------------------------------------------------
+
+// Calibration document types registration
+function calibrationDocumentsRegister(docMgrInistance)
+{
+  // Global profiles
+  EsDocumentManager::documentRegisterIn(
+    docMgrInistance,
+    "EsDocumentCalibrationProfile:EL3C_ClearCalibrationProfile",                //< Document complex type
+    "cp_el3c",                                                                  //< Default file extension
+    I"EL3C Clear Profile",                                                      //< Document description
+    I"EL3C Clear Calibration Profile files (*.cp_el3c)|*.cp_el3c"               //< Document filter string
+  );
+
+  EsDocumentManager::documentRegisterIn(
+    docMgrInistance,
+    "EsDocumentCalibrationProfile:EL3C_ColorCalibrationProfile",
+    "cp_el3c_col",
+    I"EL3C Color Profile",
+    I"EL3C Color Calibration Profile files (*.cp_el3c_col)|*.cp_el3c_col"
+  );
+
+  EsDocumentManager::documentRegisterIn(
+    docMgrInistance,
+    "EsDocumentCalibrationProfile:ELM_CalibrationProfile",
+    "cp_elm",
+    I"ELM Profile",
+    I"ELM Calibration Profile files (*.cp_elm)|*.cp_elm"
+  );
+
+  // Sessions
+  EsDocumentManager::documentRegisterIn(
+    docMgrInistance,
+    "EsDocumentCalibrationSession:EL3C_CalibrationSession",
+    "cs_el3c",
+    I"EL3C calibration session",
+    I"EL3C Calibration Session files (*.cs_el3c)|*.cs_el3c"
+  );
+
+  EsDocumentManager::documentRegisterIn(
+    docMgrInistance,
+    "EsDocumentCalibrationSession:ELM_CalibrationSession",
+    "cs_elm",
+    I"ELM calibration session",
+    I"ELM Calibration Session files (*.cs_elm)|*.cs_elm"
+  );
+
+  EsDocumentManager::singletonDocumentRegisterIn(
+    docMgrInistance,
+    calibrationWorkerDocumentTypeFromDevType( EsDeviceType$$EL3C ),
+    "ucw_el3c",
+    I"EL3C Calibration Worker",
+    I"EL3C Calibration Worker file (*.ucw_el3c)|*.ucw_el3c"
+  );
+
+  EsDocumentManager::singletonDocumentRegisterIn(
+    docMgrInistance,
+    calibrationWorkerDocumentTypeFromDevType( EsDeviceType$$ELM ),
+    "ucw_elm",
+    I"ELM Calibration Worker",
+    I"ELM Calibration Worker file (*.ucw_elm)|*.ucw_elm"
+  );
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+##require("devices/EsDeviceBase.ess");
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("devices/calibration/EsCalibrationSessionBase.ess");
+##require("devices/el3c/calibration/Session.ess");
+##require("devices/elm/calibration/Session.ess");
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+##require("devices/el3c/calibration/EsCalibrationWorkerEL3C.ess");
+##require("devices/elm/calibration/EsCalibrationWorkerELM.ess");
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------

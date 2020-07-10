@@ -1,0 +1,636 @@
+/// RADEX_AQ Calibration and settings data blocks
+///
+
+object RADEX_AQ_Cfg
+{
+  esU16 f_ver;
+  RADEX_AQ_Flags f_flags;
+  RADEX_AQ_Screens f_screens;
+  esU32 f_screenChangeTmo;
+  esU32 f_msrPeriod;
+  esU32 f_sleepModeTmo;
+  esF   f_alertThreshold;
+  esU32 f_nightModeStart;
+  esU32 f_nightModeEnd;
+  esU8  f_lang[4];
+  esU8  f_dustType;
+  esU8  f_crc;
+  
+  new()
+  {
+    f_ver = 0;
+    f_nightModeStart = c_RADEX_AQ_nightModeStartDef;
+    f_nightModeEnd = c_RADEX_AQ_nightModeEndDef;
+    this$lang = "en";
+    f_crc = RADEX_AQ_Defs$$CrcCfgDef;
+  }
+
+  function crcUpdate()
+  var crc = new EsCRC8(
+    $buffer,
+    RADEX_AQ_Defs$$CrcCfgDef,
+    0,
+    $size-1
+  );
+  {
+    f_crc = crc$value;
+  }
+
+  // Comparison support
+  //
+  function compare(other)
+  {
+    //EsScriptDebug::log(
+    //  "Called compare on RADEX_AQ_Cfg"
+    //);
+  
+    if( other#isEmpty() )
+      return 1;
+      
+    if( !other#isKindOf("RADEX_AQ_Cfg") )  
+      return 1;
+      
+    if( 
+      f_ver != other.f_ver ||
+      f_flags$value != other.f_flags$value ||
+      f_screens$value != other.f_screens$value ||
+      f_screenChangeTmo != other.f_screenChangeTmo ||
+      f_sleepModeTmo != other.f_sleepModeTmo ||
+      f_msrPeriod != other.f_msrPeriod ||
+      f_alertThreshold != other.f_alertThreshold ||
+      f_nightModeStart != other.f_nightModeStart ||
+      f_nightModeEnd != other.f_nightModeEnd ||
+      f_lang != other.f_lang ||
+      f_dustType != other.f_dustType
+    )
+    {
+      // EsScriptDebug::log(
+        // "...returning 1"
+      // );
+    
+      return 1;
+    }
+
+    // EsScriptDebug::log(
+      // "...returning 0"
+    // );
+    
+    return 0;
+  }
+  
+  function asString()
+  var str = "Flags: ";
+  {
+    str += f_flags$soundStr + "; " + f_flags$alertStr + "; " + f_flags$nightModeStr + "; " + 
+      f_flags$sleepModeStr + "; " + f_flags$bluetoothStr + "; " + f_flags$continousMeasurementsStr + "; " +
+      f_flags$screenScrollingStr + "; " + f_flags$temperatureInFStr + "; " + f_flags$timeInAmPmStr;
+    
+    str += "\nScreens: ";
+    str += f_screens$currentDustStr + "; " + f_screens$currentDustMinStr + "; " + f_screens$currentDustMedStr + "; " +
+      f_screens$currentDustMaxStr + "; " + f_screens$currentDustHistogramStr + "; " + f_screens$dailyAvgDustMinStr + "; " +
+      f_screens$dailyAvgDustMedStr + "; " + f_screens$dailyAvgDustMaxStr + "; " + f_screens$dailyAvgDustHistogramStr + "; " +
+      f_screens$currentTemperatureStr + "; " + f_screens$currentTemperatureMinStr + "; " + f_screens$currentTemperatureMaxStr + "; " +
+      f_screens$currentTemperatureHistogramStr + "; " + f_screens$dailyAvgTemperatureMinStr + "; " + f_screens$dailyAvgTemperatureMedStr + "; " +
+      f_screens$dailyAvgTemperatureMaxStr + "; " + f_screens$dailyAvgTemperatureHistogramStr + "; " + f_screens$currentHumidityStr + "; " +
+      f_screens$currentHumidityMinStr + "; " + f_screens$currentHumidityMaxStr + "; " + f_screens$currentHumidityHistogramStr + "; " + 
+      f_screens$dailyAvgHumidityMinStr + "; " + f_screens$dailyAvgHumidityMedStr + "; " + f_screens$dailyAvgHumidityMaxStr + "; " +
+      f_screens$dailyAvgHumidityHistogramStr + "; " + f_screens$clockStr;
+    
+    str += "\nScreenChangeTmo: " + f_screenChangeTmo#asString() + "; SleepModeTmo: " + f_sleepModeTmo#asString();
+    str += "\nMsrPeriod: " + f_msrPeriod#asString() + "; DustType: " + f_dustType#asString();
+    str += "\nNightMode range: [" + this$nightModeStartStr + "; " + this$nightModeEndStr + "]";
+    str += "\nAlertThreshold: " + f_alertThreshold#asString() + "; Lang: " + EsStr::fromByteString(f_lang$buffer, EsStrByteEncoding$$CP1251);
+    
+    return str;
+  }
+
+  // Adjust range start given the current end
+  function nightModeStartAdjust()
+  {
+    if( 
+      f_nightModeStart < c_RADEX_AQ_nightMode12H &&
+      (f_nightModeStart + c_RADEX_AQ_nightMode1H) > f_nightModeEnd
+    )
+    {
+      if( f_nightModeStart < c_RADEX_AQ_nightMode1H )
+      {
+        f_nightModeStart = c_RADEX_AQ_timeAlign + 
+          f_nightModeStart -
+          c_RADEX_AQ_nightMode1H;
+      }
+      else
+        f_nightModeStart = f_nightModeEnd-c_RADEX_AQ_nightMode1H;
+    }
+    else if( f_nightModeStart < c_RADEX_AQ_nightModeStartMin )
+      f_nightModeStart = c_RADEX_AQ_nightModeStartMin;
+  }
+
+  // Adjust range end given the current start
+  function nightModeEndAdjust()
+  {
+    if( 
+      f_nightModeStart < c_RADEX_AQ_nightMode12H &&
+      (f_nightModeStart + c_RADEX_AQ_nightMode1H) > f_nightModeEnd
+    )
+    {
+      f_nightModeEnd = f_nightModeStart + c_RADEX_AQ_nightMode1H;
+    }
+    else if( f_nightModeEnd > c_RADEX_AQ_nightModeEndMax )
+      f_nightModeEnd = c_RADEX_AQ_nightModeEndMax;
+  }
+
+  // CRC check
+  property isCrcOk;
+  read:
+  var crc = new EsCRC8( $buffer, RADEX_AQ_Defs$$CrcCfgDef );
+  { return crc$value; }
+  
+  // Flags 
+  //
+  property flags;
+  @label = I"Configuration flags";
+  read: { return f_flags.clone(); }
+  write: {  
+    if( !__value#isEmpty() )
+    {
+      if( __value#isNumeric() )
+        f_flags$value = __value;
+      else
+        f_flags$value = __value$value;
+    }
+  }
+  
+  // Individual configuration flags delegates
+  property sound;
+  @label = I"Sound";
+  @help = I"Toggle device sound";
+  read: { return f_flags$sound; } 
+  write: { f_flags$sound = __value; }
+  
+  property alert;
+  @label = I"Alert threshold";
+  @help = I"Toggle Dust concentration threshold alert";
+  read: { return f_flags$alert; } 
+  write: { f_flags$alert = __value; }
+
+  property nightMode;
+  @label = I"Night Mode";
+  @help = I"Toggle device Night Mode";
+  read: { return f_flags$nightMode; } 
+  write: { f_flags$nightMode = __value; }
+
+  property sleepMode;
+  @label = I"Sleep mode";
+  @help = I"Toggle device sleep mode";
+  read: { return f_flags$sleepMode; } 
+  write: { f_flags$sleepMode = __value; }
+
+  property bluetooth;
+  @label = I"Bluetooth";
+  @help = I"Toggle device Bluetooth module";
+  read: { return f_flags$bluetooth; } 
+  write: { f_flags$bluetooth = __value; }
+
+  property continousMeasurements;
+  @label = I"Continuous Measurements";
+  @help = I"Toggle between continuous or periodic measurements";
+  read: { return f_flags$continousMeasurements; } 
+  write: { f_flags$continousMeasurements = __value; }
+
+  property screenScrolling;
+  @label = I"Screen Scrolling";
+  @help = I"Toggle between screens scrolling and static single screen";
+  read: { return f_flags$screenScrolling; } 
+  write: { f_flags$screenScrolling = __value; }
+
+  property temperatureInF;
+  @label = I"Temperature 0F";
+  @help = I"Toggle device temperature units between 0F or 0C";
+  @lookup = [[I"Centigrade (0C)", false], [I"Fahrenheit (0F)", true]];
+  read: { return f_flags$temperatureInF; } 
+  write: { f_flags$temperatureInF = __value; }
+
+  property timeInAmPm;
+  @label = I"AM/PM";
+  @help = I"Toggle between AM/PM and 24 hour time format in device";
+  @lookup = [[I"24h", false], [I"12h AM/PM", true]];
+  read: { return f_flags$timeInAmPm; } 
+  write: { f_flags$timeInAmPm = __value; }
+  
+  // Screens
+  property screens;
+  @label = I"Screens configuration";
+  read: { return f_screens.clone(); }
+  write: {  
+    if( !__value#isEmpty() )
+    {
+      if( __value#isNumeric() )
+        f_screens$value = __value;
+      else
+        f_screens$value = __value$value;
+    }
+  }  
+  
+  // Individual screen flags
+  property currentDust;
+  @label = I"Current Dust concentration";
+  @help = I"Include or exclude Current Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDust; }
+  write: { f_screens$currentDust = __value; }
+
+  property currentDustMin;
+  @label = I"Current Minimum Dust concentration";
+  @help = I"Include or exclude Current Minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMin; }
+  write: { f_screens$currentDustMin = __value; }
+
+  property currentDustMed;
+  @label = I"Current Mean Dust concentration";
+  @help = I"Include or exclude Current Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMed; }
+  write: { f_screens$currentDustMed = __value; }
+
+  property currentDustMax;
+  @label = I"Current Maximum Dust concentration";
+  @help = I"Include or exclude Current Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustMax; }
+  write: { f_screens$currentDustMax = __value; }
+
+  property currentDustHistogram;
+  @label = I"Current Dust concentration Histogram";
+  @help = I"Include or exclude Current Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentDustHistogram; }
+  write: { f_screens$currentDustHistogram = __value; }
+
+  property dailyAvgDustMin;
+  @label = I"Daily avg. minimum Dust concentration";
+  @help = I"Include or exclude Daily avg. minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMin; }
+  write: { f_screens$dailyAvgDustMin = __value; }
+  
+  property dailyAvgDustMed;
+  @label = I"Daily Average Mean Dust concentration";
+  @help = I"Include or exclude Daily Average Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMed; }
+  write: { f_screens$dailyAvgDustMed = __value; }
+
+  property dailyAvgDustMax;
+  @label = I"Daily Average Maximum Dust concentration";
+  @help = I"Include or exclude Daily Average Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustMax; }
+  write: { f_screens$dailyAvgDustMax = __value; }
+
+  property dailyAvgDustHistogram;
+  @label = I"Daily Average Dust concentration Histogram";
+  @help = I"Include or exclude Daily Average Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgDustHistogram; }
+  write: { f_screens$dailyAvgDustHistogram = __value; }
+
+  property currentTemperature;
+  @label = I"Current Temperature";
+  @help = I"Include or exclude Current Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperature; }
+  write: { f_screens$currentTemperature = __value; }
+ 
+  property currentTemperatureMin;
+  @label = I"Current Minimum Temperature";
+  @help = I"Include or exclude Current Minimum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureMin; }
+  write: { f_screens$currentTemperatureMin = __value; }
+
+  property currentTemperatureMax;
+  @label = I"Current Maximum Temperature";
+  @help = I"Include or exclude Current Maximum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureMax; }
+  write: { f_screens$currentTemperatureMax = __value; }
+
+  property currentTemperatureHistogram;
+  @label = I"Current Temperature Histogram";
+  @help = I"Include or exclude Current Temperature Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentTemperatureHistogram; }
+  write: { f_screens$currentTemperatureHistogram = __value; }
+
+  property dailyAvgTemperatureMin;
+  @label = I"Daily Average Minimum Temperature";
+  @help = I"Include or exclude Daily Average Minimum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMin; }
+  write: { f_screens$dailyAvgTemperatureMin = __value; }
+
+  property dailyAvgTemperatureMed;
+  @label = I"Daily Average Mean Temperature";
+  @help = I"Include or exclude Daily Average Mean Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMed; }
+  write: { f_screens$dailyAvgTemperatureMed = __value; }
+
+  property dailyAvgTemperatureMax;
+  @label = I"Daily Average Maximum Temperature";
+  @help = I"Include or exclude Daily Average Maximum Temperature screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureMax; }
+  write: { f_screens$dailyAvgTemperatureMax = __value; }
+
+  property dailyAvgTemperatureHistogram;
+  @label = I"Daily Average Temperature Histogram";
+  @help = I"Include or exclude Daily Average Temperature Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgTemperatureHistogram; }
+  write: { f_screens$dailyAvgTemperatureHistogram = __value; }
+
+  property currentHumidity;
+  @label = I"Current Humidity";
+  @help = I"Include or exclude Current Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidity; }
+  write: { f_screens$currentHumidity = __value; }
+
+  property currentHumidityMin;
+  @label = I"Current Minimum Humidity";
+  @help = I"Include or exclude Current Minimum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityMin; }
+  write: { f_screens$currentHumidityMin = __value; }
+
+  property currentHumidityMax;
+  @label = I"Current Maximum Humidity";
+  @help = I"Include or exclude Current Maximum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityMax; }
+  write: { f_screens$currentHumidityMax = __value; }
+
+  property currentHumidityHistogram;
+  @label = I"Current Humidity Histogram";
+  @help = I"Include or exclude Current Humidity Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$currentHumidityHistogram; }
+  write: { f_screens$currentHumidityHistogram = __value; }
+
+  property dailyAvgHumidityMin;
+  @label = I"Daily Average Minimum Humidity";
+  @help = I"Include or exclude Daily Average Minimum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMin; }
+  write: { f_screens$dailyAvgHumidityMin = __value; }
+
+  property dailyAvgHumidityMed;
+  @label = I"Daily Average Mean Humidity";
+  @help = I"Include or exclude Daily Average Mean Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMed; }
+  write: { f_screens$dailyAvgHumidityMed = __value; }
+
+  property dailyAvgHumidityMax;
+  @label = I"Daily Average Maximum Humidity";
+  @help = I"Include or exclude Daily Average Maximum Humidity screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityMax; }
+  write: { f_screens$dailyAvgHumidityMax = __value; }
+
+  property dailyAvgHumidityHistogram;
+  @label = I"Daily Average Humidity Histogram";
+  @help = I"Include or exclude Daily Average Humidity Histogram screen in/from screen sliding sequence";
+  read: { return f_screens$dailyAvgHumidityHistogram; }
+  write: { f_screens$dailyAvgHumidityHistogram = __value; }
+
+  property clock;
+  @label = I"Current Date Time";
+  @help = I"Include or exclude Current Date Time screen in/from screen sliding sequence";
+  read: { return f_screens$clock; }
+  write: { f_screens$clock = __value; }
+  
+  // Screen change timeout, if enabled in configuration flags
+  property screenChangeTmo;
+  @label = I"Screen update";
+  @help = I"Screen sequence update timeout";
+  @restriction = [RADEX_AQ_Defs$$ScrUpdateMin .. RADEX_AQ_Defs$$ScrUpdateMax];
+  @lookup = [[I"5 s", 5], [I"10 s", 10], [I"30 s", 30], [I"1 min", 60], [I"2 min", 120], [I"5 min", 300]];
+  @default = RADEX_AQ_Defs$$ScrUpdateDef;
+  read: { return f_screenChangeTmo$value; }
+  write: { f_screenChangeTmo$value = __value; }
+  
+  // Backlight OFF timeout, if not set continuous in config flags
+  property sleepModeTmo;
+  @label = I"Sleep mode timeout";
+  @help = I"Normal to Sleep mode timeout";
+  @restriction = [RADEX_AQ_Defs$$SleepModeTmoMin .. RADEX_AQ_Defs$$SleepModeTmoMax];
+  @lookup = [[I"10 s", 10], [I"30 s", 30], [I"1 min", 60], [I"2 min", 120],[I"5 min", 300]];
+  @default = RADEX_AQ_Defs$$SleepModeTmoDef;
+  read: { return f_sleepModeTmo$value; }
+  write: { f_sleepModeTmo$value = __value; }
+  
+  // Measurement period, if not set to continuous in config flags
+  property msrPeriod;
+  @label = I"Measurement period";
+  @help = I"Period between consequent measurements";
+  @restriction = [RADEX_AQ_Defs$$MsrPeriodMin .. RADEX_AQ_Defs$$MsrPeriodMax];
+  @default = RADEX_AQ_Defs$$MsrPeriodDef;
+  @lookup = [[I"1 min", 60], [I"2 min", 120], [I"5 min", 300], [I"10 min", 600], [I"30 min", 1800], [I"1 hr", 3600], [I"2 hr", 7200], [I"3 hr", 10800], 
+    [I"6 hr", 21600], [I"12 hr", 43200], [I"24 hr", 86400]];
+  read: { return f_msrPeriod$value; }
+  write: { f_msrPeriod$value = __value; }
+  
+  // Concentration alert threshold
+  property alertThreshold;
+  @label = I"Alert threshold, [ug/m^3]";
+  @help = I"Dust concentration alert threshold, [ug/m^3]";
+  @textPrompt = I"Value in [ug/m^3]";
+  @restriction = [RADEX_AQ_Defs$$DustAlertMin .. RADEX_AQ_Defs$$DustAlertMax];
+  @default = RADEX_AQ_Defs$$DustAlertDef;
+  @precision = 3;
+  read: { return f_alertThreshold$value; }
+  write: { f_alertThreshold$value = __value; }
+  
+  //  Night mode time span
+  property nightModeStart;
+  @label = I"Night mode start";
+  @help = I"Night mode start time";
+  @restriction = [c_RADEX_AQ_nightModeStartMin .. ];
+  @default = c_RADEX_AQ_nightModeStartDef;
+  read: var dt = new EsDateTime(); { dt$value = f_nightModeStart#asLLong(); return dt; }
+  write: 
+  { 
+    if( __value#isEmpty() )
+    {
+      f_nightModeStart = c_RADEX_AQ_nightModeStartDef;
+      return;
+    }
+
+    f_nightModeStart = (__value#asLLong() % c_RADEX_AQ_timeAlign); 
+    
+    if( f_nightModeStart < c_RADEX_AQ_nightModeStartMin )
+      f_nightModeStart = c_RADEX_AQ_nightModeStartMin;
+
+    nightModeEndAdjust();
+  }
+
+  property nightModeStartStr;
+  read: 
+  { 
+    // TODO: retrieve locale-dependent and am-pm flag - aware string
+    return this$nightModeStart.asTimeString(); 
+  }
+
+  property nightModeEnd;
+  @label = I"Night mode end";
+  @help = I"Night mode end time";
+  @restriction = [ .. c_RADEX_AQ_nightModeEndMax];
+  @default = c_RADEX_AQ_nightModeEndDef;
+  read: var dt = new EsDateTime(); { dt$value = f_nightModeEnd#asLLong(); return dt; }
+  write: 
+  { 
+    if( __value#isEmpty() )
+    {
+      f_nightModeEnd = c_RADEX_AQ_nightModeEndDef;
+      return;
+    }
+
+    f_nightModeEnd = (__value#asLLong() % c_RADEX_AQ_timeAlign);
+
+    if( f_nightModeEnd > c_RADEX_AQ_nightModeEndMax )
+      f_nightModeEnd = c_RADEX_AQ_nightModeEndMax;
+
+    nightModeStartAdjust();
+  }
+
+  property nightModeEndStr;
+  read: 
+  {
+    // TODO: retrieve locale-dependent and am-pm flag - aware string
+    return this$nightModeEnd.asTimeString(); 
+  }
+
+  // Dust type awareness
+  property dustType;
+  @label = I"Dust type";
+  @help = I"Dust type awareness selection";
+  @restriction = RADEX_AQ_Dust;
+  @default = RADEX_AQ_Dust$$Type0;
+  read: { return f_dustType$value; }
+  write: { f_dustType$value = __value; }
+
+  // Language code selector
+  property lang;
+  @label = I"Language";
+  @help = I"Device language selection";
+  @default = "en";
+  @lookup = [["English", "en"], ["Русский", "ru"]];
+  read: { return EsStr::fromByteString(f_lang$buffer, EsStrByteEncoding$$CP1251); }
+  write: 
+  var idx = 0, ch, str = "";
+  {
+    f_lang$buffer = B"\0\0\0\0";
+    if( !__value#isEmpty() )
+    {
+      str = __value#asString();
+      foreach( ch in str )
+      {
+        f_lang[idx++] = ch;
+        if( idx >= 4 )
+          break;
+      }
+    }
+  }
+  
+  // Temperature display unit
+  property temperatureDisplayUnit;
+  read: { return $temperatureInF ? c_RADEX_AQ_unitTempF : c_RADEX_AQ_unitTemp; }
+}
+
+/// RADEX_AQ temperature factor
+///
+object RADEX_AQ_TempFactor
+{
+  esU8 f_type;       //< Factor type
+  esU8 f_weight;     //< Factor influence weight, per time unit
+}
+
+/// RADEX_AQ temperature compensation
+///
+object RADEX_AQ_TempCompensation
+{
+  esF f_baseT;
+  esF f_inclination;
+}
+
+/// RADEX_AQ device calibration
+///
+object RADEX_AQ_Calibration
+{
+  esU32 f_version;
+  EsSplineNoCrc f_dust;
+  RADEX_AQ_TempFactor f_tempFactors[RADEX_AQ_Defs$$CalTempFactorNodesCnt];
+  RADEX_AQ_TempCompensation f_tempCompensation;
+  esU8 f_crc;
+
+  new()
+  {
+    f_version = RADEX_AQ_Defs$$CalVersion;
+    f_dust$maxLen = RADEX_AQ_Defs$$CalNodesCntMax;
+  }
+
+  function crcUpdate()
+  var crc = new EsCRC8(RADEX_AQ_Defs$$CrcCalDef);
+  {
+    crc.update(f_version$buffer);
+    crc.update(f_dust$buffer);
+    crc.update(f_tempFactors$buffer);
+    crc.update(f_tempCompensation$buffer);
+
+    f_crc = crc$value;
+  }
+
+  property isCrcOk;
+  read: 
+  var crc = new EsCRC8($buffer, RADEX_AQ_Defs$$CrcCalDef);
+  { 
+    return 0 == crc$value;
+  }
+}
+
+/// RADEX_AQ device settings
+///
+object RADEX_AQ_Settings
+{
+  EsFirmwareId f_fwId;
+  EsSoftwareInfo f_swInfo;
+  RADEX_AQ_Cfg f_cfg;
+
+  /// Constructors
+  new()
+  {
+    f_fwId.copyFrom( 
+      new EsFirmwareId(
+        EsQuartaDeviceType$$RADEXAQ
+      ) 
+    );
+  }
+  
+  new(fwId)
+  {
+    fwIdValidate(
+      fwId, 
+      EsQuartaDeviceType$$RADEXAQ, 
+      "RADEX_AQ_Settings"
+    );
+    
+    f_fwId.copyFrom(fwId);
+  }
+  
+  function asString()
+  {
+    return "FW ID: " + f_fwId.asString() + "\nCFG: " +
+      f_cfg.asString();
+  }
+  
+  /// Propertires
+  ///
+  property devType;
+  read: { return f_fwId$devType; }
+  
+  property fwId;
+  read: { return f_fwId.clone(); }
+  
+  property fwIdStringEssential;
+  read: { return f_fwId$fwIdStringEssential; }
+  
+  property swInfo;
+  read: { return f_swInfo.clone(); }
+
+  property countryCode;
+  read: { return f_swInfo$fwInfo$countryCode; }  
+ 
+  property config;
+  read: 
+  var result = f_cfg.clone(); 
+  { result.crcUpdate(); return result; }
+}

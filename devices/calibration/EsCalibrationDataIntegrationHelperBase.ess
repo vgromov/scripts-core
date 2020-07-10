@@ -1,0 +1,128 @@
+// Calibration data integration helper object
+//
+
+enum EsCalibrationDataIntegrationCnt
+{
+  Minimum = 2;
+  Maximum = 128;
+  Default = 16;
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+object EsCalibrationDataIntegrationHelperBase
+{
+  var m_maxCnt,
+      m_accumCnt,
+      m_dataType,
+      m_profileNodeIdx,   //< Idx of profile node for which we do integration
+      m_nodeKinds,        //< collection of EsCalibrationNodeKind to support integration
+      m_accum;
+
+  // Overridables
+  //
+  // function doAccumulate( kind, kindVal )                           : Mandatory
+  // function resultGet()                                             : Mandatory
+  // new(dataType, integratorStepsCntMax, nodeKinds)                  : Optional
+  //
+
+  // Do an actual accumulation operation. Override in derived objects
+  function doAccumulate( kind, kindVal )
+  {
+  }
+
+  function resultGet()
+  {
+  }
+  
+  // Ctor
+  new(dataType, integratorStepsCntMax, nodeIdx, nodeKinds)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationDataIntegrationHelperBase::new(dataType=%s, integratorStepsCntMax=%s, nodeIdx=%s, nodeKinds=%s)",
+      dataType#trace(), 
+      integratorStepsCntMax#trace(), 
+      nodeIdx#trace(), 
+      nodeKinds#trace()
+    );
+  
+    m_accum = new EsAssocContainer(__metaclass);
+    m_dataType = dataType;
+    m_profileNodeIdx = nodeIdx;
+
+    if( nodeKinds#isEmpty() )
+      m_nodeKinds = [];
+    else if( !nodeKinds#isCollection() )
+      m_nodeKinds = [nodeKinds];
+    else
+      m_nodeKinds = nodeKinds;
+
+    if( integratorStepsCntMax#isEmpty() )
+      integratorStepsCntMax = EsCalibrationDataIntegrationCnt$$Default;
+
+    if( integratorStepsCntMax < EsCalibrationDataIntegrationCnt$$Minimum )
+      integratorStepsCntMax = EsCalibrationDataIntegrationCnt$$Minimum;
+    else if( integratorStepsCntMax > EsCalibrationDataIntegrationCnt$$Maximum )
+      integratorStepsCntMax = EsCalibrationDataIntegrationCnt$$Maximum;
+
+    m_maxCnt = integratorStepsCntMax;
+    m_accumCnt = 0;
+    m_accum.clear();
+  }
+
+  // 
+  // Overridables end
+
+  /// Append data to the integrator, returning true if integration cycles may
+  /// continue, false otherwise
+  ///
+  function accumulate( inData )
+  var kind;
+  {
+    if( inData#isEmpty() )
+      return true;
+    
+    if( m_accumCnt >= m_maxCnt )
+      return false;
+
+    foreach(kind in m_nodeKinds)
+    {
+      doAccumulate(
+        kind,
+        inData.valueGetDef(
+          kind,
+          null
+        ) 
+      );
+    }
+
+    ++m_accumCnt;
+
+    if( m_accumCnt >= m_maxCnt )
+      return false;
+    
+    return true;
+  }
+
+  /// Properties
+  ///
+  property dataType;
+  read: { return m_dataType; }
+
+  property kinds;
+  read: { return m_nodeKinds; }
+
+  property integrationCycles;
+  read: { return m_maxCnt; }
+
+  property accumCnt;
+  read: { return m_accumCnt; }
+
+  property profileNodeIdx;
+  read: { return m_profileNodeIdx; }
+
+  property result;
+  read: { return resultGet(); }
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------

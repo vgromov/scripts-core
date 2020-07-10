@@ -1,0 +1,70 @@
+/// PHA01 data formatting helpers
+///
+
+function PHA01_ValueFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.2f";
+	else if( val < 100 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+function PHA01_PulsationFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+/// Multi part value string creation
+function PHA01_strMultiGet(val, unit)
+var mul = 1., result = []; 
+{
+	result += PHA01_ValueFmt( val );
+	if( val > 1000. )
+	{
+		mul = 1000.;
+		val /= mul;
+	}	
+	result += PHA01_ValueFmt( val );
+	result += EsStr::format("x%d", mul);
+	result += unit;
+	
+	return result;
+}
+
+/// Multi part pulsation string 
+function PHA01_pulsationStrMultiGet(val)
+var result = [];
+{
+	result += PHA01_PulsationFmt( val );
+	result += c_pha01_unitP;
+	return result;
+}
+
+/// Create simple string from multistring
+function PHA01_fromStrMulti(multi)
+{
+	return multi[0] + " " + multi[3];
+}
+
+/// The same as above, but for pulsation multistring
+function PHA01_pulsationFromStrMulti(multi)
+{
+	return multi[0] + " " + multi[1];
+}

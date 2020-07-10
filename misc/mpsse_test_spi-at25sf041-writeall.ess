@@ -1,0 +1,202 @@
+/// FTxxxx MPSSE script test.
+/// Interfacing the SPI bus.
+/// Reading from AT25SF041 flash chip
+
+// Enumerate available MPSSE devices
+var devInfos = EsFtdiDriver::enumerate(
+      true,   //< Include busy devices
+      true    //< Include only MPSSE-capable devices
+    );
+
+if( !devInfos#countGet() )
+  throw "Could not find any MPSSE-capable devices";
+
+// Take the first found device and open it  
+var dev = EsFtdiDriver::deviceCreate(
+  EsFtdiDeviceKind$$MPSSE_SPI,
+  devInfos[0]
+);
+  
+if( !dev )
+  throw EsStr::format(
+    "Could not create MPSSE device of type %s for %s",
+    EsFtdiDeviceKind$$MPSSE_SPI$$label,
+    devInfos[0]
+  );
+
+if( !dev.open() )
+  throw EsStr::format(
+    "Could not open MPSSE device %s",
+    devInfos[0]
+  );
+
+// Set OS systicks period to 1 ms
+var systick = EsUtilities::systickChange(
+  1
+);
+
+dev$clockRate = 8000000;
+dev$mode = EsFtdiMpsseSpiCpolCpha$$MODE0;
+dev$csLineCtl = EsFtdiMpsseSpiCsLine$$DBUS3; //< CS is DBUS3
+dev$csLineActiveHigh = false; //< Active CS is low
+dev.configApply();
+
+// Initiate Flash IO to read all memory content
+// Read all 4 mbit memory space
+const c_memLen = 4*1024*1024/8;
+var obuff, allflash, result, readCnt = 0,
+  progress = new EsProgressMonitorTask("flash_download");
+
+// Write entire readout to file
+var addr, path = EsPath::stdDocsGet() + "/AT25SF041.bin", file;
+
+function waitUntilNotBusy()
+{
+  // Read status register in loop
+  obuff = B"\x05";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error requesting status 1";
+
+  result = 1;
+  while( result#asByte() & 1 )
+  {
+    result = dev.read(
+      1,
+      EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+    );
+//    EsScriptDebug::log("SR1: %0.2X", result);
+  }
+  result = dev.read(
+    1,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+}
+
+function writeEnable()
+{
+  obuff = B"\x06";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error requesting write enable";
+}
+
+function chipErase()
+{
+  EsScriptDebug::log("Erasing chip...");
+
+  obuff = B"\x60";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error requesting chip erase";
+}
+
+function pageWrite(addr)
+{
+  EsScriptDebug::log("Writing page...");
+
+  obuff = B"\x02\0\0\0";
+  obuff[1] = (addr >> 16) & 0xFF;
+  obuff[2] = (addr >> 8) & 0xFF;
+  obuff[3] = addr & 0xFF;
+
+  EsScriptDebug::log(
+    "pageWrite opcode: %s",
+    obuff
+  );
+
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error sending page write request";
+
+  obuff = allflash#sliceGet(
+    addr, 
+    addr+256
+  );
+
+  EsScriptDebug::log(
+    "Writing: 0x%0.6X->%s",
+    addr,
+    obuff
+  );
+
+  dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+}
+
+file = new EsFile(
+  path,
+  EsFileFlag$$Read
+);
+
+file.open();
+if( file$opened )
+{
+  allflash = file.readAllAsBinBuffer();
+  file.close();
+}
+
+try
+{
+  // Write enable
+  writeEnable();
+
+  // Chip erase
+  chipErase();
+  waitUntilNotBusy();
+
+  // Program all
+  progress.attachTo(__scriptHost$progressMonitor);
+  progress.initialize(
+    "Writing entire flash contents...",
+    c_memLen,
+    0
+  );
+  
+  addr = 0;
+  while( addr < c_memLen )
+  {
+    // Write enable
+    writeEnable();
+
+    // Write page
+    pageWrite( addr#asULong() );
+    waitUntilNotBusy();
+
+    addr += 256;
+    progress$position = addr;
+  }
+
+  progress = null;
+}
+catch
+{
+}
+
+// Close SPI bus
+dev.close();
+
+// Restore OS systicks
+EsUtilities::systickRestore( systick );

@@ -1,0 +1,73 @@
+/// @file: core.ess
+/// ECO-E script core data
+///
+
+/// ECO-E standard RPC IDs
+/// Here, and in device-specific RPC id enums, we encode information about call signature 
+/// in value label string itself, separating it from the rest of the label string with '|'.
+/// Core method rpcSigGet(rpcIdLabel) should be used to extract rpc signature from label string
+///
+enum EsRpcStdId
+{
+  CAPS_GET           = 0,   "esBA_Call|Return all procedure ids, supported by the hardware";
+  FWID_GET           = 1,   "esBA_Call|Query firmware identification block";
+  HW_INFO_GET        = 2,   "esBA_Call|Query hardware information block";
+  STORAGE_INFO_GET   = 3,   "esBA_Call|Query storage information block";
+  HEALTH_INFO_GET    = 4,   "esU32_Call|Query health information (latched errors) block";
+  HEALTH_EXEC        = 5,   "VOID_Call|Schedule self-test execution";
+  DATETIME_SET       = 6,   "esBL_Call_esDT|Set device date and time";
+  DATETIME_GET       = 7,   "esDT_Call|Get device date and time";
+  FACTORY_RESET      = 8,   "VOID_Call|Reset device to factory defaults";
+  SHUTDOWN           = 9,   "VOID_Call|Schedule device power down";
+  ENTER_BOOT         = 10,  "VOID_Call_esU32|Schedule device boot loader";
+  POWER_STATUS_GET   = 11,  "esBA_Call|Return device power status";
+  DIR_LIST_START     = 12,  "esU16_Call_esBA|(Re)Start listing of device file system directory";
+  DIR_LIST_NEXT_GET  = 13,  "esBA_Call|Get next item of directory listing";
+  DIR_DELETE         = 14,  "esU16_Call_esBA_esBL|Delete directory";
+  FILE_DELETE        = 15,  "esU16_Call_esBA|Delete file";
+  FS_FREESPACE_GET   = 16,  "esBA_Call|Get free file system space info";
+  FILE_READ_START    = 17,  "esBA_Call_esBA|Start file reading sequence";
+  FILE_READ_NEXT     = 18,  "esBA_Call|Request next file data chunk";
+  HW_UID_GET         = 19,  "esBA_Call|Retrieve hardware unique ID (128bit, in text form, i.e. char[32])";
+  FINDME             = 20,  "VOID_Call|Perform some kind of visual|audio device identification";
+  SW_INFO_GET        = 21,  "esBA_Call|Query software identification block";
+  FWID_MODERN_GET    = 22,  "esBA_Call|Query firmware identification block of modern devices which support dual ID feature";
+  FW_UPLOAD_START    = 23,  "esU32_Call_esU32_esBA|Request FW upload start. Payload: esU32(Max fw frame size)_RpcSig_esU32(Flags)_esBA(Optional start data)";
+  FW_UPLOAD          = 24,  "VOID_Call_esBA|Request FW portion upload. Payload: VOID_RpcSig_esBA(FW portion data)";
+  FW_UPLOAD_END      = 25,  "VOID_Call|Request FW upload end";
+}
+
+const RPID_CUSTOM_BASE = 2048;
+
+##require("coreUtils.ess");
+##require("coreDevicesDb.ess");
+##require("coreDevicesIdFormatters.ess");
+##require("coreDevicesIdBase.ess");
+##require("coreDevicesStd.ess");
+##require("coreDevicesId.ess");
+##require("coreDevicesHw.ess");
+
+/// Assert RPC master object
+function rpcMasterAssert(rpcMaster)
+{
+  if( rpcMaster#isEmpty() )
+    throw "RPC master object is empty";
+  
+  if( !rpcMaster#isObject() ||
+      (rpcMaster#isObject() && !rpcMaster.isKindOf("EsRpcMaster")) )
+    throw "RPC master object is of invalid type";
+  
+  if( !rpcMaster.isActive() )
+    throw "RPC master object is not in active state";
+}
+
+/// Firmware id validator
+function fwIdValidate(fwId, requiredDevType, subjectName)
+{
+  if( fwId#isEmpty() )
+    throw EsStr::format("Empty firmware id passed to '%s'", subjectName);
+    
+  if( !(fwId.f_devType in requiredDevType) )
+    throw EsStr::format("Firmware id passed to '%s' is of incompatible type. Got '%d', required '%s'", subjectName, fwId.f_devType, requiredDevType#asString());
+}
+

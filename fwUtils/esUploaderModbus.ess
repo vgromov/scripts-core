@@ -1,0 +1,398 @@
+// MODBUS firmware uploader
+//
+##require("core.ess");
+##require("protocols/esModbus.ess");
+
+// Firmware chunk header
+//
+object EsFirmwareModbusChunk
+{
+  esU16 f_chunkSize;
+  esU32 f_offs;
+  esU32 f_size;
+  esU8 f_data[f_chunkSize];
+}
+
+// Custom MODBUS data packet
+//
+object ModbusPacketExt extends ModbusPacket
+{
+  // For multiple U16 registers reading|writing
+  // Extended MODBUS version from Yuriy Yakurnov
+  //
+  function byteCntFromItemsCountGet(cnt)
+  var result = (cnt*2) % 256;
+  {
+    EsScriptDebug::log(
+      "ModbusPacketExt::byteCntFromItemsCountGet(cnt=%d)->%d",
+      cnt,
+      result
+    );
+
+    return result;
+  }
+
+  // Overridable real byte count calculation
+  // For multiple U16 registers reading|writing
+  //
+  function byteLenFromItemCountAndByteCnt()
+  var cnt = this$itemCnt * 2 - ((this$byteCnt % 2) ? 1 : 0);
+  {
+    EsScriptDebug::log(
+      "ModbusPacketExt::byteLenFromItemCountAndByteCnt->%d",
+      cnt
+    );
+
+    return cnt;
+  }
+
+  new(request)
+  {
+    m_request = request;
+  }
+}
+
+// Quarta MODBUS firmware uploader
+//
+object EsQuartaModbusUploader extends ModbusRTU
+{
+  var m_master,
+      m_devModbusAddr,          //< Assign in specific derived object
+      m_devFwUploadAddr,        //< Assign in specific derived object
+      m_chunkSizeMax,           //< Assign in specific derived object
+      m_maxRetries,             //< Assign in specific derived object
+      m_topTask,
+      m_chunk,
+      m_bin;
+
+  // Packet Facory override
+  //
+  function responsePacketCreate( request )
+  {
+    return new ModbusPacketExt( request );
+  }
+
+  // Main FW uploading method
+  //
+  function program()
+  var data, toWrite,
+    dataoffs = 0,
+    datalen, chunk = new EsFirmwareModbusChunk(), 
+    chunkSize,
+    modbusReq = new ModbusPacketExt(null),
+    modbusResult,
+    written, retries = 0;
+  {
+    data = m_bin$binaryData;
+    if( data#isEmpty() || !data#countGet() )
+    {
+      EsScriptDebug::log("No firmware data found in moniker!");
+
+      return false;
+    }
+
+    datalen = data#countGet();
+
+    // Init chunk common data
+    chunk.f_size = datalen;
+
+    // Prepare MODBUS request
+    modbusReq$addr = m_devModbusAddr;
+    modbusReq$func = ModbusFunction$$RegisterHoldingWriteMultiple;
+    modbusReq$startAddr = m_devFwUploadAddr;
+
+    EsScriptDebug::log(
+      "Programming %d data starting at offs %d", 
+      datalen, 
+      dataoffs
+    );
+
+    m_topTask.initialize(
+      EsStr::translate(
+        I"Uploading firmware..."
+      ), 
+      datalen, 
+      dataoffs
+     );
+
+    if( !m_chnl.isOpen() )
+      m_chnl.open();
+  
+    while( dataoffs < datalen ) 
+    {
+      toWrite = datalen-dataoffs;
+      if( toWrite > m_chunkSizeMax )
+        toWrite = m_chunkSizeMax;
+
+      chunk.f_offs = dataoffs;
+      chunk.f_chunkSize = toWrite;
+      chunk.f_data$buffer = data#sliceGet(
+        dataoffs, 
+        dataoffs+toWrite
+      );
+      
+      modbusReq.itemsSetRaw( chunk$buffer );
+
+label __packetRetry:
+      
+      if( packetWrite( modbusReq ) )
+      {
+        // Read packet response
+        modbusResult = packetRead( modbusReq );
+        
+        if( !modbusResult#isEmpty() )
+        {
+          if( ModbusError$$SlaveBusy == modbusResult[0] )
+          {
+            ++retries;
+            if( retries < m_maxRetries )
+            {
+              EsScriptDebug::log( 
+                "OBSIDIAN is Busy, retrying FW packet, retries [%d of %d]",
+                retries,
+                m_maxRetries
+              );
+
+              goto __packetRetry;
+            }
+            else
+            {
+              EsScriptDebug::log( 
+                "Could not write FW packet to OBSIDIAN, packet retries expired"
+              );
+
+              goto __exitOnFailure;
+            }
+          }
+          else if( ModbusError$$OK != modbusResult[0] )
+          {
+            EsScriptDebug::log( 
+              "OBSIDIAN responded to FW packet with error: '%s'" ,
+              ModbusError.valueLabelGet( modbusResult[0] )
+            );
+            goto __exitOnFailure;
+          }
+          
+          retries = 0; //< Reset packet retries
+          dataoffs += toWrite;
+        }
+        else
+        {
+          EsScriptDebug::log( "Failed to read response to MODBUS FW packet from OBSIDIAN" );
+          goto __exitOnFailure;
+        }
+      }
+      else
+      {
+        EsScriptDebug::log( "Failed to write MODBUS FW packet to OBSIDIAN" );
+        goto __exitOnFailure;
+      }
+
+      // update progress
+      if( 0 == (dataoffs % 10) ) //< Do not overflow with progress messages
+        m_topTask$position = dataoffs;
+    }
+
+label __exitOnFailure:
+    m_chnl.close();
+
+    EsScriptDebug::log(
+      "  programmed: [%d of %d]",
+      dataoffs,
+      datalen
+    );
+
+    return dataoffs >= datalen;
+  }
+
+  new(bin)
+  {
+    m_topTask = new EsProgressMonitorTask("program");
+    m_topTask.pulse(
+      EsStr::translate(
+        I"Preparing for a firmware upload..."
+      )
+    );
+    m_topTask.attachTo(__scriptHost$progressMonitor);
+
+    // Assert binary type name
+    if( !bin#isKindOf("EsQuartaFwBinaryOpaque") )
+      throw EsStr::translate(
+        I"Unsupported firmware binary format"
+      );
+
+    m_bin = bin;
+
+    EsScriptDebug::log( 
+      "EsQuartaModbusUploader::new(bin: %s)",
+      bin#trace()
+    );
+  }
+
+  function checkIfInBoot()
+  var progressTask = new EsProgressMonitorTask("program.bootloaderConnect");
+  {
+    progressTask.pulse(
+      EsStr::translate(
+        I"Synching with bootloader..."
+      )
+    );
+    progressTask.attachTo( m_topTask );
+
+    return this.probeIfInBootloader();
+  }
+
+  function checkIfBootloaderIsRunning()
+  var deviceIsInBootMode = false;
+  {
+    EsScriptDebug::log("Preparing for default boot communication");
+    
+    deviceIsInBootMode = checkIfInBoot();
+    
+    return deviceIsInBootMode;
+  }
+
+  // Overridable API
+  //
+  function channelConfigure()
+  {}
+
+  function probeIfInBootloader()
+  {
+    return false;
+  }
+
+  function configureForBoot(supportedRpcs)
+  {
+    return true;
+  }
+
+  function configureForApplication()
+  {
+  }
+
+  // Firmware uploader main entry point
+  function upload(rpcMaster)
+  var supportedRpcs, 
+    deviceIsInBootMode = false,
+    idAfter, retries = 0;
+  {
+    m_master = rpcMaster;
+    m_chnl = m_master$channel;
+    m_master.deactivate();
+
+    channelConfigure();
+
+    deviceIsInBootMode = checkIfBootloaderIsRunning();
+    
+    EsScriptDebug::log(
+      "Device In boot mode?: %s", 
+      deviceIsInBootMode
+    );
+    
+    if( !deviceIsInBootMode )
+    {
+      EsScriptDebug::log("Device not in boot, will try to warm boot...");
+
+      m_master.activate();
+      
+      try
+      {
+        EsScriptDebug::log("Getting implemented RPCs");
+        supportedRpcs = m_master.getImplementedRPCs();
+       
+        EsScriptDebug::log(
+          "Implemented RPCs acquired: %s",
+          supportedRpcs#trace()
+        );
+      }
+      catch
+      {
+        // error ocurred during the most basic device query
+        // device may be already in boot mode
+        m_master.deactivate();
+      }
+      
+      deviceIsInBootMode = configureForBoot( supportedRpcs ) && 
+        checkIfBootloaderIsRunning();
+    }
+
+    if( !deviceIsInBootMode )
+      throw EsStr::translate(
+        I"Could not connect to device bootloader"
+      );
+    else
+      EsThreadWorker::sleep(3000);
+
+    try
+    {
+      m_master.deactivate();
+
+      if( program() ) //< Perform device FW programming
+      {
+        configureForApplication();
+
+        m_topTask.pulse(
+          EsStr::translate( I"Checking firmware..." )
+        );
+        EsThreadWorker::sleep(3000);
+
+        while( 
+          idAfter#isEmpty() && 
+          retries < m_maxRetries
+        )
+        {
+          m_master.activate();
+          if( m_master.isActive() )
+          {
+            EsThreadWorker::sleep(1000);
+            idAfter = deviceFwIdRead(m_master);
+            m_master.deactivate();
+          }
+          ++retries;
+        }
+
+        if( idAfter#isEmpty() )
+          throw [
+            1000,
+            EsStr::translate(
+              I"Uploaded device firmware verification failed. No response from device after firmware upload."
+            )
+          ];
+        else if( 
+          0 != idAfter.comparePartial(
+            m_bin$firmwareId, 
+            EsFirmwareIdCmpFlag$$Version
+          ) 
+        )
+        {
+          throw [
+            1001, 
+            EsStr::format(
+              EsStr::translate(
+                I"Uploaded device firmware version verification failed. Uploaded firmware version %s, device firmware version %s."
+              ),
+              m_bin$firmwareId$ver,
+              idAfter$ver
+            )
+          ];
+        }
+
+        EsScriptDebug::log(
+          "MODBUS FW upload verified, ID after upgrading is: %s",
+          idAfter
+        );
+      }
+    }
+    catch
+    {
+      m_master.deactivate();
+      m_master = null;
+      m_chnl = null;
+      rethrow;
+    }
+
+    m_master = null;
+    m_chnl = null;
+  }
+}

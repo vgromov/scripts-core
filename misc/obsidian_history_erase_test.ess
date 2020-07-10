@@ -1,0 +1,78 @@
+##require("all.ess");
+##require("misc/io_monitors.ess");
+##require("debug.ess");
+
+// create io channel && rpc master
+var chnl = new EsChannelIoUart();
+var debug = new Debug(), master, worker, dev, rpcResult, cnt, idx, block, protoMon;
+
+// Find all available free UART channels on USB
+var comm, comms = EsChannelIoUart::enumerate(
+    false,  //< Skip Busy ports
+    true    //< USB bus only
+  );
+
+try {
+
+if( !comms#countGet() )
+  throw "Could not find any non-busy USB ports";
+
+foreach( comm in comms )
+{
+  EsScriptDebug::log(comm);
+
+  // Extract the first match found
+  if( !comm[2]#find("OBSIDIAN")#isEmpty() )
+  {
+    comm = comm[0]; //< Now we have full UART device path
+    break;
+  }
+}
+
+if( !comm#isString() )
+  throw "Could not find OBSIDIAN USB port";  
+
+master = new EsRpcMaster();
+
+// configure channel, assign to master
+EsScriptDebug::log(
+  "Found OBSIDIAN on: %s",
+  comm  
+);
+
+// Uncomment to use channel debug monitor helper
+//chnl$monitor = new ChnlIoMonitor();
+
+// Uncomment to use protocol debug monitor helper
+protoMon = new ProtoIoMonitor();
+protoMon$customRpids = OBSIDIAN_Rpid;
+master$monitor = protoMon;
+
+// Setup master channel
+chnl$port = comm;
+chnl$baud = 115200;
+master$channel = chnl;
+master$packetTimeout = 1000;
+master.activate();
+
+dev = devicesDeviceCreate(
+  deviceKnownCapsFwIdRead(
+    master,
+    master.getImplementedRPCs()
+  )
+);
+
+dev$ioMaster = master;
+
+EsScriptDebug::log( dev$fwId#asString() );
+
+rpcResult = dev.savedDataClear();
+if( rpcResult[0] )
+  EsScriptDebug::log(
+    "All data journals cleared"
+  );
+}
+catch
+{
+  EsScriptDebug::log("An exception occurred: %s", __exception$reason);  
+}

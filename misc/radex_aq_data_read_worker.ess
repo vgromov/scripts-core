@@ -1,0 +1,455 @@
+##require("../core.ess");
+##require("../math.ess");
+##require("../math/EsSpline.ess");
+##require("../misc/io_monitors.ess");
+##require("../devices/radexAq.ess");
+
+const c_opRetries = 4;
+
+// Read calibration configuration data from user documents's root
+function aqConfigurationLoad()
+var path, file, sampleDevIds = [];
+{
+  path = EsPath::createFromPath(
+    EsPath::stdDocsGet()
+  );
+
+  path$fileName = "aq_calibration";
+  path$fileExt = "config";
+  
+  path = path.pathGet( EsPathFlag$$Default, "" );
+  
+  file = new EsFile(
+    path, 
+    EsFileFlag$$Text | EsFileFlag$$Read
+  );
+
+  file$delimiters = "\r\n";
+  if( file.open() )
+  { 
+    while( !file$eof )
+      sampleDevIds += file.stringRead();
+
+    file.close();
+  }
+  else
+    throw EsStr::format(
+      "Could not read calibration configuration file %s",
+      path
+    );
+
+  EsScriptDebug::log("AQ Calibration Configuration read");
+  EsScriptDebug::log(
+    "Sample devices: [%d]=%s",
+    sampleDevIds#countGet(),
+    sampleDevIds
+  );
+  
+  return sampleDevIds;
+}
+
+// Connect AQ device located on specfic devpath
+function aqDeviceConnect( devpath )
+var dev, chnl = new EsChannelIoUart(), 
+  protomon, master = new EsRpcMaster();
+{
+  // Uncomment to use channel debug monitor helper
+  //chnl$monitor = new ChnlIoMonitor();
+
+  chnl$port = devpath;
+  chnl$baud = 921600;
+
+  // Uncomment to use protocol debug monitor helper
+  /*
+  protomon = new ProtoIoMonitor();
+  protomon$customRpids = RADEX_AQ_Rpid;
+  master$monitor = protomon;
+  */
+
+  master$channel = chnl;
+  master$packetTimeout = 4000;
+  master.activate();
+
+  dev = new RADEX_AQ(
+    deviceKnownCapsFwIdRead(
+      master,
+      master.getImplementedRPCs()
+    )
+  );
+
+  dev$ioMaster = master;
+
+  return dev;
+}
+
+// Enumerate all connected AQ devices
+//
+function allAqDevicesConnect()
+var tmp, comms = EsChannelIoUart::enumerate(
+    false,  //< Skip Busy ports
+    true    //< USB bus only
+  ),
+  dev, devs = [], devpaths = [];
+{
+  if( !comms#countGet() )
+    throw "Could not find any non-busy USB ports";
+
+  foreach( tmp in comms )
+  {
+    // Extract the first match found
+    if( !tmp[2]#find("RADEX-AQ")#isEmpty() )
+      devpaths += tmp[0]; //< Now we have full UART device path
+  }
+
+  if( 0 == devpaths#countGet() )
+    throw "Could not find RADEX-AQ USB ports";
+
+  foreach( tmp in devpaths )
+  {
+    dev = aqDeviceConnect( tmp );
+    if( !dev#isEmpty() )
+    {
+      devs += dev;
+
+      EsScriptDebug::log(
+        "Connected %s",
+        dev$fwIdStringEssential
+      );
+    }
+  }
+
+  return devs;
+}
+
+// Fail-safe date time setter with retries
+function aqDateTimeSetNow(dev)
+var rpcResult, retries = c_opRetries;
+{
+  do
+  {
+    rpcResult = dev.rpcCall( 
+      EsRpcStdId$$DATETIME_SET,
+      EsDateTime::now()
+    );
+
+    --retries;
+
+  } while( 
+      (
+        !rpcResult[0] ||
+        !rpcResult[1]
+      ) &&
+      0 < retries
+    );
+
+  if( 0 == retries )
+    throw EsStr::format(
+      "Could not sync date time in %s, retries expired",
+      dev$fwIdStringEssential
+    );
+
+  EsScriptDebug::log(
+    "Date Time synched for %s",
+    dev$fwIdStringEssential
+  );
+}
+
+function aqContinuousMsrStart(dev)
+var rpcResult, retries = c_opRetries;
+{
+  do
+  {
+    rpcResult = dev.rpcCall( 
+      RADEX_AQ_Rpid$$ContMeasurementsStart,
+      true
+    );
+
+    --retries;
+
+  } while( 
+    !rpcResult[0] &&
+    0 < retries
+  );
+
+  if( 0 == retries )
+    throw EsStr::format(
+      "Could not initiate measurement in %s, retries expired",
+      dev$fwIdStringEssential
+    );
+
+  EsScriptDebug::log(
+    "Initiated measurements for %s",
+    dev$fwIdStringEssential
+  );
+}
+
+function aqContinuousMsrStop(dev)
+var rpcResult, retries = c_opRetries;
+{
+  do
+  {
+    rpcResult = dev.rpcCall( 
+      RADEX_AQ_Rpid$$ContMeasurementsStart,
+      false
+    );
+
+    --retries;
+
+  } while( 
+    !rpcResult[0] &&
+    0 < retries
+  );
+
+  if( 0 == retries )
+    throw EsStr::format(
+      "Could not exit continuous measurements in %s, retries expired",
+      dev$fwIdStringEssential
+    );
+
+  EsScriptDebug::log(
+    "Stoppend continuous measurements for %s",
+    dev$fwIdStringEssential
+  );
+}
+
+// Read Live (from sample) and Raw (from others) data from device, with retries
+function aqDataRead(data, sampleDevs, dev)
+var rpcResult, retries = c_opRetries, isSampleDev = (dev$fwIdStringEssential in sampleDevs);
+{
+  do
+  {
+    if( isSampleDev )
+      rpcResult = dev.rpcCall( 
+        RADEX_AQ_Rpid$$LiveDataGet,
+        null
+      );
+    else
+      rpcResult = dev.rpcCall( 
+        RADEX_AQ_Rpid$$LiveDataGetRaw,
+        null
+      );
+
+    --retries;
+
+  } while( 
+    !rpcResult[0] &&
+    0 < retries
+  );
+
+  if( 0 == retries )
+    throw EsStr::format(
+      "Could not read results in %s, retries expired",
+      dev$fwIdStringEssential
+    );
+
+  if( data.keyExists(dev$fwIdStringEssential) )
+    data.valueSet(
+      dev$fwIdStringEssential,
+      rpcResult[1]
+    );
+  else
+    data.newValueSet(
+      dev$fwIdStringEssential,
+      rpcResult[1]
+    );
+
+  EsScriptDebug::log(
+    "Read Data for %s",
+    dev$fwIdStringEssential
+  );
+}
+
+// Save current data nodes to output file
+function aqDataSave(fname, sampleDevs, data)
+var dt = EsDateTime::now(), 
+  key, keys = data$keys, node,
+  file, fileFlags = EsFileFlag$$Text | EsFileFlag$$Write, 
+  line = "", sampleLine = "", text = "",
+  createHeader = false;
+{
+  if( EsPath::fileExists(fname, "") )
+    fileFlags |= EsFileFlag$$Append;
+  else
+    createHeader = true;
+
+  file = new EsFile(
+    fname, 
+    fileFlags
+  );
+
+  if( file.open() )
+  {
+    if( createHeader )
+    {
+      // The first line of header
+      foreach( key in keys )
+      {
+        if( key in sampleDevs )
+          sampleLine += EsPath::makeSafe(
+            key, 
+            "_ ;-",
+            "_"
+          ) + "; ;"; // Dust && Compensated T
+        else
+          line += EsPath::makeSafe(
+              key, 
+              "_ ;-",
+              "_"
+            ) + "; ; ; ;"; // Raw Dust, CNT, CNT Long, Raw T
+      }
+      text = "Timestamp; ;" + sampleLine + line + "\n";
+
+      // The second line of header
+      line = "";
+      sampleLine = "";
+      foreach( key in keys )
+      {
+        if( key in sampleDevs )
+          sampleLine += "SAMPLE DUST;SAMPLE TEMP;";
+        else
+          line += "DUST RAW;STATCNT;STATCNT LONG;TEMP RAW;";
+      }
+      text += "Date; Time;" + sampleLine + line + "\n";
+
+      sampleLine = "";
+      line = "";
+    }
+
+    // Collate normal data row
+    text += "'" + dt.asDateString() + "';" + dt.asTimeString() + ";";
+
+    foreach( key in keys )
+    {
+      node = data.valueGet(key);
+
+      if( key in sampleDevs )
+        sampleLine += node.f_dust + ";" + node.f_temperature + ";";
+      else
+        line += node.f_dust + ";" + node.f_dustStatCnt + ";" + node.f_dustLongStatCnt + ";" + node.f_rawTemp + ";";
+    }
+
+    text += sampleLine + line + "\n";
+
+    file.seekEnd(0);
+    file.stringWrite( text );
+    file.close();
+
+    EsScriptDebug::log(
+      "AQ Data written, at TS: %s",
+      dt
+    );
+  }
+  else
+    throw EsStr::format(
+      "File '%s' could not open: %s",
+      fname,
+      file$recentErrorString
+    );
+}
+
+// Sync Date Time with host for each connected devices
+function aqDtSync(devs)
+var dev;
+{
+  foreach( dev in devs )
+    aqDateTimeSetNow( dev );
+}
+
+// Initialize calibration session file name
+function aqCalibrationSessionInitiate()
+var path;
+{
+  path = EsPath::createFromPath(
+    EsPath::stdDocsGet()
+  );
+
+  path$fileName = EsPath::makeSafe("AQ calibration session " + EsDateTime::now());
+  path$fileExt = "csv";
+  
+  path = path.pathGet( EsPathFlag$$Default, "" );
+
+  EsScriptDebug::log(
+    "AQ calibration session file name is: %s",
+    path
+  );
+
+  return path;
+}
+
+// Process AQ calibration msr, reading, saving
+//
+function aqMsrInitialize(devs, file, data)
+var dev;
+{
+  foreach( dev in devs )
+    aqContinuousMsrStart(dev);
+
+  EsThreadWorker::sleep(5000);
+}
+
+function aqMsrUninitialize(devs)
+var dev;
+{
+  foreach( dev in devs )
+    aqContinuousMsrStop(dev);
+}
+
+function aqDevicesDataRead(devs, sampleDevs, file, data)
+var dev;
+{
+  foreach( dev in devs )
+  {
+    aqDataRead(
+      data, 
+      sampleDevs,
+      dev
+    );
+  }
+
+  aqDataSave(
+    file,
+    sampleDevs,
+    data
+  );
+  
+  EsThreadWorker::sleep(5000);    
+}
+
+////////////////////////////////////////////////////////////////
+// Main code:
+//
+
+var fname, 
+  sampleDevs = aqConfigurationLoad(),
+  data = new EsAssocContainer(),
+  devs = allAqDevicesConnect();
+
+// Sync date time for all devices
+aqDtSync(devs);
+
+EsThreadWorker::sleep(1000);
+
+// Initiate output session file
+fname = aqCalibrationSessionInitiate();
+
+// Initialize measurements
+aqMsrInitialize(
+  devs,
+  fname,
+  data
+);
+
+// Execute the following loop
+while( !__scriptHost$aborting )
+{
+  aqDevicesDataRead(
+    devs,
+    sampleDevs,
+    fname,
+    data
+  );
+}
+
+aqMsrUninitialize(
+  devs
+);

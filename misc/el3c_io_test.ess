@@ -1,0 +1,589 @@
+/// EL3C Data formatting helpers
+///
+function EL3C_ValueFmt(val)
+var fmt;
+{
+  if( val < 0 )
+    val = 0;
+    
+  if( val < 10 )
+    fmt = "%0.2f";
+  else if( val < 100 )
+    fmt = "%0.1f";
+  else
+    fmt = "%0.0f";
+  
+  return EsStr::format(fmt, val);
+}
+
+function EL3C_CieValueFmt(val, valid)
+var fmt;
+{
+  if( !valid )
+    return c_noDataStr;
+  
+  if( val < 0 )
+    val = 0;
+    
+  return EsStr::format("%0.6f", val);
+}
+
+function EL3C_PulsationFmt(val)
+var fmt;
+{
+  if( val < 0 )
+    val = 0;
+    
+  if( val < 10 )
+    fmt = "%0.1f";
+  else
+    fmt = "%0.0f";
+  
+  return EsStr::format(fmt, val);
+}
+
+/// Multi part value string creation
+function EL3C_strMultiGet(val, unit, valid)
+var mul = 1., result = []; 
+{
+  if( !valid )
+  {
+    result += c_noDataStr;
+    result += c_noDataStr;
+    result += c_noDataStr;
+  }
+  else
+  {
+    result += EL3C_ValueFmt( val );
+    if( val > 1000. )
+    {
+      mul = 1000.;
+      val /= mul;
+    }
+    result += EL3C_ValueFmt( val );
+    result += EsStr::format("x%d", mul);
+  }
+    
+  result += unit;
+  return result;
+}
+
+/// Multi part pulsation string 
+function EL3C_strMultiNoMulPartGet(val, unit, valid)
+var result = [];
+{
+  if( !valid )
+    result += c_noDataStr;    
+  else
+    result += EL3C_PulsationFmt( val );
+  
+  result += unit;
+  return result;
+}
+
+/// Create simple string from multistring
+function EL3C_fromStrMulti(multi)
+{
+  return multi[0] + " " + multi[3];
+}
+
+/// The same as above, but for pulsation multistring
+function EL3C_fromStrMultiNoMulPart(multi)
+{
+  return multi[0] + " " + multi[1];
+}
+
+/// EL3C contants
+///
+const c_el3c_unitE = "lx";
+const c_el3c_unitL = "cd/m<sup>2</sup>";
+const c_el3c_unitP = "%";
+const c_el3c_unitCT = "K";
+
+// el3c-specific rpcs 
+enum EL3C_Rpid
+{
+  WorkmodeSet               = 2080, "VOID_Call_esU32|";
+  WorkmodeGet               = 2081, "esU32_Call|";
+  LiveDataGet               = 2082, "esBA_Call|";
+}
+
+/// PHA Color device error flags and bit masks
+enum EL3C_Error
+{
+  PwrCritical   = 0x00000001, "Battery Low";                         ///< Battery power level is below critical margin
+  RTC           = 0x00000002, "RTC error";                           ///< RTC initialization error
+  RTC_Invalid   = 0x00000004, "RTC date time corrupt";               ///< RTC date time value is invalid
+  Storage       = 0x00000008, "Storage initialization error";        ///< Storage stream could not be opened
+
+  AnlNoCal      = 0x00000010, "Analog Clear sensor calibration is missing"; ///< Analog clear sensor calibration is missing or invalid
+  DigNoCal      = 0x00000020, "Digital Clear sensor calibration is missing"; ///< Digital clear sensor calibration is missing or invalid
+  DigNoSensor   = 0x00000040, "Digital sensor does not respond";     ///< Digital clear sensor does not respond
+
+  I2C           = 0x00000080, "I2C bus error";                       ///< Error condition latched on I2C bus     
+}
+
+/// PHA Color operation modes
+enum EL3C_OpMode
+{
+  None        = 0, "NONE";
+  Idle        = 1, "IDLE operation";
+  Illuminance = 2, "ILLUMINANCE operation";
+  Luminance   = 3, "LUMINANCE operation";
+  Oscilloscope= 4, "OSCILLOSCOPE operation";
+}
+
+/// PHA Color data state flags
+enum EL3C_DataState
+{
+  None         = 0, "Normal";                       //< Normal data state, just for readability
+  LowSignal    = 0x100, "Low signal";               //< Low value state - no kp data is valid, because slow color sensor output is used (0x1 << 8)
+}
+
+/// PHA Color data (in)validity flags
+enum EL3C_DataInvalid
+{
+  val          = 0x00010000;  //(0x0001 << 16);
+  valOrg       = 0x00020000;  //(0x0002 << 16);
+  kp           = 0x00040000;  //(0x0004 << 16);
+  kpOrg        = 0x00080000;  //(0x0008 << 16);
+  kpi          = 0x00100000;  //(0x0010 << 16);
+  kpiOrg       = 0x00200000;  //(0x0020 << 16);
+  bgnd         = 0x00400000;  //(0x0040 << 16);
+  bgndTmo      = 0x00800000;  //(0x0080 << 16);
+  xy           = 0x01000000;  //(0x0100 << 16);
+  ct           = 0x02000000;  //(0x0200 << 16);
+}
+
+/// EL3C Health state object
+object EL3C_Health
+{
+  esU32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & EL3C_Error$$PwrCritical)
+      result += EL3C_Error$$PwrCritical$$label;
+    if(f_errors & EL3C_Error$$I2C)
+      result += EL3C_Error$$I2C$$label;
+    if(f_errors & EL3C_Error$$RTC)
+      result += EL3C_Error$$RTC$$label;
+    if(f_errors & EL3C_Error$$RTC_Invalid)
+      result += EL3C_Error$$RTC_Invalid$$label;
+    if(f_errors & EL3C_Error$$Storage)
+      result += EL3C_Error$$Storage$$label;
+    
+    if(f_errors & EL3C_Error$$AnlNoCal)
+      result += EL3C_Error$$AnlNoCal$$label;
+    if(f_errors & EL3C_Error$$DigNoCal)
+      result += EL3C_Error$$DigNoCal$$label;
+    if(f_errors & EL3C_Error$$DigNoSensor)
+      result += EL3C_Error$$DigNoSensor$$label;
+    
+    return result;
+  }
+
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+  
+  property errors;
+  read: { return f_errors$value; }
+
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { 
+      return 0 != (f_errors & 
+      ( EL3C_Error$$I2C|
+        EL3C_Error$$RTC|
+        EL3C_Error$$Storage|
+        EL3C_Error$$DigNoSensor 
+      )
+    ); 
+  }
+  
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { 
+    return 0 != (f_errors & 
+        ( EL3C_Error$$RTC_Invalid|
+          EL3C_Error$$AnlNoCal|
+          EL3C_Error$$DigNoCal
+        )
+      );        
+  }
+  
+  // Return true if error flags contain warnings      
+  property hasWarning;
+  read: { return 0 != (f_errors & EL3C_Error$$PwrCritical); }
+  
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// EL3C Color data flags|state helper object
+///
+object EL3C_DataFlags
+{
+  esU32 f_flags;
+  
+  /// Constructor with assignment
+  new( flags )
+  {
+    f_flags = flags;    
+  }
+  
+  /// Return data state as a string collection
+  function dsAsStrings()
+  var ds = (f_flags & 0xF00), result = [];
+  {
+    if( EL3C_DataState$$None == ds )
+      result += EL3C_DataState$$None$$label;
+    else
+    {
+      if( ds & EL3C_DataState$$LowSignal )
+        result += EL3C_DataState$$LowSignal$$label;
+    }
+    
+    return result;
+  }
+  
+  /// Return data state as string
+  function dsAsString()
+  {
+    return EsStr::fromArray(dsAsStrings(), "; ", "", "");
+  }
+  
+  /// Parsed flags properties
+  ///
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return (f_flags & 0x0F); } 
+  
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return EL3C_OpMode.valueLabelGet( $opmode ); } 
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags & 0xF00; }
+
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return dsAsString(); }
+
+  /// Separately output low light condition
+  property isLowLight;
+  read: { return EL3C_DataState$$LowSignal == ($dataState & EL3C_DataState$$LowSignal); }
+  
+  /// Return data validity flags
+  ///
+  property valvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$val); }
+  
+  property valOrgvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$valOrg); }
+  
+  property kpvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$kp); }
+  
+  property kpOrgvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$kpOrg); }
+  
+  property kpivalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$kpi); }
+  
+  property kpiOrgvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$kpiOrg); }
+  
+  property valBgndvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$bgnd); }
+  
+  property bgndExpvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$bgndTmo); }
+  
+  property xyvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$xy); }
+  
+   property ctvalid;
+  read: { return 0 == (f_flags & EL3C_DataInvalid$$ct); }
+}
+
+object EL3C_Data
+{
+  /// Data fields
+  ///
+  
+  esDT  f_ts;               ///< Data timestamp
+  EL3C_Health f_errors;     ///< Device error flags
+  EL3C_DataFlags f_flags;   ///< Data state|validity flags
+  esF   f_val;              ///< Measured value (either illuminance or luminance, depending on mode flag)
+  esF   f_valOrg;           ///< Original value (for Bgnd. trimming mode)
+  esF   f_kp;               ///< Pulsation coefficient, in %
+  esF   f_kpOrg;            ///< Original pulsation coefficient (for Bgnd. trimming mode)
+  esF   f_kpi;              ///< Pulsation calculated by integral algo
+  esF   f_kpiOrg;           ///< Original pulsation calculated by integral algo
+  esF   f_bgnd;             ///< Measured background value (for Bgnd. trimming mode)
+  esF   f_x;                ///< CIE x component
+  esF   f_y;                ///< CIE y component
+  esF   f_ct;               ///< Color temperature in K
+  esU16 f_bgndTmo;          ///< Bgnd measurement duration, in seconds
+  esU16 f_bgndEta;          ///< Bgnd measurement countdown, in seconds
+  
+  /// Properties
+  ///
+  
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
+  
+  /// Errors
+  property errors;
+  read: { return f_errors; }
+  
+  /// Data flags
+  property flags;
+  read: { return f_flags; }
+  
+  property isLowLight;
+  read: { return f_flags$isLowLight; }
+  
+  /// Value
+  property val;
+  read: { return f_val$value; }
+  
+  /// Value string components property
+  property valStrMulti;
+  read: 
+  {
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+      return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valvalid);
+  }
+  
+  /// Value string
+  property valStr;
+  read: { return EL3C_fromStrMulti( $valStrMulti ); }
+  
+  /// Pulsation (Modulation) coefficient, in %
+  property kp;
+  read: { return f_kp$value; }
+  
+  /// pulsation string components
+  property kpStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpvalid ); }
+  
+  /// pulsation string
+  property kpStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }  
+  
+  /// Pulsation (Integral) coefficient, in %
+  property kpi;
+  read: { return f_kpi$value; }
+  
+  /// pulsation string components
+  property kpiStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpivalid ); }
+  
+  /// pulsation string
+  property kpiStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpiStrMulti ); }  
+   
+  /// Parsed Flags properties delegation
+  ///
+  
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return f_flags$opmode; } 
+  
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return f_flags$opmodeStr; } 
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags$dataState; }
+  
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return f_flags$dataStateStr; } 
+  
+  /// Return data validity flags
+  ///
+  property valvalid;
+  read: { return f_flags$valvalid; }
+  
+  property kpvalid;
+  read: { return f_flags$kpvalid; }
+  
+  property kpivalid;
+  read: { return f_flags$kpivalid; }
+}
+
+/// Channel-level IO monitor helper object
+object CnlIoMonitor
+{
+  function channelOpened(id)
+  {
+    EsScriptDebug::log("IOMON: Channel with id='%s' opened", id);
+  }
+  
+  function channelClosed(id)
+  {
+    EsScriptDebug::log("IOMON: Channel with id:'%s' closed", id);
+  }
+  
+  function channelBytesReceived(id, data)
+  {
+    EsScriptDebug::log("IOMON: <<< '%s' on '%s'", data, id);
+  }
+  
+  function channelReceptionError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR reading on '%s', %s", id, error);
+  }
+  
+  function channelBytesSent(id, data)
+  {
+    EsScriptDebug::log("IOMON: >>> '%s' on '%s'", data, id);
+  }
+  
+  function channelSendingError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR writing on '%s', %s", id, error);
+  }
+  
+  function channelError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR on '%s', %s", id, error);
+  }
+}
+
+/// ECO-E Protocol-level IO monitor helper object
+object ProtoIoMonitor
+{
+  function protocolFrameSent(id, frameData)
+  {
+    EsScriptDebug::log("PMON: >>> '%s' on %s", frameData, id);
+  }
+
+  function protocolFrameSendingFailed(id, error)
+  {
+    EsScriptDebug::log("PMON: sending failed on '%s', %s", id, error);
+  }
+
+  function protocolFrameReceived(id, frameData)
+  {
+    EsScriptDebug::log("PMON: <<< '%s' on %s", frameData, id);
+  }
+
+  function protocolFrameReceptionFailed(id, error)
+  {
+    EsScriptDebug::log("PMON: reception failed on '%s', %s", id, error);
+  }
+}
+
+//-------------------------------------------------------------------------------
+// create io channel && rpc master
+var chnl = new EsChannelIoUart(), master, wmode, data = new EL3C_Data();
+
+// Find all available free UART channels on USB
+var comm, 
+  comms = EsChannelIoUart::enumerate(
+    false,  //< Skip Busy ports
+    true    //< USB bus only
+  );
+
+try 
+{
+
+  if( !comms#countGet() )
+    throw "Could not find any non-busy USB ports";
+
+  foreach( comm in comms )
+  {
+    // Extract the first match found
+    if( !comm[2]#find("ELIGHT-03")#isEmpty() )
+    {
+      comm = comm[0]; //< Now we have full UART device path
+      break;
+    }
+  }
+
+  if( !comm#isString() )
+    throw "Could not find ELIGHT-03 USB port";  
+
+  master = new EsRpcMaster();
+
+  // configure channel, assign to master
+  EsScriptDebug::log(
+    "Found ELIGHT-03 on: %s",
+    comm  
+  );
+
+  chnl$port = comm;
+  master$channel = chnl;
+
+  // Set-up IO monitor on channel. Comment out if not needed
+//  chnl$monitor = new ChnlIoMonitor();
+
+  // Set-up master monitor
+  master$monitor = new ProtoIoMonitor();
+
+  // Try to communicate with device
+  master.activate();
+  
+  // Check if device responded to ping protocol command
+  EsScriptDebug::log("...Pinging device");
+  if( master.ping() )
+    EsScriptDebug::log("Device responded to ping, proceed");
+
+  // Get device workmode
+  EsScriptDebug::log("...Checking workmode");
+  wmode = master.esU32_Call(EL3C_Rpid$$WorkmodeGet);
+  if( EL3C_OpMode$$Illuminance != wmode )
+  {
+    master.VOID_Call_esU32(EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Illuminance);
+
+    wmode = master.esU32_Call(EL3C_Rpid$$WorkmodeGet);
+    if( EL3C_OpMode$$Illuminance != wmode )
+      throw "Device workmode is not set";
+  }
+  EsScriptDebug::log("...Workmode set to Illuminance");
+  
+  // Read device live data
+  EsScriptDebug::log("...Reading live data");
+  while( !__scriptHost$aborting )
+  {
+    EsThreadWorker::sleep(1500);
+    data$buffer = master.esBA_Call(EL3C_Rpid$$LiveDataGet);
+
+    EsScriptDebug::log("data:[ts:%s, Value valid:%d, val:%s, kpi is valid: %d, kpi: %s]", data$ts, data$valvalid, data$valStr, data$kpivalid, data$kpiStr);
+  }
+}
+catch
+{
+  EsScriptDebug::log("An exception occurred: %s", __exception$reason);  
+}
+
+if( !master#isEmpty() && master.isActive() )
+  master.deactivate();
+

@@ -1,0 +1,554 @@
+// Scripting device support for pha-01 photo-appliance
+##require("EsDeviceBase.ess");
+##require("obsidian/Consts.ess");
+##require("obsidian/Flags.ess");
+##require("obsidian/FmtHelpers.ess");
+##require("obsidian/Data.ess");
+##require("obsidian/CalibrationAndSettings.ess");
+
+/// OBSIDIAN device object
+object OBSIDIAN extends EsDeviceBase
+@nomarshal;
+{
+  var m_cfgCache;
+
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in OBSIDIAN_Rpid )
+      return OBSIDIAN_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in OBSIDIAN_Rpid )
+      return rpcSigGet(OBSIDIAN_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(
+      fwId, 
+      EsQuartaDeviceType$$OBSIDIAN, 
+      "OBSIDIAN"
+    );
+  }
+
+  function fwIdDefaultSet()
+  var now = EsDateTime::now();
+  {
+    m_fwId = new EsFirmwareId(EsQuartaDeviceType$$OBSIDIAN);
+    m_fwId.f_order = 0;
+    m_fwId.f_year = now$year;
+    m_fwId.f_month = now$month;
+    m_fwId.f_day = now$dayOfMonth;
+    m_fwId.f_countryCode = m_countryCode;
+    m_fwId.f_hwConfig$standard = 0;
+    m_fwId.f_hwConfig$custom = 0;
+    
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + OBSIDIAN_Rpid$values;
+  {
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$SHUTDOWN;
+    
+    return result;
+  }
+  
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var cnt, result = null;
+  {
+    switch( rpcId )
+    {
+    case OBSIDIAN_Rpid$$MIS_Get:
+      {
+        result = new OBSIDIAN_Data();
+        result$buffer = rpcResult#asBinBuffer();
+        result.m_cfg = m_cfgCache;
+      }
+    case OBSIDIAN_Rpid$$MNK_Get:
+      {
+        result = new OBSIDIAN_Cfg();
+        result$buffer = rpcResult#asBinBuffer();
+        m_cfgCache = result;
+      }
+    case OBSIDIAN_Rpid$$SavedDERread:
+      {
+        result = new OBSIDIAN_DataPersistentDER();
+        result$buffer = rpcResult#asBinBuffer();
+        result.m_cfg = m_cfgCache;
+      }
+    case OBSIDIAN_Rpid$$SavedDoseRead:
+      {
+        result = new OBSIDIAN_DataPersistentDose();
+        result$buffer = rpcResult#asBinBuffer();
+        result.m_cfg = m_cfgCache;
+      }
+    case OBSIDIAN_Rpid$$SavedBetaRead:
+      {
+        result = new OBSIDIAN_DataPersistentBeta();
+        result$buffer = rpcResult#asBinBuffer();
+        result.m_cfg = m_cfgCache;
+      }
+    default: 
+      result = EsDeviceBase::rpcCallResultHandle(
+        rpcId, 
+        rpcArgs, 
+        rpcResult
+      );
+    }
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    internalInit(null);
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+  }
+  
+  /// Download settings object
+  function settingsDownload()
+  var 
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe
+    ),
+    settings = new OBSIDIAN_Settings(m_fwId), 
+    rpcResult;
+  {
+    task.attachTo(__scriptHost$progressMonitor);
+    task.pulse(
+      EsStr::translate(I"Downloading device settings...")
+    );
+  
+    rpcResult = rpcCall(
+      OBSIDIAN_Rpid$$MNK_Get, 
+      null
+    );
+    
+    if( rpcResult[0] )
+    {
+      settings.f_cfg.copyFrom( rpcResult[1] );
+      task.end(
+        EsStr::translate(I"Device settings downloaded")
+      );
+
+      EsScriptDebug::log(
+        "OBSIDIAN::settingsDownload\n%s", 
+        rpcResult[1].asString()
+      );
+    }
+    else
+    {
+      task.end(
+        EsStr::translate(I"Failed to download Device settings")
+      );
+      return rpcResult;
+    }
+
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+  
+  /// Upload settings object
+  function settingsUpload(settings)
+  var task, rpcResult;
+  {
+    if( settings$fwId != m_fwId )
+      throw EsStr::translate(I"Could not upload incompatible device settings");
+
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe
+    );
+      
+    task.attachTo(__scriptHost$progressMonitor);
+    task.pulse(
+      EsStr::translate(I"Uploading device settings...")
+    );
+      
+    rpcResult = rpcCall(
+      OBSIDIAN_Rpid$$MNK_Set,
+      settings$config
+    );  
+    
+    if( rpcResult[0] )
+    {
+      task.end(
+        EsStr::translate(I"Device settings uploaded")
+      );
+      
+      m_cfgCache = settings$config;
+      
+      EsScriptDebug::log(
+        "OBSIDIAN::settingsUpload\n%s", 
+        settings.asString()
+      );
+    }
+    else
+      task.end(
+        EsStr::translate(I"Failed to upload Device settings")
+      );
+    
+    return rpcResult;
+  }
+
+  function deviceReboot()
+  {
+    return rpcCall(
+      OBSIDIAN_Rpid$$Reboot,
+      1
+    );
+  }
+
+  function settingsResetToFactory()
+  var rpcResult;
+  {
+    m_cfgCache$defaultSettings = true;
+    
+    rpcResult = rpcCall(
+      OBSIDIAN_Rpid$$MNK_Set,
+      m_cfgCache
+    );
+
+    if( rpcResult[0] )
+    {
+      EsThreadWorker::sleep(1500); //< Allow device to safely process updated MNK
+
+      customCallQueue(
+        "deviceReboot",
+        null
+      );
+    }
+
+    return rpcResult;
+  }
+
+  // Delete saved data
+  function savedDataClear()
+  {
+    return rpcCall( 
+      OBSIDIAN_Rpid$$StorageDataReset,
+      1 //< Dummy parameter
+    );
+  }
+
+  // Custom wrappers around tricky Obsidian MODBUS-2-RPC parameter interpretations
+  //
+  function currentUserDoseReset()
+  {
+    return rpcCall(
+      OBSIDIAN_Rpid$$UserDoseReset,
+      1
+    );
+  }
+
+  function currentUserDoseStartStop(start)
+  var rpcResult;
+  {
+    rpcResult = rpcCall(
+      OBSIDIAN_Rpid$$DoseAccumToggle,
+      // Take current user from config cache
+      (start#asByte() << 8) | ((!m_cfgCache#isEmpty()) ? m_cfgCache$currentUser$value : 1 )
+    );
+
+    if( rpcResult[0] )
+      customCallQueue(
+        "settingsDownload",
+        null
+      );
+
+    return rpcResult;
+  }
+
+  function spectrumReset()
+  {
+    return rpcCall(
+      OBSIDIAN_Rpid$$SpectrumReset,
+      0x01
+    );
+  }
+
+  function dataNodeAddTo(dest, node)
+  var sess, data, sessIdx, ts;
+  {
+    if( node$isNull )
+      return;
+
+    sessIdx = node$sessionIndex;
+    ts = node$tsEnd;
+
+    if( dest.keyExists( sessIdx ) )
+    {
+      sess = dest.valueGet(
+        sessIdx
+      );
+
+      if( 
+        ts < sess.valueGet("start")
+      )
+        sess.valueSet(
+          "start",
+          ts
+        );
+
+      if( 
+        ts > sess.valueGet("end")
+      )
+        sess.valueSet(
+          "end",
+          ts
+        );
+
+      data = sess.valueGet("data");
+      
+      if( data.keyExists(ts) )
+        EsScriptDebug::log(
+          "Data node idx:%d with TS:%s already exists in session %d",
+          node$index,
+          ts,
+          sessIdx
+        );
+      else
+        data.newValueSet(
+          ts,
+          node
+        );
+    }
+    else
+    {
+      sess = new EsAssocContainer(__metaclass);
+
+      sess.newValueSet(
+        "name",
+        ""
+      );
+
+      sess.newValueSet(
+        "index",
+        sessIdx
+      );
+
+      sess.newValueSet(
+        "start",
+        ts
+      );
+
+      sess.newValueSet(
+        "end",
+        ts
+      );
+
+      data = new EsAssocContainer(__metaclass);
+      data.newValueSet(
+        ts,
+        node
+      );
+
+      sess.newValueSet(
+        "data",
+        data
+      );
+
+      dest.newValueSet(
+        sessIdx,
+        sess
+      );
+    }
+  }
+
+  function allSavedDataDownload()
+  var task, taskDER, taskDose, taskBeta,
+    rpcResult, idx = 0, cnt = 0, 
+    dataDER = new EsAssocContainer(__metaclass), 
+    dataDose = new EsAssocContainer(__metaclass), 
+    dataBeta = new EsAssocContainer(__metaclass);
+  {
+    rpcResult = rpcCall( 
+      OBSIDIAN_Rpid$$SavedDERstartIdxSet, 
+      0 
+    );
+    if( !rpcResult[0] )
+      return rpcResult;
+
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe,
+      EsStr::translate(I"Downloading saved data...")
+    );
+    task.attachTo(__scriptHost$progressMonitor);
+   
+    taskDER = new EsProgressMonitorTask(
+      "_task_DER_dload_",
+      EsStr::translate(I"Downloading DER data..."),
+      c_OBSIDIAN_StorageCapacity,
+      0
+    );
+    taskDER.attachTo( task );
+
+    for( idx = 0; idx < c_OBSIDIAN_StorageCapacity; ++idx )
+    {
+      rpcResult = rpcCall( 
+        OBSIDIAN_Rpid$$SavedDERread, 
+        null
+      );
+      
+      if( rpcResult[0] )
+      {
+        dataNodeAddTo(
+          dataDER,
+          rpcResult[1]
+        );
+      }
+      else
+        break;
+
+      if( 0 == (idx % c_OBSIDIAN_DataDloadPosInc) )
+        taskDER$position = idx;
+    }
+    taskDER$position = c_OBSIDIAN_StorageCapacity;
+
+    rpcResult = rpcCall( 
+      OBSIDIAN_Rpid$$SavedDoseStartIdxSet, 
+      0 
+    );
+    if( !rpcResult[0] )
+      return rpcResult;
+
+    taskDose = new EsProgressMonitorTask(
+      "_task_Dose_dload_",
+      EsStr::translate(I"Downloading Dose data..."),
+      c_OBSIDIAN_StorageCapacity,
+      0
+    );
+    taskDose.attachTo( task );
+
+    for( idx = 0; idx < c_OBSIDIAN_StorageCapacity; ++idx )
+    {
+      rpcResult = rpcCall( 
+        OBSIDIAN_Rpid$$SavedDoseRead, 
+        null
+      );
+      
+      if( rpcResult[0] )
+      {
+        dataNodeAddTo(
+          dataDose,
+          rpcResult[1]
+        );
+      }
+      else
+        break;
+
+      if( 0 == (idx % c_OBSIDIAN_DataDloadPosInc) )
+        taskDose$position = idx;
+    }
+    taskDose$position = c_OBSIDIAN_StorageCapacity;
+
+    rpcResult = rpcCall( 
+      OBSIDIAN_Rpid$$SavedBetaStartIdxSet, 
+      0 
+    );
+    if( !rpcResult[0] )
+      return rpcResult;
+
+    taskBeta = new EsProgressMonitorTask(
+      "_task_Beta_dload_",
+      EsStr::translate(I"Downloading Beta data..."),
+      c_OBSIDIAN_StorageCapacity,
+      0
+    );
+    taskBeta.attachTo( task );
+
+    for( idx = 0; idx < c_OBSIDIAN_StorageCapacity; ++idx )
+    {
+      rpcResult = rpcCall( 
+        OBSIDIAN_Rpid$$SavedBetaRead, 
+        null
+      );
+      
+      if( rpcResult[0] )
+      {
+        dataNodeAddTo(
+          dataBeta,
+          rpcResult[1]
+        );
+      }
+      else
+        break;
+
+      if( 0 == (idx % c_OBSIDIAN_DataDloadPosInc) )
+        taskBeta$position = idx;
+    }
+    taskBeta$position = c_OBSIDIAN_StorageCapacity;
+
+    if( !rpcResult[0] )
+    {
+      rpcResult[1] = EsStr::translate(I"Failed to download all requested device data"); 
+    }
+    else
+    {
+      rpcResult[1] = [
+        dataDER,
+        dataDose,
+        dataBeta
+      ];
+    }
+    
+    return rpcResult;
+  }
+
+  function spectrumRead()
+  var idx, rpcResult, 
+    spectrumBuff = EsVar::as( EsVariantType$$VAR_BIN_BUFFER ),
+    task = new EsProgressMonitorTask(
+      $fwIdStrSafe,
+      EsStr::translate(I"Downloading spectrum data..."),
+      c_OBSIDIAN_SpectrumFramesCnt,
+      0
+    );
+  {
+    task.attachTo(__scriptHost$progressMonitor);
+
+    for(idx = 0; idx < c_OBSIDIAN_SpectrumFramesCnt; ++idx)
+    {
+      rpcResult = rpcCall(
+        OBSIDIAN_Rpid$$SpectrumFrameRead,
+        idx 
+      );
+
+      if( rpcResult[0] )
+        spectrumBuff += rpcResult[1];
+
+      if( 0 == (idx % c_OBSIDIAN_SpecDloadPosInc) )
+        task$position = idx+1;
+    }
+    task$position = c_OBSIDIAN_SpectrumFramesCnt;
+
+    if( rpcResult[0] )
+    {
+      rpcResult[1] = new OBSIDIAN_Spectrum();
+      rpcResult[1]$buffer = spectrumBuff;
+
+      rpcResult[1].configSet( m_cfgCache );
+    }
+
+    return rpcResult;
+  }
+}

@@ -1,0 +1,197 @@
+// scripting device support for p3-81-1|2 Octava appliances
+##require("../math.ess");
+##require("EsDeviceBase.ess");
+##require("p3xx/Consts.ess");
+##require("p3xx/Flags.ess");
+##require("p3xx/p3_81_1_2_FmtHelpers.ess");
+##require("p3xx/p3_81_1_2_Data.ess");
+
+// Octava P3_81_1_2 device
+//
+object P3_81_1_2 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+///
+/// Local opmode
+  var m_opMode,
+/// Current minmax accumulators
+	m_min0, m_max0,
+	m_min25, m_max25,
+	m_min50, m_max50,
+// Aux vars for Geomagnetic measurements
+	m_doOutdoorsSave,
+	m_hAux,	m_tsAux,
+	m_ts, m_tsStart;	
+	
+/// Specific services
+	function minimaxReset()
+	{
+		m_min0 = c_math_FLT_MAX; m_max0 = 0;
+		m_min25 = c_math_FLT_MAX; m_max25 = 0;
+		m_min50 = c_math_FLT_MAX; m_max50 = 0;
+	}
+	
+	function auxReset()
+	{
+		m_hAux = null;
+		m_tsAux = null;
+	}
+	
+	function measurementsReset()
+	{
+		m_tsStart = EsDateTime::now();
+		m_ts = m_tsStart;
+		minimaxReset();
+		auxReset();
+	}	
+	
+	/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return P3XX_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return rpcSigGet(P3XX_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812], "P3_81X");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsOctavaDeviceType$$P3811);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + P3XX_Rpid$values;
+  {
+    result += EsRpcStdId$$HW_INFO_GET;
+		result += EsRpcStdId$$HEALTH_INFO_GET; 
+		result += EsRpcStdId$$SHUTDOWN;
+		result += EsRpcStdId$$POWER_STATUS_GET;
+    
+    return result;
+  }  
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null, duration;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new P3XX_Health(rpcResult);    // use P381xx health implementation instead of unparsed standard one
+    else if( P3XX_Rpid$$GetMode == rpcId )
+    {
+      result = rpcResult;
+			// in addition, save opmode in internal cache
+      m_opMode = result;
+    }
+    else if( P3XX_Rpid$$GetLiveData == rpcId )
+    {
+      result = new P3_81_1_2_Data();
+      result$buffer = rpcResult#asBinBuffer();
+			result.m_devType = $devType;
+			// update curent timestamp
+			m_ts = EsDateTime::now();
+			result.m_ts = m_ts;
+			
+			// reset|accumulate minimax accumilator, if not running
+			if( result$state$isRunning )
+			{
+				if( m_min0 > result$h0 )
+					m_min0 = result$h0;
+				if( m_max0 < result$h0 )
+					m_max0 = result$h0;
+				result.m_h0Min = m_min0;
+				result.m_h0Max = m_max0;
+
+				if( m_min25 > result$h25 )
+					m_min25 = result$h25;
+				if( m_max25 < result$h25 )
+					m_max25 = result$h25;
+				result.m_h25Min = m_min25;
+				result.m_h25Max = m_max25;
+
+				if( m_min50 > result$h50 )
+					m_min50 = result$h50;
+				if( m_max50 < result$h50 )
+					m_max50 = result$b50;
+				result.m_h50Min = m_min50;
+				result.m_h50Max = m_max50;
+				
+				duration = m_ts-m_tsStart;
+				result.f_msrLen = duration$allSeconds;
+				
+				if( m_doOutdoorsSave )
+				{
+					m_hAux = result$h0;
+					m_tsAux = result.m_ts;
+					
+					m_doOutdoorsSave = false;
+				}
+				
+				result.m_hAux = m_hAux;
+				result.m_tsAux = m_tsAux;
+			}	
+			else
+			{
+				measurementsReset();
+				result.reset();
+			}
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = P3XX_OpMode$$None;
+    internalInit(null);
+		measurementsReset();	
+  }
+  
+  new(fwId)
+  {
+    m_opMode = P3XX_OpMode$$None;
+    internalInit(fwId);
+		measurementsReset();
+  }
+
+	/// Custom requests
+	///
+	function outdoorsSave()
+	{
+		m_doOutdoorsSave = true;
+	}
+
+	function outdoorsReset()
+	{
+		auxReset();
+	}
+	
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	
+	/// Return current opmode string
+	property opmodeStr;
+	read: { return P3XX_OpMode.valueLabelGet(m_opMode); }
+}

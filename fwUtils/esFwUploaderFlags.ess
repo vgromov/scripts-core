@@ -1,0 +1,7 @@
+/// Firmware uploader flags
+///
+
+enum EsFwUploaderFlag
+{
+  Encoded                = 0x00000001;
+}

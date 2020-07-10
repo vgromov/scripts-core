@@ -1,0 +1,53 @@
+/// ELM (eLight-Mini) constants
+///
+
+const c_elm_unitE = "lx";
+
+// el3c-specific rpcs 
+enum ELM_Rpid
+{
+  // Bootloader IDs
+  //
+  BootExit                  = RPID_CUSTOM_BASE,   "VOID_Call|Exit bootloader and try start application mode";
+  
+  // Application IDs
+  //
+  LiveDataGet               = RPID_CUSTOM_BASE+1, "esF_Call|Return currently measured data point";
+  SavedDataGet              = RPID_CUSTOM_BASE+2, "esBA_Call|Return binary chunk contatining saved data structure";
+  SaveData                  = RPID_CUSTOM_BASE+3, "VOID_Call|Instruct device to save currently measured data point";
+  SavedDataReset            = RPID_CUSTOM_BASE+4, "VOID_Call|Request saved device data block reset";
+  LiveDataGetRaw            = RPID_CUSTOM_BASE+5, "esF_Call|Return currently measured raw data point, without calibration applied";
+  CalibrationSet            = RPID_CUSTOM_BASE+6, "VOID_Call_esBA|Set binary chunk, contatining spline nodes[N], where N=0..12";
+  CalibrationGet            = RPID_CUSTOM_BASE+7, "esBA_Call|Return binary chunk, contatining spline nodes[N], where N=0..12";
+}
+
+/// Device-specific HW config info flags
+enum ELM_HwCfgCustom {
+  OPT3001                   = 0x00000001;
+}
+
+/// Device error flags and bit masks
+enum ELM_Error
+{
+  HwErrI2cBus1               = 0x00000001, I"Sensor bus error";
+  HwErrI2cBus2               = 0x00000002, I"EEPROM bus error";
+  HwErrSensorE               = 0x00000004, I"Sensor error";
+  HwErrEEPROM                = 0x00000008, I"EEPROM error";
+  HwErrADC                   = 0x00000010, I"ADC error";
+  HwErrBatteryCritical       = 0x00000020, I"Battery critical";
+  ErrCalibrationInvalid      = 0x00000040, I"Calibration invalid";
+  ErrCalibrationNotApplied   = 0x00000080, I"No calibration";
+  ErrAppInvalid              = 0x00000100, I"Application invalid";
+  ErrSysHardFault            = 0x00000200, I"System Hardware fault";
+  ErrSysMemFault             = 0x00000400, I"System Memory fault";
+  ErrSysBusFault             = 0x00000800, I"System Bus fault";
+  ErrSysUsageFault           = 0x00001000, I"System Usage fault";
+  ErrSysUserAssertion        = 0x00002000, I"User assertion";
+  ErrSysAppCoreVerIncompat   = 0x00004000, I"Application version incompatible with core";
+  ErrSysAppTypeIncompat      = 0x00008000, I"Application type incompatible";
+}
+
+enum ELM_Opmode
+{
+  Illuminance                = 1,          I"Illuminance";
+}

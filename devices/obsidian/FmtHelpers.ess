@@ -1,0 +1,485 @@
+// OBSIDIAN helper functions
+//
+
+// Convert Obsidian TS to esDT
+function obsidianTsToDT(ts)
+var dt = new EsDateTime();
+{ 
+  dt$year = 1970;
+  dt$month = 1;
+  dt$dayOfMonth = 1;
+  dt$hours = 0;
+  dt$minutes = 0;
+  dt$seconds = 0;
+  
+  dt += ts#asLLong() * 1000;
+
+  return dt;
+}
+
+// Get effective units
+function obsidianEffectiveUnitsGet(cfg)
+{
+  return !cfg#isEmpty() ? 
+    cfg$units : 
+    OBSIDIAN_Unit$$uSvh;
+}
+
+// Get DER effective units
+function obsidianDEReffectiveUnitsGet(units)
+{
+  return (units >= OBSIDIAN_Unit$$uSvh) ?
+    OBSIDIAN_Unit$$uSvh :
+    OBSIDIAN_Unit$$uQRh;
+}
+
+// Get Count Rate effective units
+function obsidianCountRateEffectiveUnitsGet(units)
+{
+  return (units <= OBSIDIAN_Unit$$CPS) ?
+    OBSIDIAN_Unit$$CPS :
+    OBSIDIAN_Unit$$CPM;
+}
+
+// Get effective deviation presentation
+function obsidianEffectiveDeviationPresentationGet(cfg)
+{
+  return !cfg#isEmpty() ? 
+    cfg$deviationShow : 
+    OBSIDIAN_DeviationShow$$None;
+}
+
+// Convert value in base units (uSvh) to value in foreigh units
+function obsidianDERvalGet(baseVal, units)
+var toValUnits;
+{
+  if( baseVal#isEmpty() )
+    return;
+
+  toValUnits = (units >= OBSIDIAN_Unit$$uSvh) ? 
+    EsDataUnits$$Sievert :
+    EsDataUnits$$QuartaRoentgen;
+
+  return dataUnitBaseConvert(
+    baseVal,
+    EsDataUnits$$Sievert,
+    toValUnits
+  );
+}
+
+function obsidianDEReffectiveUnitStrGet( cfg )
+{
+  return labelShortGet(
+    OBSIDIAN_Unit.valueLabelGet( 
+      obsidianDEReffectiveUnitsGet(
+        obsidianEffectiveUnitsGet( cfg )
+      ) 
+    )
+  );
+}
+
+function obsidianDERdeviationStrMultiGet(baseVal, baseValDeviation, units, deviationPresentation, showAlways)
+var lbl = OBSIDIAN_Unit.valueLabelGet( obsidianDEReffectiveUnitsGet(units) );
+var deviationLbl = (OBSIDIAN_DeviationShow$$Relative == deviationPresentation) ?
+  dataUnitLabelShortGet(EsDataUnits$$Percent, 1.) + "|" + dataUnitLabelLongGet(EsDataUnits$$Percent, 1.) :
+  lbl;
+var deviationVal, deviationMultiStr;
+{
+  if( OBSIDIAN_DeviationShow$$Relative == deviationPresentation )
+  {
+    if(
+      !baseVal#isEmpty() &&
+      !baseValDeviation#isEmpty() &&
+      !EsMath::areEqualFloats(0., baseVal)
+    )
+      deviationVal = 100.*(baseValDeviation / baseVal);
+
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        deviationVal,
+        c_noDataStr,
+        1             //< 0.0
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+  else if( 
+    OBSIDIAN_DeviationShow$$Absolute == deviationPresentation || 
+    showAlways 
+  )
+  {
+    deviationVal = obsidianDERvalGet(
+      baseValDeviation,
+      units
+    );
+
+    deviationMultiStr = [
+      fixedAccuracyValueFmt(
+        deviationVal,
+        c_noDataStr,
+        (units >= OBSIDIAN_Unit$$uSvh) ?
+          2 :       //< 0.00  uSvh
+          0         //< 0     uQRh
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+
+  return deviationMultiStr;
+}
+
+// Return DER value multi string record - [converted valStr, unitsStrLong, unitsStrShort, <[converted deviationValStr, deviationUnitsStrLong, deviationUnitsStrShort] or null, if not defined>]
+function obsidianDERvalStrMultiGet(baseVal, baseValDeviation, units, deviationPresentation, showDeviationAlways)
+var lbl = OBSIDIAN_Unit.valueLabelGet( obsidianDEReffectiveUnitsGet(units) );
+{
+  return [
+    fixedAccuracyValueFmt(
+      obsidianDERvalGet(
+        baseVal,
+        units
+      ),
+      c_noDataStr,
+      (units >= OBSIDIAN_Unit$$uSvh) ?
+        2 :       //< 0.00  uSvh
+        0         //< 0     uQRh
+    ),
+    labelLongGet(lbl),
+    labelShortGet(lbl),
+    obsidianDERdeviationStrMultiGet(
+      baseVal, 
+      baseValDeviation, 
+      units, 
+      deviationPresentation, 
+      showDeviationAlways
+    )
+  ];
+}
+
+// Get Dose value in derived units
+function obsidianDoseValGet(baseVal, units)
+var toValUnits;
+{
+  if( baseVal#isEmpty() )
+    return;
+
+  toValUnits = (units >= OBSIDIAN_Unit$$uSvh) ? 
+    EsDataUnits$$Sievert :
+    EsDataUnits$$QuartaRoentgen;
+
+  return dataUnitBaseConvert(
+    baseVal,
+    EsDataUnits$$Sievert,
+    toValUnits
+  );
+}
+
+function obsidianDoseEffectiveUnitsStrGet(cfg)
+{
+  return (OBSIDIAN_Unit$$uQRh == obsidianEffectiveUnitsGet( cfg )) ? 
+    dataUnitLabelShortGet(EsDataUnits$$QuartaRoentgen, 1.e-6) :
+    dataUnitLabelShortGet(EsDataUnits$$Sievert, 1.e-6);
+}
+
+// Get Dose multi string value
+function obsidianDoseValStrMultiGet(baseVal, baseValDeviation, units, deviationPresentation, doScale)
+var lbl = (OBSIDIAN_Unit$$uQRh == units) ? 
+  (dataUnitLabelShortGet(EsDataUnits$$QuartaRoentgen, 1.e-6) + "|" + dataUnitLabelLongGet(EsDataUnits$$QuartaRoentgen, 1.e-6)) :
+  (dataUnitLabelShortGet(EsDataUnits$$Sievert, 1.e-6) + "|" + dataUnitLabelLongGet(EsDataUnits$$Sievert, 1.e-6));
+var deviationLbl = (OBSIDIAN_DeviationShow$$Relative == deviationPresentation) ?
+  dataUnitLabelShortGet(EsDataUnits$$Percent, 1.) + "|" + dataUnitLabelLongGet(EsDataUnits$$Percent, 1.) :
+  lbl;
+var deviationVal, deviationMultiStr, doseVal, isK = false;
+{
+  doseVal = obsidianDoseValGet(
+    baseVal,
+    units
+  );
+  
+  if( doScale )
+  {
+    isK = doseVal >= 1000.;
+    if( isK )
+    {
+      doseVal /= 1000.;
+      lbl = (OBSIDIAN_Unit$$uQRh == units) ? 
+        (dataUnitLabelShortGet(EsDataUnits$$QuartaRoentgen, 1.e-3) + "|" + dataUnitLabelLongGet(EsDataUnits$$QuartaRoentgen, 1.e-3)) :
+        (dataUnitLabelShortGet(EsDataUnits$$Sievert, 1.e-3) + "|" + dataUnitLabelLongGet(EsDataUnits$$Sievert, 1.e-3));
+    }
+  }
+
+  if( OBSIDIAN_DeviationShow$$Relative == deviationPresentation )
+  {
+    if(
+      !baseVal#isEmpty() &&
+      !baseValDeviation#isEmpty() &&
+      !EsMath::areEqualFloats(0., baseVal)
+    )
+      deviationVal = 100.*(baseValDeviation / baseVal);
+
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        deviationVal,
+        c_noDataStr,
+        1
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+  else if( OBSIDIAN_DeviationShow$$Absolute == deviationPresentation )
+  {
+    deviationVal = obsidianDoseValGet(
+      baseValDeviation,
+      units
+    );
+    
+    if( isK )
+      deviationVal /= 1000.;
+
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        deviationVal,
+        c_noDataStr,
+        (units >= OBSIDIAN_Unit$$uSvh) ?
+          2 :       //< 0.00 uSvh
+          0         //< uQRh
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+
+  return [
+    relativeAccuracyValueFmt(
+      doseVal,
+      c_noDataStr,
+      (units >= OBSIDIAN_Unit$$uSvh) ?
+        2 :       //< uSvh
+        0         //< uQRh
+    ),
+    labelLongGet(lbl),
+    labelShortGet(lbl),
+    null// deviationMultiStr TODO: Remove deviation calculation for dose???
+  ];
+}
+
+// Convert count rate value in base units (CPS) to value in foreign units
+function obsidianCountRateValGet(baseVal, units)
+{
+  if( baseVal#isEmpty() )
+    return;
+
+  return (units <= OBSIDIAN_Unit$$CPS) ? 
+    baseVal#asDouble() :
+    baseVal#asDouble() * 60.;
+}
+
+// Return Count Rate multi string record [converted CPS, unitsStrLong, unitsStrShort, null - for compliance with other multistrings]
+function obsidianCountRateStrMultiGet(baseVal, baseDeviationVal, units, deviationPresentation)
+var lbl = OBSIDIAN_Unit.valueLabelGet( obsidianCountRateEffectiveUnitsGet(units) ),
+  deviationMultiStr,
+  deviationLbl = (OBSIDIAN_DeviationShow$$Relative == deviationPresentation) ?
+    dataUnitLabelShortGet(EsDataUnits$$Percent, 1.) + "|" + dataUnitLabelLongGet(EsDataUnits$$Percent, 1.) :
+    lbl;
+{
+  if( OBSIDIAN_DeviationShow$$Relative == deviationPresentation )
+  {
+    if(
+      !baseVal#isEmpty() &&
+      !baseDeviationVal#isEmpty() &&
+      !EsMath::areEqualFloats(0., baseVal)
+    )
+      baseDeviationVal = 100.*(baseDeviationVal / baseVal);
+
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        baseDeviationVal,
+        c_noDataStr,
+        1
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+  else if( OBSIDIAN_DeviationShow$$Absolute == deviationPresentation )
+  {
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        obsidianCountRateValGet(
+          baseDeviationVal,
+          units
+        ),
+        c_noDataStr,
+        (units <= OBSIDIAN_Unit$$CPS) ?
+          2 :
+          0
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+
+  return [
+    relativeAccuracyValueFmt(
+      obsidianCountRateValGet(
+        baseVal,
+        units
+      ),
+      c_noDataStr,
+      (units <= OBSIDIAN_Unit$$CPS) ?
+        2 :
+        0
+    ),
+    labelLongGet(lbl),
+    labelShortGet(lbl),
+    deviationMultiStr
+  ];
+}
+
+// Beta or Gamma flow density formatting
+function obsidianBetaOrGammaFdStrMultiGet(val, valDeviation, deviationPresentation)
+var lbl = EsStr::translate( OBSIDIAN_lblFlowDensity ),
+  deviationMultiStr,
+  deviationLbl = (OBSIDIAN_DeviationShow$$Relative == deviationPresentation) ?
+    dataUnitLabelShortGet(EsDataUnits$$Percent, 1.) + "|" + dataUnitLabelLongGet(EsDataUnits$$Percent, 1.) :
+    lbl;
+{
+  if( OBSIDIAN_DeviationShow$$Relative == deviationPresentation )
+  {
+    if(
+      !val#isEmpty() &&
+      !valDeviation#isEmpty() &&
+      !EsMath::areEqualFloats(0., val)
+    )
+      valDeviation = 100.*(valDeviation / val);
+
+    deviationMultiStr = [
+      relativeAccuracyValueFmt(
+        valDeviation,
+        c_noDataStr,
+        1
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+  else if( OBSIDIAN_DeviationShow$$Absolute == deviationPresentation )
+  {
+    deviationMultiStr = [
+      fixedAccuracyValueFmt(
+        valDeviation,
+        c_noDataStr,
+        0
+      ),
+      labelLongGet(deviationLbl),
+      labelShortGet(deviationLbl)
+    ];
+  }
+
+  return [
+    fixedAccuracyValueFmt(
+      val,
+      c_noDataStr,
+      0
+    ),
+    labelLongGet(lbl),
+    labelShortGet(lbl),
+    deviationMultiStr
+  ];
+}
+
+// Gamma DER gackground value get
+function obsidianGammaBgndVal(cfg)
+{
+  if(!cfg#isEmpty()) 
+    return obsidianDERvalGet(
+      cfg$background,
+      cfg$units
+    );
+}
+
+// Gamma DER gackground multi string value get
+function obsidianGammaBgndStrMultiGet(cfg, showDeviationAlways)
+{
+  return obsidianDERvalStrMultiGet(
+    cfg$background,
+    null,
+    cfg$units,
+    cfg$deviationShow,
+    showDeviationAlways
+  );
+}
+
+/// Get time span string from time span in seconds
+function obsidianTimeSpanStrGet( seconds, secondsThreshold )
+var span;
+{
+  if( seconds > secondsThreshold )
+  {
+    span = new EsTimeSpan();
+    span$value = seconds#asULLong()*1000;
+
+    return span.asString( 
+      EsStr::translate(I"%Dd %H:%M:%S")
+    );
+  }
+  else
+    return seconds#asString();
+}
+
+/// Format time multi string value from time span value
+function obsidianTimeSpanStrMultiGet( seconds, secondsThreshold )
+{
+  return [
+    obsidianTimeSpanStrGet(
+      seconds,
+      secondsThreshold
+    ),
+    EsStr::translate(
+      (seconds <= secondsThreshold) ?
+        I"seconds" :
+        I"Days Hours:Minutes:Seconds"
+    ),
+    EsStr::translate(
+      (seconds <= secondsThreshold) ?
+        I"s" :
+        I"d h:m:s"
+    ),
+    null
+  ];
+}
+
+// Collate value string from value multi string + deviation multi string
+function obsidianValStrFromMultiGet(strMulti)
+var deviationStrMulti = strMulti[3];
+{
+  if( !deviationStrMulti#isEmpty() )
+  {
+    if( strMulti[2] == deviationStrMulti[2] )
+      return strMulti[0] + " " + EsStr::translate( I"+-" ) + deviationStrMulti[0] + " " + strMulti[2];
+    else
+      return strMulti[0] + " " + strMulti[2] + " " + EsStr::translate( I"+-" ) + deviationStrMulti[0] + " " + deviationStrMulti[2];
+  }
+
+  return strMulti[0] + " " + strMulti[2];
+}
+
+// Collate value string from value multi string + deviation multi string
+// omitting units of measurement (unless there is deviation and percents are used)
+//
+function obsidianValStrFromMultiGetNoUnits(strMulti)
+var deviationStrMulti = strMulti[3];
+{
+  if( !deviationStrMulti#isEmpty() )
+  {
+    if( strMulti[2] == deviationStrMulti[2] )
+      return strMulti[0] + " " + EsStr::translate( I"+-" ) + deviationStrMulti[0];
+    else
+      return strMulti[0] + " " + EsStr::translate( I"+-" ) + deviationStrMulti[0] + " " + deviationStrMulti[2];
+  }
+
+  return strMulti[0];
+}
+

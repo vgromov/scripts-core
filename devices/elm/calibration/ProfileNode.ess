@@ -1,0 +1,11 @@
+##require("devices/calibration/EsCalibrationProfileNodeBase.ess");
+
+/// Reference profile node
+object ELM_ProfileNode extends EsCalibrationProfileNodeBase
+{
+  function valueFmt(val) //< Overridable
+  {
+    return ELM_ValueFmt( val );
+  }
+}
+//-----------------------------------------------------------------------------

@@ -1,0 +1,89 @@
+/// Color calibration profile object
+///
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("ProfileColorNode.ess");
+
+/// Color calibration profile
+object EL3C_ColorCalibrationProfile extends EsCalibrationProfileBase
+{
+  // Overridables
+  //
+  // canAppendNode(dataType)                                        : Highly recommended  
+  // profileNodeCreate( dataType, refVal, deviation )               : Mandatory
+  // profileNodeCreateNew( dataType )                               : Mandatory
+  // defaultNodesCreate( dataType )                                 : Optional
+  // isOkGet()                                                      : Mandatory
+  //
+
+  function profileNodeCreate( dataType, refVal, deviation )
+  {
+    EsCalibrationProfileBase::profileNodeCreate( 
+      dataType, 
+      refVal, 
+      deviation 
+    );
+
+    return new EL3C_ColorProfileNode(
+      refVal, 
+      deviation
+    );
+  }
+
+  // Internal helper. Create default node collection contents
+  function defaultNodesCreate( dataType )
+  var idx, node, nodes = [];
+  {
+    EsScriptDebug::log(
+      "EL3C_ColorCalibrationProfile::defaultNodesCreate( dataType=%s )",
+      dataType#trace()
+    );  
+  
+    EsCalibrationProfileBase::defaultNodesCreate( dataType );
+
+    for( idx = 0; idx < 4; ++idx )
+    {    
+      node = profileNodeCreate(
+        dataType,
+        (EsDataType$$CIE1931XYZ == dataType) ? 
+          c_csRefDefaults[idx] :
+          c_ctRefDefaults[idx],
+        0.5
+      );
+
+      nodes += node;
+    }
+
+    m_nodes.valueSet(
+      dataType,
+      nodes
+    );
+  }
+  
+  new(name)
+  {
+    EsScriptDebug::log(
+      "EL3C_ColorCalibrationProfile::new(name=%s)",
+      name#trace()
+    );
+  
+    EsCalibrationProfileBase::new(
+      EsDeviceType$$EL3C, 
+      [EsDataType$$CIE1931XYZ, EsDataType$$ColorTemp], 
+      name
+    );
+    
+    defaultNodesInit();
+  }
+
+  /// Properties
+  ///
+  
+  /// Get color space nodes
+  property colorSpace;
+  read: { return nodesGet(EsDataType$$CIE1931XYZ); } 
+  
+  /// Get color temperature nodes
+  property colorTemp;
+  read: { return nodesGet(EsDataType$$ColorTemp); } 
+}
+//-----------------------------------------------------------------------------

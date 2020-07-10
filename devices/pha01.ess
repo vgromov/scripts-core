@@ -1,0 +1,232 @@
+// scripting device support for pha-01 photo-appliance
+##require("EsDeviceBase.ess");
+##require("pha01/Consts.ess");
+##require("pha01/FmtHelpers.ess");
+##require("pha01/Data.ess");
+##require("pha01/CalibrationAndSettings.ess");
+
+/// PHA01 device object
+object PHA01 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return PHA01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in PHA01_Rpid )
+      return rpcSigGet(PHA01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1], "PHA01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ECOL1);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 7;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + PHA01_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_EXEC;
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$FACTORY_RESET;
+    result += EsRpcStdId$$SHUTDOWN;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    result += EsRpcStdId$$FINDME;
+    result += EsRpcStdId$$SW_INFO_GET;
+    
+    return result;
+  }  
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new PHA01_Health(rpcResult);    // use PHA01 health implementation instead of unparsed standard one
+    else if( PHA01_Rpid$$HysteresisGet == rpcId && m_fwId$ver > "1.1" )
+    {
+      result = new PHA01_Hysteresis();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$CalibrationGet == rpcId )
+    {
+      result = new PHA01_Calibration();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( PHA01_Rpid$$LinFactorsGet == rpcId )
+    {
+      result = new PHA01_Linearization();
+      result$buffer = rpcResult#asBinBuffer();      
+    }
+    else if( PHA01_Rpid$$LiveDataGet == rpcId )
+    {
+      if( m_fwId$ver >= "1.6" && PHA01_OpMode$$LiveWoBgnd == m_opMode )
+        result = new PHA01_DataWoBgnd();
+      else
+        result = new PHA01_Data();
+        
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( (PHA01_Rpid$$BgndPeriodLeftGet == rpcId && m_fwId$ver >= "1.5") ||
+      PHA01_Rpid$$DataCountGet == rpcId ||
+      PHA01_Rpid$$OperationModeGet == rpcId ||
+      PHA01_Rpid$$RangeGet == rpcId  ||
+      PHA01_Rpid$$AutoRangeGet == rpcId ||
+      PHA01_Rpid$$AutosaveIntervalGet == rpcId )
+    {
+      result = rpcResult;
+      
+      // in addition, save currently active device opmode
+      // it's vital for live data requests handling
+      if( PHA01_Rpid$$OperationModeGet == rpcId )
+        m_opMode = result;
+    }
+    else if( PHA01_Rpid$$DataAtIdxGet == rpcId )
+    {
+      result = new PHA01_Data();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    internalInit(null);
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+    m_opMode = PHA01_OpMode$$None;
+  }
+  
+  /// PHA01 custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload()
+  var settings = new PHA01_Settings(m_fwId), rpcResult;
+  {
+    // optionally download software info
+    if( m_fwId$ver > "1.5" )
+    {
+      rpcResult = swInfoQuery();
+      if( rpcResult[0] )
+        settings.f_swInfo.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+     if( m_fwId$ver > "1.1" )
+    {
+      rpcResult = rpcCall(PHA01_Rpid$$HysteresisGet, null);
+      if( rpcResult[0] )
+        settings.f_hys.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    rpcResult = rpcCall(PHA01_Rpid$$AutosaveIntervalGet, null);
+    if( rpcResult[0] )
+      settings.f_autosaveInterval = rpcResult[1];
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$LinFactorsGet, null);
+    if( rpcResult[0] )
+      settings.f_lin.copyFrom( rpcResult[1] );
+    else
+      return rpcResult;
+    rpcResult = rpcCall(PHA01_Rpid$$CalibrationGet, null);
+    if( rpcResult[0] )
+      settings.f_cal.copyFrom( rpcResult[1] );
+    else
+      return rpcResult;
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [], batchItem = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    if( m_fwId$ver > "1.1" )
+    {
+      batchItem += PHA01_Rpid$$HysteresisSet;
+      batchItem += settings.f_hys;
+      batch#append(batchItem);
+      batchItem = [];
+    }
+    batchItem += PHA01_Rpid$$AutosaveIntervalSet;
+    batchItem += settings.f_autosaveInterval;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$LinFactorsSet;
+    batchItem += settings.f_lin;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batchItem += PHA01_Rpid$$CalibrationSet;
+    batchItem += settings.f_cal;
+    batch#append(batchItem);
+    batchItem = [];
+    
+    batch = rpcBatchCall(batch);
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batchItem += true;
+      batchItem += null; // nothing is returned
+    }
+    else
+    {
+      batchItem += false;
+      batchItem += "Device settings upload fail";
+    }
+    batch = [];
+    batch#append(batchItem);
+    
+    return batch;
+  }
+	
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	/// Opmode string
+	property opmodeStr;
+	read: { return PHA01_OpMode.valueLabelGet(m_opMode); }
+}

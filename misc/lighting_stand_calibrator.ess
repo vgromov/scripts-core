@@ -1,0 +1,747 @@
+##require("core.ess");
+##require("devices/el3c.ess");
+//##require("io_monitors.ess");
+
+//----------------------------------------------------------------
+
+function dataFileCreate( fwIdBase, fwIdSig, start )
+var of, path = EsPath::createFromPath( 
+        EsPath::stdDocsGet()
+      ),
+    hdr, result;
+{
+  path$fileName = EsPath::makeSafe(
+    "lighting_stand_calibration_" + start.asString(), 
+    ". ;-", 
+    "_"
+  );
+  path$fileExt = "csv";
+
+  result = path.pathGet(EsPathFlag$$Default, "");
+  of = new EsFile(
+    result, 
+    EsFileFlag$$Write|
+    EsFileFlag$$Text
+  );
+
+  if( !of.open() )
+    throw EsStr::format(
+      "Data file '%s' could not be opened",
+      result
+    );
+
+  hdr = EsStr::format(
+    "DevBase,DevSig\n\"%s\",\"%s\"\nDate,Time,Angle0,Angle1,LumBase,LumSig\n",
+    fwIdBase,
+    fwIdSig
+  );
+  of.stringWrite(hdr);
+  of.close();
+  
+  return result;
+}
+  
+function dataFileNodeAppend( dataFilePath, record )
+var of, ts, item, idx = 0;
+{
+  of = new EsFile(
+    dataFilePath, 
+    EsFileFlag$$Write|
+    EsFileFlag$$Append|
+    EsFileFlag$$Text
+  );
+  
+  if( !of.open() )
+    throw EsStr::format(
+      "Data file %s could not be opened",
+      dataFilePath
+    );
+  of.seekEnd(0);
+
+  ts = record[0];
+  of.stringWrite(
+    ts.asDateString() + "," + 
+    ts.asString("%X") + "," + 
+    record[1] + "," +
+    record[2] + "," +
+    record[3] + "," +
+    record[4] +
+    "\n"
+  );
+
+  of.close();
+}
+
+function masterConfigure(master, chnlSerial)
+var chnl = new EsChannelIoEkonnect();
+{
+  chnl$device = chnlSerial;
+  chnl$baud = 9600;
+
+  master$channel = chnl;
+  master$clientAddr = 255;
+  master$packetTimeout = 2000;
+}
+
+function masterActivate(master, name)
+{
+  master.activate();
+
+  if( !master.isActive() )
+    throw "Could not activate IO master " + name;
+}
+
+function fwIdReadFrom(master, name)
+var fwId, cnt = 0;
+{
+  // Read fwId from both devices
+  EsScriptDebug::log("Reading firmware ID from %s device...", name);
+
+  do
+  {
+    fwId = deviceFwIdRead(master);
+    ++cnt;
+
+  } while( cnt < 3 || fwId#isEmpty() );
+
+  if( fwId#isEmpty() )
+    throw "Could not read firmware info from connected device " + name;
+
+  EsScriptDebug::log("Device %s ID is '%s'", name, fwId);
+
+  if( EsDeviceType$$EL3C != fwId$devType )
+    throw EsStr::format(
+      "Connected %s device type %d is not %s type", 
+      name,
+      fwId$devType,
+      EsDeviceType$$EL3C$$label
+    );
+
+  return fwId;
+}
+
+function liveWorkmodeStart(master, name)
+var cnt = 0, ok = false;
+{
+  EsScriptDebug::log("Starting live measurement on device '%s'...", name);
+
+label _retry:
+  try
+  {
+    master.VOID_Call_esU32( EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Illuminance );
+    ok = true;
+  }
+  catch
+  {
+    ++cnt;
+  }
+  if( !ok && cnt < 3 )
+    goto _retry;
+  
+  EsThreadWorker::sleep(500);
+  if( EL3C_OpMode$$Illuminance != (master.esU32_Call( EL3C_Rpid$$WorkmodeGet ) & 0x0F) )
+    throw "Could not start " + name + " device in live operation mode";
+}
+
+function liveWorkmodeStop(master, name)
+var cnt = 0, ok = false;
+{
+  EsScriptDebug::log("Stopping live measurement on device '%s'...", name);
+
+label _retry:
+  try
+  {
+    master.VOID_Call_esU32( EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Idle );
+    ok = true;
+  }
+  catch
+  {
+    ++cnt;
+  }
+  if( !ok && cnt < 3 )
+    goto _retry;
+
+  EsThreadWorker::sleep(500);
+  if( EL3C_OpMode$$Idle != (master.esU32_Call( EL3C_Rpid$$WorkmodeGet ) & 0x0F) )
+    throw "Could not stop " + name + " device's live operation mode";
+}
+
+function liveDataRead(master)
+var cnt = 0, buff, data = new EL3C_Data(), line = new EsMathDelayLine(8);
+{
+label __retry:
+
+  try
+  {
+    while( !line$saturated )
+    {
+      EsThreadWorker::sleep(500);
+      buff = master.esBA_Call( EL3C_Rpid$$LiveDataGet );
+      data$buffer = buff;
+
+      line.itemAppend(
+        data$val
+      );
+    }
+  }
+  catch
+  {
+    if( ++cnt < 3 )
+      goto __retry;
+    
+    return null;
+  }
+
+  return line$value;
+}
+//------------------------------------------------------------------------------
+
+enum LCS_Code {
+  OK                  = 0;
+  POS_Started         = 1;
+  POS_Finished        = 2;
+  TST_Started         = 3;
+  TST_Finished        = 4;
+
+  ParamExpected       = -1;
+  ParamUnExpected     = -2;
+  ParamValueInvalid   = -3;
+  CommandUnknown      = -4;
+  Busy                = -5;
+  Unknown             = -255;
+}
+
+function lcsCodeToEnum(code)
+var result = LCS_Code$$Unknown;
+{
+  switch( code )
+  {
+  case B"OK  ": 
+    result = LCS_Code$$OK;
+  case B"POSS":
+    result = LCS_Code$$POS_Started;
+  case B"POSF":
+    result = LCS_Code$$POS_Finished;
+  case B"TSTS":
+    result = LCS_Code$$TST_Started;
+  case B"TSTF":
+    result = LCS_Code$$TST_Finished;
+  case B"EPRE":
+    result = LCS_Code$$ParamExpected;
+  case B"EPRV":
+    result = LCS_Code$$ParamValueInvalid;
+  case B"EPRU":
+    result = LCS_Code$$ParamUnExpected;
+  case B"ECMD":
+    result = LCS_Code$$CommandUnknown;
+  case B"EBSY":
+    result = LCS_Code$$Busy;
+  }
+
+//  EsScriptDebug::log( 
+//    "lcsCodeToEnum: code %s interpreted as %s", 
+//    EsStr::fromByteString(code),
+//    LCS_Code.valueLabelGet(result)
+//  );
+
+  return result;
+}
+
+function lcsResponseDataParse(buff)
+var tok = new EsStringTokenizer(
+  EsStr::fromByteString(buff), 
+  ";"
+);
+var result = [];
+{
+  while( tok$moreTokens )
+    result += tok$nextToken#asULong();
+  
+/*  EsScriptDebug::log(
+    "Response data parsed: %s",
+    result
+  );
+*/
+  return result;
+}
+
+function eolsBeforeResponseSkip(chnl)
+var ch;
+{
+  do
+  {
+    ch = chnl.bytesGet(1, 1);
+    
+/*    if( 1 == ch#countGet() )
+      EsScriptDebug::log(
+        "eolsBeforeResponseSkip: %s",
+        EsStr::toString( //< Escape incoming chars
+          ch[0], 
+          EsStrFlag$$None
+        )
+      );
+*/
+
+  } while( 1 == ch#countGet() && (ch[0] == B'\n' || ch[0] == B'\r') );
+
+/*  EsScriptDebug::log(
+    "eolsBeforeResponseSkip done"
+  );
+*/
+}
+
+function lcsResponseRead(chnl, expectData)
+var buff;
+var ch, code, response;
+{
+  eolsBeforeResponseSkip(chnl); //< NB! This function may swallow first > in response
+
+  buff = chnl.bytesGet(4, 1000);
+  if(4 == buff#countGet() )
+  {
+    if( B'>' == buff[0] )
+    {
+//      EsScriptDebug::log( "lcsResponseRead: 4 bytes, > included, reading 1 more byte" );
+
+      ch = chnl.bytesGet(1, 1000);
+      if( 0 == ch#countGet() )
+      {
+        code = LCS_Code$$Unknown;
+        expectData = false;
+        goto _exitUnknown;
+      }
+
+      buff = buff#sliceGet(1, 4);
+      buff += ch;
+    }
+
+    code = lcsCodeToEnum(buff);
+  }
+  else
+  {
+    code = LCS_Code$$Unknown;
+    expectData = false;
+    goto _exitUnknown;
+  }
+
+  expectData = !(code in [
+                    LCS_Code$$ParamExpected,
+                    LCS_Code$$ParamUnExpected,
+                    LCS_Code$$ParamValueInvalid,
+                    LCS_Code$$CommandUnknown,
+                    LCS_Code$$Busy,
+                    LCS_Code$$Unknown
+                  ]
+                );
+
+  if( expectData )
+  {
+    buff#setToNull();
+//    EsScriptDebug::log("Trying to read optional data...");
+    do
+    {
+      ch = chnl.bytesGet(1, 100);
+      if( 
+        1 == ch#countGet() &&
+        B'\n' != ch[0] &&
+        B'\r' != ch[0]
+      )
+      {
+        if( buff#isEmpty() )
+          buff = ch;
+        else
+          buff += ch;
+      }
+      else
+        break;
+
+    } while( !__scriptHost$aborting );
+
+//    if( !buff#isEmpty() && buff#countGet() )
+//      EsScriptDebug::log("Response data read: '%s'", EsStr::fromByteString(buff));
+  }
+
+label _exitUnknown:
+  switch( code )
+  {
+  case LCS_Code$$OK,
+      LCS_Code$$POS_Started,
+      LCS_Code$$POS_Finished,
+      LCS_Code$$TST_Started,
+      LCS_Code$$TST_Finished:
+    if( expectData && !buff#isEmpty() && buff#isIndexed() && buff#countGet() )
+      response = [
+        code,
+        lcsResponseDataParse(buff)
+      ];
+    else
+      response = [code];
+  case LCS_Code$$ParamExpected,
+      LCS_Code$$ParamUnExpected,
+      LCS_Code$$ParamValueInvalid,
+      LCS_Code$$CommandUnknown,
+      LCS_Code$$Busy,
+      LCS_Code$$Unknown:
+    response = [code];
+  }
+  
+/*  if( response )
+    EsScriptDebug::log(
+      "Got response code: '%s'", 
+      LCS_Code.valueLabelGet(response[0])
+    );
+*/
+  return response;
+}
+
+function lcsCmdSend(chnl, cmd)
+var buff = B"<" + EsStr::toByteString(cmd[0]), response;
+{
+  if( cmd#countGet() > 1 )
+    buff += EsStr::toByteString(cmd[1]);
+
+  buff += B"\n";
+
+  chnl.bytesPut(
+    buff,
+    1000
+  );
+    
+  response = lcsResponseRead(
+    chnl,
+    (cmd[0] != "REST" && cmd[0] != "ATT0" && cmd[0] != "ATT1" && cmd[0] != "ATT2")
+  );
+
+  if( response#isEmpty() )
+    throw "No response to the command " + EsStr::fromByteString(cmd[0]);
+  
+  if( LCS_Code$$OK != response[0] && LCS_Code$$Busy != response[0] )
+    throw EsStr::format(
+      "Command: '%s' failure, error occurred: '%s'",
+      cmd[0],
+      LCS_Code.valueLabelGet(response[0])
+    );
+  
+  return response;
+}
+
+function lcsResponseReadUntil(chnlStand, code, cntUntil)
+var cnt = 0, response;
+{
+  while(cnt < cntUntil && !__scriptHost$aborting)
+  {
+    response = lcsResponseRead(
+      chnlStand, 
+      true
+    );
+
+    if( !response#isEmpty() && code == response[0] )
+    {
+      ++cnt;
+
+/*      EsScriptDebug::log(
+        "Read response %s, %d of %d",
+        LCS_Code.valueLabelGet(code),
+        cnt,
+        cntUntil
+      );
+*/
+    }
+  }
+}
+
+function lcsPositionSet(chnlStand, att, pos)
+var response;
+{
+  response = lcsCmdSend(
+    chnlStand, 
+    [att, pos]
+  );
+  if( response#isEmpty() || LCS_Code$$OK != response[0] )
+    throw EsStr::format(
+      "Could not execute %s position command",
+      att
+    );
+
+  lcsResponseReadUntil(
+    chnlStand, 
+    LCS_Code$$POS_Finished,
+    1
+  );
+}
+//------------------------------------------------------------------------------
+
+function channelsClose(chnlStand, masterBase, masterSig)
+{
+  chnlStand.close();
+  if( masterBase )
+    masterBase.deactivate();
+  if( masterSig )
+    masterSig.deactivate();
+}
+
+function allClosedMeasure(steps0, steps1, chnlStand, masterBase, masterSig, dataFilePath)
+var base = 0, sig, dataRecord;
+{
+//  EsScriptDebug::log("Closing LCS shutter...");
+//  lcsPositionSet(
+//    chnlStand, 
+//    "ATT1",
+//    0
+//  );
+
+  EsScriptDebug::log("Closing attenuators...");
+  lcsPositionSet(
+    chnlStand, 
+    "ATT0",
+    steps0
+  );
+  lcsPositionSet(
+    chnlStand, 
+    "ATT2",
+    steps1
+  );
+
+  EsScriptDebug::log("Measuring initial data for all-closed LCS (zero-point)");
+//  base = liveDataRead(masterBase);
+//  if( base#isEmpty() )
+//    throw "Could not read live data from Base";
+
+  sig = liveDataRead(masterSig);
+  if( sig#isEmpty() )
+    throw "Could not read live data from Signal";
+
+  dataRecord = [
+    EsDateTime::now(),
+    0,
+    0,
+    base,
+    sig
+  ];
+  
+  dataFileNodeAppend( 
+    dataFilePath, 
+    dataRecord 
+  );
+}
+
+function measureAllStepsFor(att, steps, stepInc, angleOther, chnlStand, masterBase, masterSig, dataFilePath)
+var base = 0, sig, stepCur = 0, angle, angleStep = 90./steps, dataRecord, response;
+{
+  EsScriptDebug::log("Measuring all steps for %s...", att);
+  do
+  {
+    EsScriptDebug::log("%s stepCur: [%d of %d]", att, stepCur, steps);
+    lcsPositionSet(
+      chnlStand,
+      att,
+      stepCur
+    );
+
+    EsThreadWorker::sleep(2000);
+
+//    base = liveDataRead(masterBase);
+    sig = liveDataRead(masterSig);
+
+    angle = angleStep*stepCur;
+
+    dataRecord = [
+      EsDateTime::now(),
+      "ATT0" == att ? angle : angleOther,
+      "ATT2" == att ? angle : angleOther,
+      base,
+      sig
+    ];
+    
+    dataFileNodeAppend( 
+      dataFilePath, 
+      dataRecord 
+    );
+
+    stepCur += stepInc;
+   
+  } while( stepCur <= steps && !__scriptHost$aborting );
+}
+//------------------------------------------------------------------------------
+
+// Enumerate COM ports just to get to known what we have currently
+// Non-busy, USB COM ports
+var port, ports = EsChannelIoUart::enumerate(
+  false, 
+  true
+);
+
+if( 0 == ports#countGet() )
+  throw "No unoccupied USB ports found!";
+
+EsScriptDebug::log("Found USB COMs:");
+foreach(port in ports)
+  EsScriptDebug::log("COM Path: '%s'(%s) - '%s'", port[0], port[1], port[2]);
+
+var chnlStand = new EsChannelIoUart();
+chnlStand$port = ports[0][0];
+chnlStand$baud = 115200;
+
+var response, 
+    steps0, steps1, 
+    shutterSteps;
+
+var masterBase = new EsRpcMaster(),
+    masterSig = new EsRpcMaster();
+
+var fwIdBase, fwIdSignal;
+var dataFilePath;
+
+const c_inc = 100;
+//var mon = new ChnlIoMonitor();
+
+try
+{
+//  mon$isAscii = true;
+//  mon$escape = true;
+//  chnlStand$monitor = mon;
+
+  // Run self-test and calibration
+  EsScriptDebug::log("Opening LCS channel...");
+  if( !chnlStand.open() )
+    throw "Could not open LCS control channel";
+
+  /// Purge all pending input from LCS
+  do
+  {
+    response = chnlStand.bytesGet(32, 500);
+
+  } while( !response#isEmpty() && response#isIndexed() && response#countGet() );
+
+  EsScriptDebug::log("Resetting LCS...");
+  response = lcsCmdSend(
+    chnlStand,
+    ["REST"]
+  );
+  if( LCS_Code$$OK != response[0] )
+    throw "Could not reset LCS unit";
+
+  // Wait until all testing is finished
+  lcsResponseReadUntil(
+    chnlStand, 
+    LCS_Code$$TST_Finished, 
+    3
+  );
+  EsScriptDebug::log("LCS reset finished OK");
+
+  // Read post-reset stats
+  EsScriptDebug::log("Reading LCS post-reset stats...");
+  response = lcsCmdSend( 
+    chnlStand,
+    ["STAT"]
+  );
+  if( LCS_Code$$OK != response[0] )
+    throw "Could not read LCS stats";
+
+  steps0 = response[1][1];
+  steps1 = response[1][5];
+  shutterSteps = response[1][3];
+  EsScriptDebug::log("LCS post-reset stats:");
+  EsScriptDebug::log(
+    "ATT0:[%d, %d]",
+    response[1][0],
+    steps0
+  );
+  EsScriptDebug::log(
+    "ATT1:[%d, %d]",
+    response[1][2],
+    shutterSteps
+  );
+  EsScriptDebug::log(
+    "ATT2:[%d, %d]",
+    response[1][4],
+    steps1
+  );
+  if( 0 != response[1][0] )
+    throw "LCS Unit ATT0 have errors. Aborting...";
+//  if( 0 != response[1][2] )
+//    throw "LCS Unit ATT1 have errors. Aborting...";
+  if( 0 != response[1][4] )
+    throw "LCS Unit ATT2 have errors. Aborting...";
+
+//  masterConfigure(masterBase, "60001-00102-15");
+  masterConfigure(masterSig, "60001-00085-15");
+
+  // activate io
+  EsScriptDebug::log("Activating IO masters...");
+//  masterActivate(masterBase, "Base");
+  masterActivate(masterSig, "Signal");
+
+//  fwIdBase = fwIdReadFrom(masterBase, "Base");
+  fwIdBase = "---";
+  fwIdSignal = fwIdReadFrom(masterSig, "Signal");
+  
+  // Start both devices in luminance measurement mode
+//  liveWorkmodeStart(masterBase, "Base");
+  liveWorkmodeStart(masterSig, "Signal");
+  
+  dataFilePath = dataFileCreate( fwIdBase, fwIdSignal, EsDateTime::now() );
+
+  // Read and save data record for all-closed case
+  allClosedMeasure(steps0, steps1, chnlStand, masterBase, masterSig, dataFilePath);
+  
+  EsScriptDebug::log("Opening LCS shutter and attenuators...");
+//  lcsPositionSet(
+//    chnlStand, 
+//    "ATT1",
+//    shutterSteps
+//  );
+
+  lcsPositionSet(
+    chnlStand, 
+    "ATT0",
+    0
+  );
+  lcsPositionSet(
+    chnlStand, 
+    "ATT2",
+    0
+  );
+  EsScriptDebug::log("LCS shutter and attenuators are open");
+
+  measureAllStepsFor("ATT0", steps0, c_inc, 0, chnlStand, masterBase, masterSig, dataFilePath);
+  measureAllStepsFor("ATT2", steps1, c_inc, 90, chnlStand, masterBase, masterSig, dataFilePath);
+
+  EsScriptDebug::log("Closing LCS shutter and open attenuators...");
+//  lcsPositionSet(
+//    chnlStand, 
+//    "ATT1",
+//    0
+//  );
+
+  lcsPositionSet(
+    chnlStand, 
+    "ATT0",
+    0
+  );
+  lcsPositionSet(
+    chnlStand, 
+    "ATT2",
+    0
+  );
+  EsScriptDebug::log("LCS shutter closed and attenuators are open");
+
+//  liveWorkmodeStop(masterBase, "Base");
+  liveWorkmodeStop(masterSig, "Signal"); 
+}
+catch
+{
+  channelsClose(chnlStand, masterBase, masterSig);
+
+  EsScriptDebug::log(
+    "Exception occurred '%s'", 
+    __exception$reason
+  );
+}
+
+channelsClose(chnlStand, masterBase, masterSig);
+chnlStand = null;
+masterBase = null;
+masterSig = null;
+
+EsScriptDebug::log("Bye...");

@@ -1,0 +1,74 @@
+##require("../scripts-core/all.ess");
+
+// create io channel && rpc master
+var chnl = EsChannelIoFactory::channelCreate("EsChannelIoEkonnect");
+var master = new EsRpcMaster();
+
+// configure channel, assign to master
+chnl$device = "60001-00085-15";
+master$channel = chnl;
+
+// activate io
+master.activate();
+
+// read fwId from device
+var fwId = deviceFwIdRead(master);
+if( fwId#isEmpty() )
+  throw "Could not read firmware info from device";
+
+EsScriptDebug::log(
+  "Device firmware ID: %s",
+  fwId
+);
+
+// create device object from fwId
+var dev = devicesDeviceCreate(fwId);
+
+// ensure it's pha01
+if( !dev#isObject() || !dev.isKindOf( PHA01$type ) )
+  throw "Could not create device or device object is invalid";
+
+dev$ioMaster = master;
+
+EsScriptDebug::log(
+  "Downloading settings for %s",
+  fwId
+);
+var result = dev.settingsDownload();
+
+var stream, ofile = EsPath::createFromPath(
+  EsPath::stdDocsGet() 
+);
+if( result[0] )
+{
+  EsScriptDebug::log(
+    "Saving settings for %s",
+    fwId
+  );
+
+  ofile$fileName = EsPath::makeSafe(
+    fwId#asString(), 
+    ". ;-", 
+    "_"
+  );
+  ofile$fileExt = "xml";
+
+  ofile = ofile.pathGet(
+    EsPathFlag$$Default, 
+    ""
+  );
+
+  stream = new EsStreamXml(
+    EsStreamFlag$$Write|
+    EsStreamFlag$$File, 
+    ofile
+  );
+
+  stream$factory = __metaclass;
+  stream.objectWrite(
+    result[1]
+  );
+  stream.save(ofile);
+}
+else
+  throw "Settings download failed!";

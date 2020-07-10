@@ -1,0 +1,268 @@
+##require("devices/el3c/calibration/CalibrationDataNodeClear.ess");
+
+/// Calibration session data container node base object
+///
+object EL3C_CalibrationData extends EsCalibrationSessionDataBase
+{
+  /// Overridables:
+  ///
+  /// settingsValidate(settings)                                                  : Optional, but highly recommended
+  /// calibrationSessionNodeCreateForProfileNode(profileNode, dataType)           : Mandatory
+  /// dependentRecalc( dataType )                                                 : Optional
+  /// internalOnNodeRawDataReset( node, dataType )                                : Optional
+  /// internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )              : Optional
+  /// nodesGet( dataType )                                                        : Optional
+  /// nodeGet( dataType, nodeIdx )                                                : Optional
+  /// calibratedValueGetFromRaw( dataType, dataKind, rawVal )                     : Mandatory
+  /// calibratedValueGetFromRaw( dataType, inRaw )                                : Optional
+  /// calibratedVectorGetFromRawVector( dataType, inRaw )                         : Optional
+  ///
+
+  function splineGet( dataType, dataKind )
+  {
+    switch( dataType )
+    {
+    case EsDataType$$Illuminance:
+      if( dataKind == EsCalibrationNodeKind$$Fast )
+        return m_settingsCur$calAnl$calIlluminance;
+      else if( dataKind == EsCalibrationNodeKind$$Slow )
+        return m_settingsCur$calDig$calIlluminance;
+
+    case EsDataType$$Luminance:
+      if( dataKind == EsCalibrationNodeKind$$Fast )
+        return m_settingsCur$calAnl$calLuminance;
+      else if( dataKind == EsCalibrationNodeKind$$Slow )
+        return m_settingsCur$calDig$calLuminance;
+
+    case EsDataType$$Flicker:
+      if( dataKind == EsCalibrationNodeKind$$Fast )
+        return m_settingsCur$calAnl$calPulsation;
+    }
+  }
+
+  /// Overridables
+  ///
+
+  /// Overridable method to validate settings object
+  /// Do nothing by default
+  ///
+  function settingsValidate(settings)
+  {
+    // TODO:
+  }
+
+  /// Default calibration session node creator returns a node with an empty raw and verified value cells
+  /// Default implementation returns an empty calibration session node object
+  ///
+  function calibrationSessionNodeCreateForProfileNode(idx, profileNode, dataType)
+  var node;
+  {
+    switch(dataType)
+    {
+    case [EsDataType$$Luminance, EsDataType$$Illuminance]:
+      {
+        node = new EL3C_CalibrationNodeClear();
+
+        if( 
+          !EsUtils::areEqualFloats(0., profileNode$ref) && 
+          profileNode$ref < 40. 
+        )
+          node.nodeKindsSet( EsCalibrationNodeKind$$Slow );
+        else
+          node.nodeKindsSet( 
+            [
+              EsCalibrationNodeKind$$Fast, 
+              EsCalibrationNodeKind$$Slow
+            ] 
+          );
+      }
+    case EsDataType$$Flicker:
+      {
+        node = new EL3C_CalibrationNodeClear();
+        node.nodeKindsSet( EsCalibrationNodeKind$$Fast );
+
+        // Reset values for zero and 100% points to default
+        if( EsUtils::areEqualFloats(0., profileNode$ref) )
+          node$rawAnl = 0.;
+        else if( EsUtils::areEqualFloats(100., profileNode$ref) )
+          node$rawAnl = 100.;
+      }
+    }
+    
+    return node;
+  }
+
+  /// Calculate fitting spline nodes for specified node types, and node kind (fast | slow)
+  /// If fitting spline could not be calculated, an empty value is returned
+  ///
+  function fittingSplineCalculate(dataType, nodeKind)
+  var node, profileNode,
+    nodes = nodesWithRawDataGet(
+      dataType, 
+      nodeKind
+    ), 
+    constraint = [],
+    fit, fitc = [], pfit, x = [], y = [], 
+    coeffs;
+  {
+    if( nodes#countGet() >= 2 && nodes#countGet() <= 8 )
+    {
+      fit = new EsMathSpline();
+      
+      foreach(node in nodes)
+      {
+        x += node[1].rawGet(nodeKind);
+        y += node[0]$ref;
+      }
+      
+      constraint += x[0];
+      constraint += y[0];
+      constraint += EsMathFitConstraintKind$$Value;
+      fitc#append(constraint);
+      
+      pfit = new EsMathPolyFit();
+      
+      // Create linear fit to define additional conditions 
+      // for first derivatives in nodes
+      //
+      pfit.buildConstrained(x, y, 1, fitc);
+      coeffs = pfit$coefficients;
+      
+      // Build fitting with constraints
+      fit.akimaBuild(x, y);
+      
+      if( fit$isOk )
+      {
+        nodes = fit$nodes;
+        
+        // Tune up the last spline node - add linear segment
+        node = [];
+        node += nodes[nodes#countGet()-1][1]; // The end of the last spline segment is the start of linear segment
+        node += 0;                            // Use some dummy value as the linear segment ending, it's not used anyway
+        node += y[y#countGet()-1];            // Use the last reference value, as line segment starting point
+        node += coeffs[1];                    // Use the line segment inclination
+        node += 0;                            // Do not use any coeffs for members with power > 1
+        node += 0;
+        nodes#append(node);
+                
+        return nodes;
+      }
+    }
+  } 
+    
+  // Update linked splines of specific type
+  function dependentRecalc(dataType)
+  var nodesFast, splineFast, nodesSlow, splineSlow;
+  {
+    EsScriptDebug::log(
+      "EL3C_CalibrationData::dependentRecalc(%s)",
+      dataType#trace()
+    );
+  
+    EsCalibrationSessionDataBase::dependentRecalc(dataType);
+  
+    if( m_settingsCur#isEmpty() )
+      return;
+
+    splineFast = splineGet(
+      dataType,
+      EsCalibrationNodeKind$$Fast
+    );
+
+    if( EsDataType$$Flicker != dataType )
+    {
+      nodesFast = fittingSplineCalculate(
+        dataType, 
+        EsCalibrationNodeKind$$Fast
+      );
+      nodesSlow = fittingSplineCalculate(
+        dataType, 
+        EsCalibrationNodeKind$$Slow
+      );
+
+      splineSlow = splineGet(
+        dataType,
+        EsCalibrationNodeKind$$Slow
+      );
+    }
+    else
+    {
+      nodesFast = fittingSplineCalculate(
+        dataType, 
+        EsCalibrationNodeKind$$Fast
+      );
+    }
+    
+    //EsScriptDebug::log(nodesFast);
+    splineFast.fromMathNodes(nodesFast);
+    if( !splineSlow#isEmpty() )
+    {
+      //EsScriptDebug::log(nodesSlow);
+      splineSlow.fromMathNodes(nodesSlow);
+    }
+  }
+
+  function internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )
+  var node, otherType;
+  {
+    // We must not change zero point for Flicker
+    if( 0 == nodeIdx && EsDataType$$Flicker == dataType )
+      throw I"Zero node for Flicker calibration must not be changed";
+
+    // If we're setting raw values for default zero node in either Illuminance
+    // or Luminance, we may automatically set the same values for other dataType
+    if( 0 == nodeIdx ) //< system zero point
+    {
+      if( dataType in [EsDataType$$Illuminance .. EsDataType$$Luminance] )
+      {
+        if( EsDataType$$Illuminance == dataType )
+          otherType = EsDataType$$Luminance;
+        else if( EsDataType$$Luminance == dataType )
+          otherType = EsDataType$$Illuminance;
+
+        node = nodeGet(
+          otherType,
+          0
+        );
+
+        node.rawSet(
+          rawVal,
+          nodeKind
+        );
+      }
+    }
+
+    return EsCalibrationSessionDataBase::internalOnNodeRawValSet( 
+      dataType, 
+      nodeKind,
+      nodeIdx, 
+      rawVal 
+    );
+  }
+
+  function calibratedValueGetFromRaw( dataType, dataKind, rawVal )
+  var spline = splineGet(
+    dataType,
+    dataKind
+  );
+  {
+    if( !spline#isEmpty() )
+      return spline.calculate( rawVal );
+  }
+
+  ///
+  /// Overridables end
+  
+  /// Parametrized constructor
+  new(session, fwId, settings)
+  {
+    EsScriptDebug::log(
+      "EL3C_CalibrationData::new(session=%s, fwId=%s, settings=%s)",
+      session#trace(),
+      fwId#trace(),
+      settings#trace()
+    );
+
+    nodesInitFromProfiles();    
+  }
+}

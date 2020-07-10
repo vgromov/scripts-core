@@ -1,0 +1,260 @@
+##require("devices/calibration/EsCalibrationWorkerBase.ess");
+##require("Session.ess");
+##require("devices/calibration/EsCalibrationDataIntegrationHelperStd.ess");
+
+object EsCalibrationWorkerEL3C extends EsCalibrationWorkerBase
+{
+  /// Device-specific overrides should implement the following:
+  ///
+  /// function devicePrepareForOffline(dev)                                                                                   : Mandatory
+  /// function deviceStateRequest(dev)                                                                                        : Mandatory
+  /// function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )                                                      : Mandatory
+  /// function checkDeviceOpmodeIsSetForDataType( dev, dataType )                                                             : Mandatory
+  /// function doDeviceLiveDataRequest( dev, doRawRequest )                                                                   : Mandatory
+  /// function integrationDataPrepare( integrator, inData, isRaw )                                                            : Optional
+  /// function childWorkerObjectCreate()                                                                                      : Mandatory
+  /// function nonBusyChannelsEnumerate(chnlType)                                                                             : Mandatory
+  /// function deviceChannelCreate(chnlPath, chnlType)                                                                        : Mandatory  
+  /// function deviceCalibrationUpload(device, calibration )                                                                  : Mandatory
+  /// function channelTypesForDevType()                                                                                       : Mandatory
+  /// function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )                                  : Optional
+  /// function supportsIntegration()                                                                                          : Optional
+  /// function doLiveReadResultGet(result)                                                                                    : Optional
+  /// new(owner)                                                                                                              : Optional
+  /// new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)                                 : Optional
+  ///
+  
+  // Overridables
+  //
+  
+  function devicePrepareForOffline(dev)
+  {
+    dev.rpcCall(
+      EL3C_Rpid$$WorkmodeSet,
+      EL3C_OpMode$$Idle
+    );
+  }  
+
+  // Request device state in batch mode
+  function deviceStateRequest(dev)
+  {
+    return el3cstateRequest(dev);
+  }
+
+  // Check if data type is supported by selected device type
+  function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::checkDataTypeIsSupportedByDeviceType"
+    );
+
+    return el3cDataTypeCheck(
+      dataType,
+      doThrow
+    );
+  }
+
+  function checkDeviceOpmodeIsSetForDataType( dev, dataType )
+  {
+    if( dataType in [EsDataType$$Illuminance .. EsDataType$$Flicker] )
+      return el3copmodeCheck(
+        dev,
+        EL3C_OpMode$$Illuminance
+      );
+    else if( EsDataType$$Luminance == dataType )
+      return el3copmodeCheck(
+        dev,
+        EL3C_OpMode$$Luminance
+      );
+
+    return false;
+  }
+
+  function doDeviceLiveDataRequest( dev, doRawRequest )
+  {
+    return el3cliveRequest(
+      dev,
+      !doRawRequest
+    );
+  }
+  
+  function childWorkerObjectCreate()
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::childWorkerObjectCreate"
+    );
+    
+    return new EsCalibrationWorkerEL3C( this );
+  }
+  
+  function channelTypesForDevType()
+  {
+    return [
+      "EsChannelIoUart", 
+      "EsChannelIoEkonnect"
+    ];
+  }
+  
+  function nonBusyChannelsEnumerate(chnlType)
+  var result = [], comm, comms, 
+    chnl, master, fwId;
+  {
+    if( "EsChannelIoUart" == chnlType )
+    {
+      comms = EsChannelIoUart::enumerate(
+        false,  //< Skip Busy ports
+        true    //< USB bus only
+      );
+  
+      foreach( comm in comms )
+      {
+        if( !comm[2]#find("ELIGHT-03")#isEmpty() )
+        {
+          result += comm[0]; //< Now we have full UART device path
+        }
+      }
+    }
+    else if( "EsChannelIoEkonnect" == chnlType )
+    {
+      master = new EsRpcMaster();
+      comms = EsChannelIoEkonnect::enumerate(false); //< Skip Busy ports
+      
+      foreach(comm in comms)
+      {
+        fwId = null; 
+        chnl = deviceChannelCreate(comm[0], chnlType);
+        master$channel = chnl;
+        try
+        {
+          master.activate();
+          fwId = deviceFwIdRead(master);
+        }
+        catch
+        {
+        }
+        master.deactivate();    
+
+        // Skip if either unanswered, or mismatched device type
+        if( 
+          fwId#isEmpty() ||
+          fwId$devType != rootWorkerGet().m_devType
+        )
+          continue;
+      
+        result += comm[0];
+      }
+      
+      master = null;
+    }
+    
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::nonBusyChannelsEnumerate(chnlType=%s)=>%s",
+      chnlType#trace(),
+      result#trace()
+    );
+
+    return result;
+  }
+  
+  function deviceChannelCreate(chnlPath, chnlType)
+  var chnl;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::deviceChannelCreate(chnlPath=%s, chnlType=%s)",
+      chnlPath#trace(),
+      chnlType#trace()
+    );
+
+    chnl = EsChannelIoFactory::channelCreate(chnlType);
+
+    if( "EsChannelIoUart" == chnlType )
+    {
+      chnl$port = chnlPath;
+      chnl$baud = 115200;
+    }
+    else if( "EsChannelIoEkonnect" == chnlType )
+    {
+      chnl$device = chnlPath;
+      chnl$baud = 9600;
+    }
+    
+    return chnl;
+  }
+  
+  function supportsIntegration()
+  {
+    return true;
+  }
+
+  function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )
+  var session = $session;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::deviceIntegratorCreate(devId=%s, dataType=%s, integratorStepsCnt=%d, profileNodeIdx=%d)",
+      devId,
+      dataTypeNameGet(dataType),
+      integratorStepsCnt,
+      profileNodeIdx
+    );
+
+    return new EsCalibrationDataIntegrationHelperStd(
+      dataType, 
+      integratorStepsCnt, 
+      profileNodeIdx, 
+      session.deviceDataFind(devId).nodeGet(
+        dataType, 
+        profileNodeIdx
+      )$kinds
+    );
+  }
+
+  function deviceCalibrationUpload(device, calibration)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::deviceCalibrationUpload(device=%s, calibration=%s)",
+      device#trace(),
+      calibration#trace()
+    );
+  
+    device.settingsUpload(
+      calibration
+    );
+  }
+
+  new(owner)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::new(owner=%s) root worker",
+      owner#trace()
+    );
+    
+    // Work-around for #956
+    eventSubscriberCreate();
+    m_thread = new EsThreadWorker(this);
+  }
+
+  new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerEL3C::new(activeSessionsPath=%s, completeSessionsPath=%s, devType=%s, profilesGlobal=%s) root worker",
+      activeSessionsPath#trace(), 
+      completeSessionsPath#trace(), 
+      devType#trace(), 
+      profilesGlobal#trace()
+    );
+
+    deviceTypeCheck(
+      devType, 
+      EsDeviceType$$EL3C
+    );
+      
+    // Work-around for #956
+    eventSubscriberCreate();
+    m_thread = new EsThreadWorker(this);
+    
+    sessionLoadOrCreate();
+  }
+
+  //
+  // Overridables end  
+}

@@ -1,0 +1,947 @@
+/// @file EsDeviceBase.ess
+/// Ekosf device framework base object && stuff
+
+##require("../core.ess");
+
+enum EsDevice_IoState
+{
+  Offline                 = 0, I"Disconnected";
+  Stalled                 = 1, I"Connection breaking";
+  Online                  = 2, I"Online";
+}
+
+const ES_EVTC_TO_DEVICE   = "toDevice";
+const ES_EVTC_FROM_DEVICE = "fromDevice";
+
+/// Device event structure is as follows:
+///  evt_id=<some Id>, payload=deviceFwId<,payload>
+///    payload = Change|RPC (batch) request|RPC (batch) response|custom request|custom response
+///     RPC response (batch) = RPC request (batch) parameters, RPC response (batch) data
+///     RPC request = [rpcId, args]
+///     RPC request (batch) = [[rpcId 0, args 0], ... [rpcId N, args N]]
+///     RPC response data = [true|false, data]
+///     RPC response (batch) data = [[true|false, data 0], ... [true|false, data N]]
+///       true =  response succeeded, false - otherwise
+///               if true - data = response data, if false data = error reason
+///     Custom request = [procName, args]
+///     Custom response = [true|false, data]
+///
+
+/// Device event Ids
+enum EsDeviceEvtId {
+  idChanged           = 1000, I"Device FW ID changed";
+  rpcRequest          = 1002, I"Queued RPC request";
+  rpcRequestBatch     = 1003, I"Queued batch RPC request";
+  rpcResponse         = 1004, I"Device responded to RPC request";
+  rpcResponseBatch    = 1005, I"Device responded to RPC batch request";
+  customRequest       = 1007, I"Custom device request";
+  customResponse      = 1008, I"Response to the custom request";
+  onlineStateChanged  = 1009, I"Device online state changed";
+}
+
+/// Helper device object global services
+///
+/// Return true if batch results are all OK,
+/// false otherwise
+function deviceCheckBatchResultOk(batchResult)
+var batchItem;
+{
+  if( batchResult#isEmpty() || 
+      !batchResult#isIndexed() ||
+      (batchResult#isIndexed() && !batchResult#countGet()) )
+    return false;
+  
+  foreach( batchItem in batchResult )
+    if( !batchItem[0] )
+      return false;
+      
+  return true;
+}
+
+/// Base object for every device, like pha01, boi01, etc.
+/// Any derived device object must override the following base methods:
+/// -function rpcNameGetById(rpcId)
+/// -function rpcSigGetById(rpcId)
+/// -function fwIdAssert(fwId)
+/// -function fwIdDefaultSet()
+/// -function defaultCapsGet()
+/// -function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+/// Optionally overridden may be:
+/// -function evtHandle(m_ioMaster, evtId, payload)
+/// Any derived device may optionally implement custom response functions
+/// Result returned from custom response functions should comply with 
+/// the standard RPC response structure: [true|false, data]
+///
+object EsDeviceBase
+@nomarshal;
+{
+  var 
+    m_fwInitialized,
+    m_countryCode,
+    m_hwInfo,
+    /// Device id. Null, if never identified
+    m_fwId,
+    /// Device RPC capabilities. Null, if never contacted     
+    m_caps,
+    /// IO master currently used for communications
+    m_ioMaster,
+    /// Temporary - cached fwId strings
+    m_tmpFwIdStr,
+    m_tmpFwIdStrEssential,
+
+    /// IO state block
+    m_ioSuccessTs,          /// > Last successfull io attempt timestamp, 0 if never contacted
+    m_ioAttemptTs,          /// > Last io attempt timestamp, 0 if never contacted
+    m_ioErrorCount,         /// > Count of io errors since last successfull communication attempt. if 0 - consider device alive and well
+    m_ioAddr,               /// > Device protocol address. 255 (broadcast) by default
+    m_ioErrorLog;           /// > Last IO error string
+      
+  /// Methods:
+  ///
+  /// Post device-specific event
+  ///
+  function evtPost(cat, id, data)
+  var payload = [];
+  {
+    payload += m_tmpFwIdStr;
+    if( !data#isEmpty() )
+      payload#append(data);
+      
+    __scriptHost.eventPost(
+      cat, 
+      id, 
+      payload
+    );
+  }
+  
+  /// Push request to the dispatcher
+  function evtRequestPost(requestId, request)
+  {
+    if( 
+      requestId in [
+        EsDeviceEvtId$$rpcRequest, 
+        EsDeviceEvtId$$rpcRequestBatch, 
+        EsDeviceEvtId$$customRequest
+      ] 
+    )
+      evtPost(
+        ES_EVTC_TO_DEVICE, 
+        requestId, 
+        request
+      );
+   }
+    
+  /// Push response to the dispatcher queue
+  function evtResponsePost(responseId, request, response)
+  var responseData = [];
+  {
+    if( 
+      responseId in [
+        EsDeviceEvtId$$idChanged, 
+        EsDeviceEvtId$$rpcResponse, 
+        EsDeviceEvtId$$rpcResponseBatch, 
+        EsDeviceEvtId$$customResponse 
+      ] 
+    )
+    {
+      responseData#append(request);
+      responseData#append(response);
+      evtPost(
+        ES_EVTC_FROM_DEVICE, 
+        responseId, 
+        responseData
+      );
+    }
+  }
+  
+  /// Return user-friendly RPC name string, or 'Unknown RPC with <id>'.
+  /// By default, handles only the standard RPC ids, derived objects must extend this functionality
+  ///
+  function rpcNameGetById(rpcId)
+  {  
+    if( rpcId in EsRpcStdId )
+      return EsRpcStdId.valueLabelGet(rpcId);
+    
+    return EsStr::format(I"Unknown RPC id: '%d'", rpcId);
+  }
+  
+  /// Return RPC signature string, or throws 'Unsupported RPC with <id>'.
+  /// By default, handles only the standard RPC ids, derived objects must extend this functionality
+  ///
+  function rpcSigGetById(rpcId)
+  {  
+    if( rpcId in EsRpcStdId )
+      return rpcSigGet(EsRpcStdId.valueLabelGet(rpcId));
+    
+    throw EsStr::format(I"Unsupported RPC id: '%d'", rpcId);
+  }
+  
+  /// Reset io state block
+  function ioStateReset()
+  {
+    m_ioSuccessTs = new EsDateTime();
+    m_ioAttemptTs = new EsDateTime();
+    m_ioErrorCount = 0;
+    m_ioAddr = 255;
+    m_ioErrorLog = [];
+  }
+  
+  /// Reset all io related stuff (reset assigned io master as well)
+  function ioReset()
+  {
+    ioStateReset();
+    m_ioMaster = null;
+  }
+  
+  /// fwId assertion. Base implementation just checks for null and properly typed argument, 
+  /// must be overridden in derived objects
+  ///
+  function fwIdAssert(fwId)
+  {
+    if( fwId#isEmpty() )
+      throw I"Could not assign empty value to firmware Id";
+    
+    if( !fwId#isObject() || !fwId.isKindOf("EsFirmwareId") )
+      throw I"Could not assign argument of wrong type to firmware Id";
+  }
+  
+  /// Assign fwId to device  
+  function fwIdSet(fwId)
+  var tmpFwIdStr;
+  {
+    fwIdAssert(fwId);
+    
+    tmpFwIdStr = fwId.asString(
+      EsFirmwareIdFmtFlag$$DescrShort|
+      EsFirmwareIdFmtFlag$$Serial|
+      EsFirmwareIdFmtFlag$$Version
+    );
+    
+    if( fwId != m_fwId ) // significant differences in fwId
+    {
+      if( m_fwInitialized )
+        throw I"Could not re-assign firmware id to existing device";
+        
+      m_fwId = fwId;
+      m_tmpFwIdStr = m_fwId$fwIdStringShort;
+      m_tmpFwIdStrEssential = m_fwId$fwIdStringEssential;
+
+      m_fwInitialized = true;
+      evtPost(
+        ES_EVTC_FROM_DEVICE, 
+        EsDeviceEvtId$$idChanged, 
+        null //< evtPost implicitly inserts id string into payload, so do not need another copy
+      );
+    }
+    else if( m_tmpFwIdStr != tmpFwIdStr ) // insignificant differences
+    {
+      m_fwId = fwId;
+      m_tmpFwIdStr = tmpFwIdStr;
+      m_fwInitialized = true;
+      evtPost(
+        ES_EVTC_FROM_DEVICE, 
+        EsDeviceEvtId$$idChanged, 
+        null //< evtPost implicitly inserts id string into payload, so do not need another copy
+      );
+    }
+    
+    if( m_fwId.hasProperty("countryCode") )
+      m_countryCode = m_fwId$countryCode;
+  }
+  
+  /// Assign default FW id to the device. Should be overridden in derived classes
+  /// to create default empty device object with meaningful device type
+  ///
+  function fwIdDefaultSet()
+  {}
+  
+  /// Return default RPC capabilities supported for the device
+  /// Only the bare minimum of standard ones is returned (these must be implemented in any device, anyway)
+  ///
+  function defaultCapsGet()
+  var result = [];
+  {
+    result += EsRpcStdId$$CAPS_GET;
+    result += EsRpcStdId$$FWID_GET;
+
+    return result;    
+  }
+  
+  /// Address check
+  function addrAssert(addr)
+  {
+    if( !(addr in [0 .. 255]) )
+      throw I"Device address value is out of range";
+  }
+  
+  /// Assign io address
+  function addrSet(addr)
+  {
+    addr = addr.asULong();
+    addrAssert( addr );
+    if( m_ioAddr != addr )
+      m_ioAddr = addr;
+  }
+  
+  /// IO attempt handler
+  function onIoAttempt()
+  {
+    m_ioAttemptTs = EsDateTime::now();
+  }
+  
+  /// IO success condition handler
+  function onIoSuccess()
+  {
+    m_ioSuccessTs = EsDateTime::now();
+    m_ioErrorCount = 0;
+    m_ioErrorLog = [];
+  }
+  
+  /// IO error condition handler
+  function onIoError(error)
+  {
+    ++m_ioErrorCount;
+    m_ioErrorLog += error.asString();
+  }
+  
+  /// Common initializer
+  function internalInit(fwId)
+  {
+    m_countryCode = 643; //< Default to Russia
+    m_fwInitialized = false;
+          
+    m_tmpFwIdStr = "";
+    m_tmpFwIdStrEssential = "";
+    ioStateReset();
+          
+    if( fwId#isEmpty() )    
+      fwIdDefaultSet();
+    else
+      fwIdSet(fwId);
+      
+    m_caps = defaultCapsGet();
+  }
+  
+  /// Constructor
+  new()
+  {
+    if( isRoot() ) 
+      internalInit(null);
+  }
+  
+  new( fwId )
+  {
+    if( isRoot() ) 
+      internalInit(fwId);
+  }  
+  
+  /// rpcCall result handler. Base functionality - handles the most basic
+  /// stuff which must always be there. handlingResult parameter is reserved for override calls.
+  /// Inherited objects must first do their own handling, then call base object method, passing processing result in
+  /// handlingResult parameter. Top call should always set this parameter to null
+  ///
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var handlingResult;
+  {
+    if( !rpcResult#isEmpty() )
+    {
+      // handle standard data requests
+      // NB! health info query response, included here, should normally be overridden in derived devices
+      // to return health info object instead.
+      if( EsRpcStdId$$FWID_GET == rpcId || EsRpcStdId$$FWID_MODERN_GET == rpcId )
+      {
+        handlingResult = new EsFirmwareId();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$HW_UID_GET == rpcId)
+      {
+        handlingResult = new EsDeviceUID();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$HW_INFO_GET == rpcId && rpcResult#countGet() )
+      {
+        handlingResult = new EsDeviceHwInfo();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$SW_INFO_GET == rpcId && rpcResult#countGet() )
+      {
+        handlingResult = new EsSoftwareInfo();
+        handlingResult$buffer = rpcResult;
+        m_countryCode = handlingResult$fwInfo$countryCode;
+        m_hwInfo = handlingResult$fwInfo$hwConfigInfo.clone();
+        
+        //EsScriptDebug::log("EsDeviceBase - EsRpcStdId$$SW_INFO_GET, countryCode=%d, hwInfo is set to %s", m_countryCode, m_hwInfo.asString());
+      }
+      else if(EsRpcStdId$$POWER_STATUS_GET == rpcId && rpcResult#countGet() )
+      {
+        handlingResult = new EsPowerStatus();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$FS_FREESPACE_GET == rpcId && rpcResult#countGet())
+      {
+        handlingResult = new EsFsSpaceInfoResult();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$DIR_LIST_NEXT_GET == rpcId )
+      {
+        if( rpcResult#countGet() == 2 )
+          handlingResult = rpcResult#asULong();
+        else
+        {
+          handlingResult = new EsFsItemResult();
+          handlingResult$buffer = rpcResult;
+        }
+      }
+      else if(EsRpcStdId$$FILE_READ_START == rpcId && rpcResult#countGet())
+      {
+        handlingResult = new EsFsFileReadRequest();
+        handlingResult$buffer = rpcResult;
+      }
+      else if(EsRpcStdId$$DIR_LIST_START == rpcId ||
+              EsRpcStdId$$DIR_DELETE == rpcId ||
+              EsRpcStdId$$FILE_DELETE == rpcId )
+        handlingResult = rpcResult#asULong();
+      else // return raw rpc response by default
+        handlingResult = rpcResult;
+    }
+    
+    return handlingResult;
+  }
+  
+  /// RPC pre-call filtering helper. If device capabilities were requested, and m_caps not empty,
+  /// check rpcId against m_caps before actuall call, and throw 'unsupported RPC' without actually 
+  /// performing any io transaction
+  ///
+  function rpcCapsAssert(rpcId)
+  {
+    if( !m_caps#isEmpty() && !(rpcId in m_caps) )
+      throw EsStr::format(
+        I"RPC with id: %d (%s) is not supported on '%s'", 
+        rpcId, 
+        rpcNameGetById(rpcId), 
+        m_tmpFwIdStr
+      );
+  }
+  
+  /// Internal io master call helper. Must not be called directly.  
+  function internalCallMaster(rpcId, rpcArgs)
+  var args = [];
+  {
+    args += rpcId;
+    if( !rpcArgs#isEmpty() )
+      args += rpcArgs;
+    
+    return m_ioMaster.callMethod(rpcSigGetById(rpcId), args);
+  }
+  
+  /// Parametric RPC call. Returned is pair [true|false, result], true, if call was successfull, false otherwise
+  /// result contains the optional return value of rpcCallResultHandle
+  ///
+  function rpcCall(rpcId, rpcArgs)
+  var rpcResult, result = [];
+  {
+    // 1) check if m_ioMaster is not null and active
+    rpcMasterAssert(m_ioMaster);
+    // assert RPC id
+    rpcCapsAssert(rpcId);
+    // 2) create try-catch scope
+    try
+    {
+      // 3) lock m_ioMaster
+      m_ioMaster.lock();
+      // assign io address
+      m_ioMaster$clientAddr = m_ioAddr;
+      // call io attempt handler
+      onIoAttempt();
+      // 4) perform rpc call
+      if( EsRpcStdId$$CAPS_GET == rpcId )
+      {
+        rpcResult = m_ioMaster.getImplementedRPCs();
+        m_caps = rpcResult;
+      }
+      else
+      {
+        rpcResult = internalCallMaster(rpcId, rpcArgs);
+      }
+      // call io success handler
+      onIoSuccess();
+      // 5) handle its result - call result handler, if registered for rpcId
+      rpcResult = rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+      // restore broadcast address
+      m_ioMaster$clientAddr = 255;
+      // 7) unlock m_ioMaster
+      m_ioMaster.unlock();
+      result += true; result#append(rpcResult);
+    }
+    catch
+    {
+      // 6) handle error
+      onIoError(__exception$reason);
+      // restore broadcast address
+      m_ioMaster$clientAddr = 255;
+      // 7) unlock m_ioMaster
+      m_ioMaster.unlock();
+      result += false; 
+      result += __exception;
+    }
+
+    return result;
+  }
+  
+  /// Batch item checking
+  function batchItemAssert(batchItem)
+  {
+    if( batchItem#isEmpty() )
+      throw I"Device io batch item must not be empty";
+
+    if( !batchItem#isIndexed() )
+      throw I"Device io batch item must be of indexed type";
+    
+    if( 2 > batchItem.countGet() )
+      throw I"Wrong device io batch item member count.";
+  }
+  
+  /// Batch io call service. It's expecting collection of input arrays: [rpcId, args]
+  /// as 'batch' argument. Returned is the collection of pairs [true|false, stepResult] 
+  /// The first pair member is true, if no errors occurred during batch execution.
+  /// Otherwise, the first pair member is false.
+  ///
+  function rpcBatchCall(batch)
+  var batchResult = [], stepResult, rpcResult, batchItem, rpcId, rpcArgs;
+  {
+    // 1) check if m_ioMaster is not null and active
+    rpcMasterAssert(m_ioMaster);
+    // 2) create try-catch scope
+    try
+    {
+      // 3) lock m_ioMaster
+      m_ioMaster.lock();
+      // assign io address
+      m_ioMaster$clientAddr = m_ioAddr;
+      // iterate batch
+      foreach(batchItem in batch)
+      {
+        // assert batch item structure
+        batchItemAssert(batchItem);
+        // call io attempt handler
+        onIoAttempt();
+        // 4) perform rpc call
+        rpcId = batchItem[0];
+        // assert RPC id
+        rpcCapsAssert(rpcId);
+        rpcArgs = batchItem[1];
+        if( EsRpcStdId$$CAPS_GET == rpcId )
+        {
+          rpcResult = m_ioMaster.getImplementedRPCs();
+          m_caps = rpcResult;
+        }  
+        else
+          rpcResult = internalCallMaster(rpcId, rpcArgs);
+        // call io success handler
+        onIoSuccess();
+        // 5) handle its result - call result handler, if registered for rpcId
+        rpcResult = rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+        if( batchItem.countGet() > 2 && !batchItem[2]#isEmpty() )
+          EsThreadWorker::sleep(
+            batchItem[2]
+          );
+   
+        stepResult = [];
+        stepResult += true; stepResult#append(rpcResult);
+        batchResult#append(stepResult);
+      }
+      // restore broadcast address
+      m_ioMaster$clientAddr = 255;
+      // 7) unlock m_ioMaster
+      m_ioMaster.unlock();
+    }
+    catch
+    {
+      // 6) handle error
+      onIoError(__exception$reason);
+      // restore broadcast address
+      m_ioMaster$clientAddr = 255;
+      // 7) unlock m_ioMaster
+      m_ioMaster.unlock();
+      // create result pair
+      stepResult = [];
+      stepResult += false; 
+      stepResult += __exception;
+      batchResult#append(stepResult);
+    }
+    
+    return batchResult;
+  }
+  
+  /// Queue rpc request to ourselves - async request call
+  function rpcCallQueue(rpcId, rpcArgs)
+  var data = [];
+  {
+    data += rpcId; data#append(rpcArgs);
+    evtRequestPost(
+      EsDeviceEvtId$$rpcRequest, 
+      data
+    );
+  }
+  
+  /// Queue batch rpc request to ourselves - async request call
+  function rpcBatchCallQueue(batch)
+  {
+    evtRequestPost(EsDeviceEvtId$$rpcRequestBatch, batch);
+  }
+
+  /// Queue custom request to ourselves - async request call
+  function customCallQueue(name, args)
+  var data = [];
+  {
+    data += name; data#append(args);
+    evtRequestPost(EsDeviceEvtId$$customRequest, data);
+  }
+  
+  /// Handle -to device event. Default implementation handles
+  /// single, batch, and custom requests
+  ///
+  function evtDestAssert(devIdStr)
+  {
+    if( "all" != devIdStr && m_tmpFwIdStr != devIdStr )
+      throw I"Event mistakenly dispatched to the wrong device";
+  }
+
+  function evtHandle(evtId, evtPayload)
+  var result, request, devIdStr = evtPayload[0];
+  {
+    evtDestAssert(devIdStr);
+      
+    if( EsDeviceEvtId$$rpcRequest == evtId )
+    {
+      request = evtPayload[1];
+      result = rpcCall(request[0], request[1]);
+      evtResponsePost(EsDeviceEvtId$$rpcResponse, request, result);
+    }
+    else if( EsDeviceEvtId$$rpcRequestBatch == evtId )
+    {
+      request = evtPayload[1];
+      result = rpcBatchCall(request);
+      evtResponsePost(EsDeviceEvtId$$rpcResponseBatch, request, result);
+    }
+    else if( EsDeviceEvtId$$customRequest == evtId )
+    {
+      request = evtPayload[1];
+      result = callMethod(request[0], request[1]);
+      evtResponsePost(EsDeviceEvtId$$customResponse, request, result);
+    }
+  }
+  
+  /// Custom request handlers to simplify RPC FS operations
+  ///
+  /// Query firmware id information at the currently set device address. Mainly, it's used as helper wrapper
+  /// in device (network, p2p) maintenance task(s)
+  ///
+  function fwIdQuery()
+  {
+    //EsScriptDebug::log("fwIdQuery:");
+    //EsScriptDebug::log(m_tmpFwIdStr);
+    //EsScriptDebug::log(m_caps);
+    //EsScriptDebug::log("ModernFwId is in caps?");
+    //EsScriptDebug::log(EsRpcStdId$$FWID_MODERN_GET in m_caps);
+    
+    if( EsRpcStdId$$FWID_MODERN_GET in m_caps ) 
+      return rpcCall(EsRpcStdId$$FWID_MODERN_GET, null);
+    else
+      return rpcCall(EsRpcStdId$$FWID_GET, null);
+  }
+  
+  /// Full embedded software info structure query helper
+  function swInfoQuery()
+  {
+    if( EsRpcStdId$$SW_INFO_GET in m_caps ) 
+      return rpcCall(EsRpcStdId$$SW_INFO_GET, null);
+  }  
+
+  /// Internal fsresult substitution helper. Must not be used directly
+  function checkFsResultOnSuccess( result, fsItemName )
+  {
+    if( result[0] && EsFsResult$$OK != result[1] )
+    {
+      result[0] = false;
+      result[1] = fsResultStringGet(result[1]);
+      if( !fsItemName#isEmpty() )
+        result[1] += ": '" + fsItemName + "'";
+    }
+    
+    return result;
+  }
+  
+  /// Start listing objects in specified 'pathAbs' (must be absolute path) directory
+  function dirListStart(dirAbsPath)
+  var result, bs = EsStr::toByteString(dirAbsPath);
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$DIR_LIST_START, bs);
+    result = checkFsResultOnSuccess( result, dirAbsPath );
+    
+    return result;
+  }
+
+  /// Proceed with directory listing, started by 'dirListStart' call
+  /// If directory contains no more entries, the call returns [true, null]
+  /// Otherwise, [true, <current EsFsItem>] is returned
+  ///
+  function dirListGetNextItem()
+  var fsResult, result = rpcCall(EsRpcStdId$$DIR_LIST_NEXT_GET, null);
+  {
+    if( result[0] )
+    {
+      fsResult = result[1];
+      if( !fsResult#isObject() )
+      {
+        if( EsFsResult$$OK != fsResult )
+        {
+          result[0] = false;
+          result[1] = fsResultStringGet(fsResult);
+        }
+        else
+          result[1] = null;
+      }
+      else
+      {
+        // return 'prepared' EsFsItem object, instead of 'compound' EsFsItemResult
+        result[1] = new EsFsItem();
+        result[1].copyFrom(fsResult$item);
+      }
+    }
+     
+    return result;
+  }
+
+  /// Directory deletion service. If 'force' is true, tries to delete all directory content, if any.
+  /// Otherwise, aborts deletion if directory is not empty.
+  ///
+  function dirDelete(dirAbsPath, force)
+  var bs = EsStr::toByteString(dirAbsPath), args = [], result;
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';  
+    args += bs;
+    args += force;
+    result = rpcCall(EsRpcStdId$$DIR_DELETE, args);
+    result = checkFsResultOnSuccess( result, dirAbsPath );
+    
+    return result;
+  }
+  
+  /// File deletion service.
+  function fileDelete(fileAbsPath)
+  var bs = EsStr::toByteString(fileAbsPath), result;
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$FILE_DELETE, bs);
+    result = checkFsResultOnSuccess( result, fileAbsPath );
+    
+    return result;
+  }
+
+  /// Free filesystem information query service.
+  function fileSysFreeSpaceInfoGet()
+  var result = rpcCall(EsRpcStdId$$FS_FREESPACE_GET, null), infoResult;
+  {
+    if( result[0] )
+    {
+      infoResult = result[1];
+      if( EsFsResult$$OK != infoResult.f_result )
+      {
+        result[0] = false;
+        result[1] = fsResultStringGet(infoResult.f_result);
+      }
+      else
+      {
+        // return 'prepared' EsFsSpaceInfo object instead of 'compound' EsFsSpaceInfoResult
+        result[1] = new EsFsSpaceInfo();
+        result[1].copyFrom(infoResult.f_info);
+      }
+    }
+      
+    return result;
+  }
+
+  /// File read service. May perform multiple calls to the low-level RPC
+  /// file read services. Return entire file as binary buffer.
+  ///
+  function fileRead(fileAbsPath)
+  var bs = EsStr::toByteString(fileAbsPath), fsResult, 
+      f = EsVar::as(EsVariantType$$VAR_BIN_BUFFER), 
+      chunks, chunk, result, task = new EsProgressMonitorTask( EsPath::makeSafe(m_tmpFwIdStr) + EsPath::makeSafe(fileAbsPath) );
+  {
+    // send zero-terminated buffer, including terminating 0
+    bs += B'\0';
+    result = rpcCall(EsRpcStdId$$FILE_READ_START, bs);
+    if( result[0] )
+    {
+      // notify file read start action
+      task.attachTo(__scriptHost$progressMonitor);
+      task$text = EsStr::format(I"Downloading: '%s'", fileAbsPath);
+      fsResult = result[1];
+      if( !fsResult$isOk )
+      {
+        result[0] = false;
+        result[1] = fsResultStringGet(fsResult$result);
+        if( !fileAbsPath#isEmpty() )
+          result[1] += ": '" + fileAbsPath + "'";
+        // notify action end with error
+        task.end( result[1] );
+      }
+      else
+      {
+        chunks = fsResult$chunks;
+        // EsScriptDebug::log("Expected chunks: %d", chunks);
+        
+        chunk = 0;
+        // re-notify file read start action with known range now
+        task$range = chunks;
+        task$position = chunk;
+        
+        while( result[0] && chunk < chunks )
+        {
+          // EsScriptDebug::log("Reading chunk: %d", chunk);
+          result = rpcCall(EsRpcStdId$$FILE_READ_NEXT, null);
+          if( result[0] )
+          {
+            // EsScriptDebug::log("Chunk read OK");
+            f += result[1];
+            // notify action progress
+            task$position = chunk;
+          }
+          ++chunk;
+        }
+        
+        if( result[0] )
+        {
+          // notify file read action end OK
+          task.end( EsStr::format(I"Downloaded: '%s'", fileAbsPath) );
+          result[1] = f;
+        }
+        else
+        {
+          // notify file read action end with error
+          task.end( EsStr::format(I"Error downloading: '%s'", fileAbsPath) );
+          result[1] = null;
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /// Custom serialization
+  function streamWrite(stream)
+  {
+    stream.valueWrite("id", m_fwId);
+    stream.valueWrite("caps", m_caps);
+    stream.valueWrite("countryCode", m_countryCode);
+    stream.valueWrite("hwInfo", m_hwInfo);
+  }
+  
+  function streamRead(stream)
+  var id, defCaps = defaultCapsGet();
+  {
+    id = stream.valueRead("id", null);
+    internalInit(id);
+
+    m_caps = stream.valueRead("caps", defCaps);
+    // If canabilities is somehow read empty|null, re-assign defaults to them
+    if( m_caps#isEmpty() || 0 == m_caps#countGet() )
+      m_caps = defCaps;
+      
+    m_countryCode = stream.valueRead("countryCode", 643/*3166-1, Russia, by default*/);
+    m_hwInfo = stream.valueRead("hwInfo", null);
+  }
+  
+  /// Settings request overridable. Default implementation returns an empty rpc response
+  function settingsDownload()
+  {
+    return [false, null];
+  }
+  
+  /// Properties:
+  ///   
+  /// Currently used io master. Must be set to null when device goes inactive.
+  /// Must be re-assigned (by branch, or whatever) when device goes active
+  ///
+  property ioMaster;
+  read: { return m_ioMaster; }
+  write: { m_ioMaster = __value; }
+
+  /// Read-only access to the full device's fwid string
+  property fwIdStr;
+  read: { return m_tmpFwIdStr; }
+  
+  /// Read-only access to essential device's fwid string part
+  property fwIdStrEssential;
+  @deprecated="EsDeviceBase$fwIdStrEssential property is deprecated and will be removed in future script versions. Use fwIdStringEssential instead.";
+  read: { return m_tmpFwIdStrEssential; }
+
+  /// Read-only access to essential device's fwid string part
+  property fwIdStringEssential;
+  read: { return m_tmpFwIdStrEssential; }
+
+  /// Return firmware id string which is safe for using as component name or progress task identifier
+  property fwIdStrSafe;
+  read: {       
+    return EsPath::makeSafe(
+        $fwIdStr,
+        " +\\-\\[\\]';.",
+        "_"
+      );
+  }  
+  
+  /// Read-only access to the device fwid
+  property fwId;
+  read: var tmp = new EsFirmwareId(); { 
+    tmp.copyFrom(m_fwId);
+    return tmp;
+  }
+  
+  /// Return true if device standard capabilities support modern FW ID request
+  /// i.e. device has dual - ID feature
+  property supportsDualId;
+  read: { return EsRpcStdId$$FWID_MODERN_GET in m_caps; }
+  
+  /// Incapsulated device type
+  property devType;
+  read: { return m_fwId$devType; }
+  
+  /// Read-only access to default or actual (downloaded from physical device itself) capabilities
+  property caps;
+  read: { return m_caps; }
+  
+  /// Return last successful IO timestamp
+  property ioSuccessTs;
+  read: { return m_ioSuccessTs; }
+  
+  /// Return last IO attempt timestamp
+  property ioAttemptTs;
+  read: { return m_ioAttemptTs; }
+  
+  /// Return current count of IO attempt errors
+  property ioErrorCount;
+  read: { return m_ioErrorCount.asULong(); }
+  
+  /// Read current io address
+  property ioAddr;
+  read: { return m_ioAddr.asULong(); }
+  write: { addrSet(__value); }
+  
+  /// Return error log collection, if any
+  property ioErrorLog;
+  read: { return m_ioErrorLog; }
+  
+  /// Return device country code (Russia, by default)
+  property countryCode;
+  read: { return m_countryCode; }
+  
+  /// Return HW config info object, if any was received in SW info get RPC call
+  property hwInfo;
+  read: { return m_hwInfo; }
+}

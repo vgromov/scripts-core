@@ -1,0 +1,103 @@
+##require("../../math/EsValStat.ess");
+##require("Flags.ess");
+
+/// ELM saved data structure
+object ELM_SavedData
+{
+  esU32         f_count;
+  esF           f_data[f_count];
+  EsValStat     f_stats;
+  
+  /// Properties
+  ///
+  property count;
+  read: { return f_count#asULong(); }
+
+  property data;
+  read: { return f_data; }
+  
+  property stats;
+  read: { return f_stats; }
+}
+
+/// Ready | raw data structure,
+///
+object ELM_Data
+{
+  ELM_Health f_errors;  ///< Device error flags
+  esF   f_val;          ///< Measured raw or ready illuminance value
+
+  /// Calibration framework-specific interface allowing unified access to raw or calibrated data
+  ///
+  function valueGet(dataType, dataKind)
+  var result;
+  {
+    EsScriptDebug::log(
+      "ELM_Data::valueGet(dataType=%s, dataKind=%s)",
+      dataType#trace(),
+      dataKind#trace()
+    );  
+  
+    if( 
+      dataType == EsDataType$$Illuminance &&
+      (
+        dataKind#isEmpty() ||
+        EsCalibrationNodeKind$$Slow == dataKind
+      )
+    )
+      result = this$val;
+      
+    EsScriptDebug::log(
+      " ..result->%s",
+      result#trace()
+    );      
+      
+    return result;
+  }
+  
+  function valueStrGet(dataType, dataKind)
+  var result = "";
+  {
+    EsScriptDebug::log(
+      "ELM_Data::valueStrGet(dataType=%s, dataKind=%s)",
+      dataType#trace(),
+      dataKind#trace()
+    );  
+  
+    if( 
+      dataType == EsDataType$$Illuminance &&
+      (
+        dataKind#isEmpty() ||
+        EsCalibrationNodeKind$$Slow == dataKind
+      )
+    )
+      result = ELM_ValueFmt(this$val);
+
+    EsScriptDebug::log(
+      " ..result->%s",
+      result#trace()
+    );      
+      
+    return result;
+  }
+
+  /// Properties
+  ///
+  
+  /// Low light checking
+  property isLowLight;
+  read: { return f_val < 100; }        
+
+  /// Data access properties
+  ///
+
+  /// System error flags
+  property errors;
+  read: { return f_errors; }
+
+  property valDig;
+  read: { return f_val$value; }
+  
+  property val;
+  read: { return f_val$value; }
+}

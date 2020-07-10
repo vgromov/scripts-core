@@ -1,0 +1,331 @@
+/// Calibration node kind (if multiple sensors or algorithms is used in parallel for the same node type)
+///
+enum EsCalibrationNodeKind
+{
+  Fast                                  = 0,        I"Fast source";
+  Slow                                  = 1,        I"Slow source";
+}
+
+/// Data type categories.
+/// Each category may contain up to 100 data types.
+///
+enum EsDataTypeCategory
+{
+  Lighting                              = 0,        I"Lighting";
+  Generic                               = 1,        I"Generic";
+  IonizingRadiation                     = 2,        I"Ionizing radiation";
+}       
+        
+/// Known data types        
+enum EsDataType         
+{       
+  /// -------------------------------- Ligting data types start ---------------------------
+
+  Illuminance                           = 0,        I"Illuminance";
+  Luminance                             = 1,        I"Luminance";
+  Flicker                               = 2,        I"Flicker";
+  CIE1931XYZ                            = 3,        I"CIE 1931 XYZ";
+  ColorTemp                             = 4,        I"CCT, Correlated Color Temperature";
+
+  /// -------------------------------- Ligting data types end ---------------------------
+
+  /// -------------------------------- Generic data types start ---------------------------
+
+  Percent                               = 50,       I"Percent";
+  Time                                  = 51,       I"Time";
+  Length                                = 52,       I"Length";
+  Temperature                           = 53,       I"Temperature";
+  Weight                                = 54,       I"Weight";
+  
+  /// -------------------------------- Generic data types end ---------------------------
+  
+  /// -------------------------------- IonizingRadiation types start ------------------
+
+  AbsorbedRadiationDose                 = 100,      I"Absorbed Radiation Dose";
+  DoseEquivalentRate                    = 101,      I"Dose Equivalent Rate";
+  RadiationExposureDose                 = 102,      I"Radiation Exposure Dose";
+  
+  /// -------------------------------- IonizingRadiation types end ------------------
+}
+
+/// Data types by category
+const c_dataTypesByCategory = [
+  [ //< EsDataTypeCategory$$Generic
+    EsDataType$$Percent,
+    EsDataType$$Time,
+    EsDataType$$Length,
+    EsDataType$$Temperature
+  ],
+  [ //< EsDataTypeCategory$$Lighting
+    EsDataType$$Illuminance,
+    EsDataType$$Luminance,
+    EsDataType$$Flicker,
+    EsDataType$$CIE1931XYZ,
+    EsDataType$$ColorTemp
+  ],
+  [ //< EsDataTypeCategory$$IonizingRadiation
+    EsDataType$$AbsorbedRadiationDose,
+    EsDataType$$DoseEquivalentRate,
+    EsDataType$$RadiationExposureDose
+  ]
+];
+
+/// Known Data units
+///
+enum EsDataUnits
+{
+  Lux                                   = 0;
+  Cd_M2                                 = 1;
+  Nit                                   = 2;
+  Stilb                                 = 3;
+  Lambert                               = 4;
+  
+  Percent                               = 5;
+  Celcius                               = 6;
+  Fahrenheit                            = 7;
+  Kelvin                                = 8;
+  
+  Sievert                               = 9;
+  Rem                                   = 10;
+  Roentgen                              = 11;
+  Coulomb_kg                            = 12;
+  Rad                                   = 13;
+  Gray                                  = 14;
+  
+  Day                                   = 15;
+  Hour                                  = 16;
+  Minute                                = 17;
+  Second                                = 18;
+
+  // Virtual dose units - non existent, but forced by namagement
+  QuartaRoentgen                        = 19; //< Fake Ambient Dose units, identical by meaning to REM, but marked Roentgen
+
+  // Add new units only here
+}
+
+/// Units database, indexed by EsDataUnits.
+/// [<Units, convertable to>, [[<unit 0 (base)>, <mul. 0 relative to base unit>], .. [<unit N>, <mul. N>]] ],
+/// Where <unit N> is [<Full unit name>, <short unit name>]
+/// Where units, convertable to is [[<Other Unit>, <This-To-Other converter function name, or just multiplier>]]
+/// If there are no units, convertable from this one, an empty collection placeholder should be present.
+///
+const c_dataUnitsDb = [
+  [ //< Lux
+    [], 
+    [
+      [[I"Lux", I"lx"], 1.], 
+      [[I"Kilolux", I"klx"], 1.e3]
+    ]
+  ],
+  [ //< Cd_M2
+    [
+      [EsDataUnits$$Nit, 1.],
+      [EsDataUnits$$Stilb, 9.5243e-4],
+      [EsDataUnits$$Lambert, 3199.]
+    ],
+    [
+      [[I"Candela per square meter", I"cd/m^2"], 1.], 
+      [[I"Kilocandela per square meter", I"kcd/m^2"], 1.e3]
+    ]
+  ],
+  [ //< Nit
+    [
+      [EsDataUnits$$Cd_M2, 1.],
+      [EsDataUnits$$Stilb, 9.5243e-4],
+      [EsDataUnits$$Lambert, 3199.]
+    ],
+    [
+      [[I"Nit", I"nt"], 1.], 
+      [[I"Kilonit", I"knt"], 1.e3]
+    ]
+  ],
+  [ //< Stilb
+    [
+      [EsDataUnits$$Cd_M2, 10049.95],
+      [EsDataUnits$$Nit, 10049.95],
+      [EsDataUnits$$Lambert, EsMath::pi()]
+    ],
+    [
+      [[I"Stlib", I"sb"], 1.]
+    ]
+  ],
+  [ //< Lambert
+    [
+      [EsDataUnits$$Nit, 3199.],
+      [EsDataUnits$$Stilb, 1./EsMath::pi()],
+      [EsDataUnits$$Cd_M2, 3199.]
+    ],
+    [
+      [[I"Lambert", I"Lb"], 1.]
+    ]
+  ],
+  [ //< Percent
+    [],
+    [
+      [[I"Percent", "%"], 1.]
+    ]
+  ],
+  [ //< Celcius
+    [
+      [EsDataUnits$$Fahrenheit, "celciusToFahrenheit"],
+      [EsDataUnits$$Kelvin, "celciusToKelvin"]
+    ],
+    [
+      [[I"Celcius", I"0C"], 1.]
+    ]
+  ],
+  [ //< Fahrenheit
+    [
+      [EsDataUnits$$Kelvin, "fahrenheitToKelvin"],
+      [EsDataUnits$$Celcius, "fahrenheitToCelcius"]
+    ],
+    [
+      [[I"Fahrenheit", I"0F"], 1.]
+    ]
+  ],
+  [ //< Kelvin
+    [
+      [EsDataUnits$$Celcius, "kelvinToCelcius"],
+      [EsDataUnits$$Fahrenheit, "kelvinToFahrenheit"]
+    ],
+    [
+      [[I"Kelvin", "K"], 1.]
+    ]
+  ],
+  [ //< Sievert
+    [
+      [EsDataUnits$$Rem, 100.],
+      [EsDataUnits$$Roentgen, 114.],
+      [EsDataUnits$$Coulomb_kg, 0.02942],
+      [EsDataUnits$$Rad, 100.],
+      [EsDataUnits$$Gray, 1.],
+      [EsDataUnits$$QuartaRoentgen, 100.]
+    ],
+    [
+      [[I"Sievert", I"Sv"], 1.],
+      [[I"Millisievert", I"mSv"], 1.e-3],
+      [[I"Microsievert", I"uSv"], 1.e-6]
+    ]
+  ],
+  [ //< Rem
+    [
+      [EsDataUnits$$Sievert, 0.01],
+      [EsDataUnits$$Roentgen, 1.14],
+      [EsDataUnits$$Coulomb_kg, 2.942e-4],
+      [EsDataUnits$$Rad, 1.],
+      [EsDataUnits$$Gray, 1.e-2]
+    ],
+    [
+      [[I"Rem", I"rem"], 1.],
+      [[I"Millirem", I"mrem"], 1.e-3],
+      [[I"Microrem", I"urem"], 1.e-6]
+    ]
+  ],
+  [ //<   Roentgen
+    [
+      [EsDataUnits$$Sievert, 8.77e-3],
+      [EsDataUnits$$Rem, 0.877],
+      [EsDataUnits$$Coulomb_kg, 2.58e-4],
+      [EsDataUnits$$Rad, 0.877],
+      [EsDataUnits$$Gray, 8.77e-3]
+    ],
+    [
+      [[I"Roentgen", I"R"], 1.],
+      [[I"Milliroentgen", I"mR"], 1.e-3],
+      [[I"Microroentgen", I"uR"], 1.e-6]
+    ]
+  ],
+  [ //< Coulomb_kg
+    [
+      [EsDataUnits$$Sievert, 34.],
+      [EsDataUnits$$Rem, 3.4e3],
+      [EsDataUnits$$Roentgen, 3.876e3],
+      [EsDataUnits$$Rad, 3.4e3],
+      [EsDataUnits$$Gray, 34.]
+    ],
+    [
+      [[I"Coulomb per kilogram", I"C/kg"], 1.],
+      [[I"Millicoulomb per kilogram", I"mC/kg"], 1.e-3]
+    ]
+  ],
+  [ //< Rad
+    [
+      [EsDataUnits$$Sievert, 1.e-2],
+      [EsDataUnits$$Rem, 1.],
+      [EsDataUnits$$Roentgen, 1.14],
+      [EsDataUnits$$Coulomb_kg, 2.942e-4],
+      [EsDataUnits$$Gray, 1.e-2]
+    ],
+    [
+      [[I"Rad", I"rad"], 1.],
+      [[I"Millirad", I"mrad"], 1.e-3]
+    ]
+  ],
+  [ //< Gray
+    [
+      [EsDataUnits$$Sievert, 1.],
+      [EsDataUnits$$Rem, 100.],
+      [EsDataUnits$$Roentgen, 114.],
+      [EsDataUnits$$Coulomb_kg, 2.942e-2],
+      [EsDataUnits$$Rad, 100.]
+    ],
+    [
+      [[I"Gray", I"Gy"], 1.],
+      [[I"Millgray", I"mGy"], 1.e-3]
+    ]
+  ],
+  [ //< Day
+    [
+      [EsDataUnits$$Hour, 24],
+      [EsDataUnits$$Minute, 24*60],
+      [EsDataUnits$$Second, 24*60*60]
+    ],
+    [
+      [[I"Day", I"d"], 1.]
+    ]
+  ],
+  [ //< Hour
+    [
+      [EsDataUnits$$Day, 1./24.],
+      [EsDataUnits$$Minute, 60],
+      [EsDataUnits$$Second, 60*60]
+    ],
+    [
+      [[I"Hour", I"h"], 1.]
+    ]
+  ],
+  [ //< Minute
+    [
+      [EsDataUnits$$Day, 1./(60.*24.)],
+      [EsDataUnits$$Hour, 1./60.],
+      [EsDataUnits$$Second, 60]
+    ],
+    [
+      [[I"Minute", I"mn"], 1.]
+    ]
+  ],
+  [ //< Second
+    [
+      [EsDataUnits$$Day, 1./(60.*60.*24.)],
+      [EsDataUnits$$Hour, 1./(60.*60.)],
+      [EsDataUnits$$Minute, 1./60.]
+    ],
+    [
+      [[I"Second", I"s"], 1.],
+      [[I"Millisecond", I"ms"], 1.e-3],
+      [[I"Microsecond", I"us"], 1.e-6],
+      [[I"Nanosecond", I"ns"], 1.e-9]
+    ]
+  ],
+  [ //< QuartaRoentgen
+    [
+      [EsDataUnits$$Sievert, 0.01]
+    ],
+    [
+      [[I"Roentgen", I"R"], 1.],
+      [[I"Milliroentgen", I"mR"], 1.e-3],
+      [[I"Microroentgen", I"uR"], 1.e-6]
+    ]
+  ]
+  // Add new DB reords only here
+];

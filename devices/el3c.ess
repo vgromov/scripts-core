@@ -1,0 +1,322 @@
+// Scripting device support for pha-01 photo-appliance
+##require("EsDeviceBase.ess");
+##require("../math/EsSpline.ess");
+##require("EsDataTypes.ess");
+##require("el3c/Consts.ess");
+##require("el3c/CorMatrix.ess");
+##require("el3c/FmtHelpers.ess");
+##require("el3c/Flags.ess");
+##require("el3c/Data.ess");
+##require("el3c/CalibrationAndSettings.ess");
+
+/// EL3C device object
+object EL3C extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in EL3C_Rpid )
+      return EL3C_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in EL3C_Rpid )
+      return rpcSigGet(EL3C_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$EL3C, 
+      "EL3C"
+    );
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$EL3C);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + EL3C_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_EXEC;
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$DATETIME_GET;
+    result += EsRpcStdId$$DATETIME_SET;
+    result += EsRpcStdId$$FACTORY_RESET;
+    result += EsRpcStdId$$SHUTDOWN;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$POWER_STATUS_GET;
+    result += EsRpcStdId$$FINDME;
+    result += EsRpcStdId$$SW_INFO_GET;
+    
+    return result;
+  }
+  
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new EL3C_Health(rpcResult);    // use EL3C health implementation instead of unparsed standard one
+    // Group all simple no-objects responses into one branch
+    else if( 
+      EL3C_Rpid$$WorkmodeGet == rpcId ||
+      EL3C_Rpid$$BgndTmoGet == rpcId ||
+      EL3C_Rpid$$AutosaveTmoGet == rpcId ||
+      EL3C_Rpid$$DataCountGet == rpcId
+      )
+    {
+      result = rpcResult;
+      
+      // in addition, save currently active device opmode
+      // it's vital for live data requests handling
+      if( EL3C_Rpid$$WorkmodeGet == rpcId )
+        m_opMode = result;
+    }      
+    else if( rpcId in [EL3C_Rpid$$CalibrationClearGet, EL3C_Rpid$$CalibrationAnlGet] )
+    {
+      if( m_fwId$ver < "1.5" )
+        result = new EL3C_CalibrationClear();
+      else
+        result = new EL3C_CalibrationAnl();
+        
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else if( rpcId in [EL3C_Rpid$$CalibrationColorGet, EL3C_Rpid$$CalibrationDigGet] )
+    {
+      if( m_fwId$ver < "1.5" )
+        result = new EL3C_CalibrationColor();
+      else
+        result = new EL3C_CalibrationDig();
+      
+      result$buffer = rpcResult#asBinBuffer();      
+    }
+    else if( EL3C_Rpid$$LiveDataGet == rpcId )
+    {
+      result = new EL3C_Data(); 
+      result$buffer = rpcResult#asBinBuffer();
+      result$errors$verStr = m_fwId$ver;
+      
+      //EsScriptDebug::log("EL3C_Data received (size=%d)", rpcResult#asBinBuffer()#countGet());
+    
+      m_opMode = result$opmode | result$opmodeModifier;
+    }
+    else if( EL3C_Rpid$$RawDataGet == rpcId )
+    {
+      //EsScriptDebug::log("EL3C_RawData received (size=%d)", rpcResult#asBinBuffer()#countGet());
+      //EsScriptDebug::log("Initializing EL3C_RawData with m_hwInfo, custom HW mask=0x%08X", m_hwInfo$custom);
+
+      result = new EL3C_RawData( m_hwInfo$custom ); 
+      result$buffer = rpcResult#asBinBuffer();
+      result$errors$verStr = m_fwId$ver;
+    }
+    else if( EL3C_Rpid$$DataAtIdxGet == rpcId )
+    {
+      result = new EL3C_Data();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    internalInit(null);    
+    m_opMode = EL3C_OpMode$$None;
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+    m_opMode = EL3C_OpMode$$None;
+  }
+  
+  /// EL3C custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload()
+  var settings = new EL3C_Settings(m_fwId), rpcResult;
+  {
+    // Download software info
+    rpcResult = swInfoQuery();
+    if( rpcResult[0] )
+    {
+      settings.f_swInfo.copyFrom( rpcResult[1] );
+    }
+    else
+      return rpcResult;
+    
+    rpcResult = rpcCall(EL3C_Rpid$$AutosaveTmoGet, null);
+    if( rpcResult[0] )
+      settings.f_autosaveInterval = rpcResult[1];
+    else
+      return rpcResult;
+      
+    rpcResult = rpcCall(EL3C_Rpid$$BgndTmoGet, null);
+    if( rpcResult[0] )
+      settings.f_bgndExp = rpcResult[1];
+    else
+      return rpcResult;      
+      
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationClearGet, null);
+      if( rpcResult[0] )
+        settings.f_calClear.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationColorGet, null);
+      if( rpcResult[0] )
+        settings.f_calColor.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    else
+    {
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationAnlGet, null);
+      if( rpcResult[0] )
+        settings.f_calAnl.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+      
+      rpcResult = rpcCall(EL3C_Rpid$$CalibrationDigGet, null);
+      if( rpcResult[0] )
+        settings.f_calDig.copyFrom( rpcResult[1] );
+      else
+        return rpcResult;
+    }
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+  
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    settings.crcUpdate();
+
+    batch#append(
+      [
+        EL3C_Rpid$$WorkmodeSet,
+        EL3C_OpMode$$Idle
+      ]
+    );
+    batch#append(
+      [
+        EL3C_Rpid$$AutosaveTmoSet,
+        settings.f_autosaveInterval
+      ]
+    );
+    batch#append(
+      [
+        EL3C_Rpid$$BgndTmoSet,
+        settings.f_bgndExp
+      ]
+    );
+        
+    if( settings.f_fwId$ver < "1.5" )
+    {
+      batch#append(
+        [
+          EL3C_Rpid$$CalibrationClearSet,
+          settings.f_calClear
+        ]
+      );
+      //EsScriptDebug::log("Clear calibration size: %d", settings.f_calClear$size);
+      
+      batch#append(
+        [
+          EL3C_Rpid$$CalibrationColorSet,
+          settings.f_calColor
+        ]
+      );
+    }
+    else
+    {
+      batch#append(
+        [
+          EL3C_Rpid$$CalibrationAnlSet,
+          settings.f_calAnl
+        ]
+      );
+      //EsScriptDebug::log("Anl calibration size: %d", settings.f_calAnl$size);
+      
+      batch#append(
+        [
+          EL3C_Rpid$$CalibrationDigSet,
+          settings.f_calDig
+        ]
+      );
+      //EsScriptDebug::log("Dig calibration size: %d", settings.f_calDig$size);
+    }
+    
+    batch = rpcBatchCall(batch);
+    //EsScriptDebug::log(batch);
+    
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batch = [];
+      batch#append(
+        [
+          true,
+          null        //< nothing is returned
+        ]
+      );
+    }
+    else
+    {
+      batch = [];
+      batch#append(
+        [
+          false,
+          "Device settings upload fail"
+        ]
+      );
+    }
+    
+    return batch;
+  }
+  
+  /// Properties
+  ///
+
+  /// Currently active opmode
+  property opmode;
+  read: { return m_opMode; }
+  
+  /// Opmode string
+  property opmodeStr;
+  read:
+  var helper = new EL3C_DataFlags(m_opMode);
+  { 
+    return helper$opmodeStr + "; " + helper$opmodeModifierStr;
+  }
+}

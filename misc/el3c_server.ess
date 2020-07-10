@@ -1,0 +1,535 @@
+// Generic consts
+const c_packetTmoDefault        = 2000;
+const c_tmoEvents               = 25;
+const c_requestCnt              = 500/c_tmoEvents;
+const c_usbBaud                 = 921600;
+
+// Server events
+//
+const ES_EVTC_EL3CSVR           = "EVTC_EL3CSVR";
+const ES_SRV_FAREWELL           = B"SRVBYE";
+const ES_SRVCMD_SHDN            = B"SHDN";
+const ES_SRVCMD_DISCONNECT_REQ  = B"BYE";
+
+enum EsEvtServer 
+{
+  Shutdown                     = 0;
+  CliendDisconnectRequest      = 1;
+}
+
+// Test Socket scripted server
+//
+object ServerImpl
+{
+  var m_srv;
+
+  new(portSvr)
+  {
+    // Create SocketServer instance, assign us to it as ioHandler implementor
+    // Use weak referencing to avoid refcount lock
+    //
+    m_srv = new EsSocketServer(
+      EsSocketType$$ConnectionOriented
+    );
+    
+    m_srv$ioHandler = $weakReference;
+
+    m_srv$address = new EsSocketAddr(
+      EsSocketAddrType$$IPV4,
+      "0.0.0.0",
+      portSvr
+    );
+  }
+
+  // Implement server methods
+  //  
+  function onClientCannotBeAdded(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Client with address %s could not be added", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+  }
+
+  function onClientAdding(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Adding client with address %s", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+  }
+
+  function onClientAdded(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Client with address %s added, client count reached %d", 
+      EsDateTime::now(),
+      addr.asRawString(),
+      srv$clientsCount
+    );
+  }
+
+  function onClientRemoving(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: removing Client with address %s", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+  }
+
+  function onClientRemoved(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Client with address %s removed, client count reached %d", 
+      EsDateTime::now(),
+      addr.asRawString(),
+      srv$clientsCount
+    );
+  }
+
+  function onClientDisconnected(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Detected disconnect of the Client with address %s", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+  }
+
+  function onClientClosing(srv, addr, noFarewell)
+  {
+    if( noFarewell )
+    {
+      EsScriptDebug::log(
+        "%s: Client with address %s is closing from client side, no server farewell is being sent", 
+        EsDateTime::now(),
+        addr.asRawString()
+      );
+      
+      return;
+    }
+    
+    EsScriptDebug::log(
+      "%s: Client with address %s is closing from Server side, sending farewell sequence", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+    
+    // All that is returned from this callback, will be interpreted 
+    // by the server code as bin buffer, and sent to the closing client as a 
+    // farewell message
+    //
+    return ES_SRV_FAREWELL;
+  }
+
+  function onClientClosed(srv, addr)
+  {
+    EsScriptDebug::log(
+      "%s: Client with address %s is closed", 
+      EsDateTime::now(),
+      addr.asRawString()
+    );
+  }
+
+  function onClientDataReceived(srv, addr, indata)
+  {
+    // Check if we're receiving farewell from client - do not respond
+    // and initiate client disconnect instead
+    //
+    if( indata == ES_SRVCMD_SHDN )
+    {
+      EsScriptDebug::log(
+        "%s: Recieved stop from client %s, quitting server",
+        EsDateTime::now(),
+        addr.asRawString()
+      );
+
+      __scriptHost.eventPost(
+        ES_EVTC_EL3CSVR,
+        EsEvtServer$$Shutdown,
+        null
+      );
+
+      return;
+    }
+    else
+    {
+      if( indata == ES_SRVCMD_DISCONNECT_REQ )
+      {
+        __scriptHost.eventPost(
+          ES_EVTC_EL3CSVR,
+          EsEvtServer$$CliendDisconnectRequest,
+          addr
+        );
+        return;
+      }
+
+      EsScriptDebug::log(
+        "%s: Recieved unknown packet of %d bytes from client %s, echoing back",
+        EsDateTime::now(),
+        indata#countGet(),
+        addr.asRawString()
+      );
+
+      return indata;
+    }
+  }
+
+  property impl;
+  read: { return m_srv; }
+}
+
+// Dependencies
+##require("core.ess");
+##require("devices.ess");
+
+// Application object
+//
+object Application
+{
+  var m_dev,
+    m_evtHandler, 
+    m_srv;
+
+  // Initial device communication helper
+  function deviceFwIdAndCapsRequest(master)
+  var caps, fwId;
+  {
+    if( !master.ping() )
+    {
+      EsScriptDebug::log("No ping response from device!");
+      return;
+    }
+
+    caps = master.getImplementedRPCs();
+    if( !caps#isEmpty() )
+    {
+      fwId = deviceKnownCapsFwIdRead(
+        master,
+        caps
+      );
+      
+      if( !fwId#isEmpty() )
+        return [fwId, caps];
+    }
+  }
+
+  function el3cEstablishInitialIo(master)
+  var dev, ioresult;
+  {
+    // Read device caps
+    // Read device ID
+    ioresult = deviceFwIdAndCapsRequest(master);
+    if(!ioresult)
+      throw "Could not establish initial IO with device";
+
+    dev = devicesDeviceCreate(
+      ioresult[0],      //< fwId
+      ioresult[1]       //< Device caps
+    );
+    
+    if(dev)
+    {
+      dev$ioMaster = master;
+      dev.rpcCall( EsRpcStdId$$DATETIME_SET, EsDateTime::now() );
+      dev.rpcCall( EL3C_Rpid$$WorkmodeSet, EL3C_OpMode$$Illuminance );
+    }
+      
+    return dev;
+  }
+
+  // EL3C device lookup on USB ports
+  function el3cLookupUSB()
+  var master, chnl,
+    comm, comms = EsChannelIoUart::enumerate(
+      false,  //< Skip Busy ports
+      true    //< USB bus only
+    );
+  {
+    try
+    {
+      if( !comms#countGet() )
+      {
+        EsScriptDebug::log("Could not find any non-busy USB ports");
+        return;
+      }
+
+      foreach( comm in comms )
+      {
+        // Extract the first match found
+        if( !comm[2]#find("ELIGHT-03")#isEmpty() )
+        {
+          comm = comm[0]; //< Now we have full UART device path
+          break;
+        }
+      }
+
+      if( !comm#isString() )
+      {
+        EsScriptDebug::log("Could not find ELIGHT-03 USB port");
+        return;
+      }
+
+      // configure channel, assign to master
+      EsScriptDebug::log(
+        "Found ELIGHT-03 on: %s",
+        comm
+      );
+      
+      chnl = new EsChannelIoUart();
+      chnl$port = comm;
+      chnl$baud = c_usbBaud;
+
+      master = new EsRpcMaster();
+      master$channel = chnl;
+      master$packetTimeout = c_packetTmoDefault;
+
+      master.activate();
+
+      EsThreadWorker::sleep(500);
+
+      return el3cEstablishInitialIo(master);
+    }
+    catch {}
+  }
+
+  // EL3C device lookup on Ekonnect ports
+  function el3cLookupEkonnect()
+  var master = new EsRpcMaster(), chnl,
+    edev, edevs = EsChannelIoEkonnect::enumerate(
+      false  //< Skip Busy ports
+    ), fwId, found = false;
+  {
+    try
+    {
+      if( !edevs#countGet() )
+      {
+        EsScriptDebug::log("Could not find any non-busy Ekonnect devices");
+        return;
+      }
+
+      foreach( edev in edevs )
+      {
+        if( master.isActive() )
+          master.deactivate();
+        
+        chnl = new EsChannelIoEkonnect();
+        chnl$device = edev[0];
+        chnl$baud = 9600;
+
+        master$channel = chnl;
+        master$packetTimeout = c_packetTmoDefault;
+        master.activate();
+        if( master.ping() )
+        {
+          fwId = deviceFwIdRead(master);
+          if( 
+            !fwId#isEmpty() &&
+            fwId$devType == EsDeviceType$$EL3C
+          )
+          {
+            EsScriptDebug::log(
+              "Found ELIGHT-03 device: %s on Ekonnect: %s",
+              fwId.asString(),
+              edev[0]
+            );
+
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if( !found )
+      {
+        EsScriptDebug::log("Could not find ELIGHT-03 on Ekonnect port");
+        return;
+      }
+
+      return el3cEstablishInitialIo(master);
+    }
+    catch {}
+  }
+
+  function liveDataBroadcast(data)
+  var dataStr;
+  {
+    if( !m_srv )
+      return;
+    
+    dataStr = data$ts.asString("%Y-%m-%d %H:%M:%S.%l");
+    dataStr += " -> ";
+    dataStr += m_dev$fwIdStringEssential + ":" + 
+      data$errors$errors + ":" + 
+      data$val + ":" + 
+      data$kpi + "\n";
+    m_srv$impl.send(
+      EsStr::toByteString(dataStr),
+      100
+    );
+  }
+
+  function messageBroadcast(tag, msg)
+  var dataStr;
+  {
+    if( !m_srv )
+      return;
+    
+    dataStr = EsDateTime::now().asString("%Y-%m-%d %H:%M:%S.%l");
+    dataStr += " -> ";
+    dataStr += tag + ":" + 
+      msg + "\n";
+
+    m_srv$impl.send(
+      EsStr::toByteString(dataStr),
+      100
+    );
+  }
+
+  function deviceLookup()
+  {
+    m_dev = el3cLookupUSB();
+    if( !m_dev )
+      m_dev = el3cLookupEkonnect();
+
+    if( !m_dev )
+      messageBroadcast(
+        "ERR", 
+        "Could not find connected EL3C device"
+      );
+  }
+
+  function liveDataRequestAndBroadcast()
+  var ioresult;
+  {
+    try
+    {
+      ioresult = m_dev.rpcCall(
+        EL3C_Rpid$$LiveDataGet,
+        null
+      );
+
+      if( ioresult[0] )
+        liveDataBroadcast(
+          ioresult[1]
+        );
+      else
+      {
+        messageBroadcast(
+          "ERR",
+          "Device data request timed out"
+        );
+
+        if( m_dev$ioErrorCount > 2 )
+        {
+          m_dev$ioMaster.deactivate();
+          m_dev = null; //< Reset faulty device object
+        }
+      }
+    }
+    catch
+    {
+      messageBroadcast(
+        "ERR",
+        __exception$reason
+      );
+    }
+  }
+
+  // Event handling interface
+  function onEvent(evt)
+  {
+    if( ES_EVTC_EL3CSVR == evt$category )
+    {
+      switch( evt$id )
+      {
+      case EsEvtServer$$Shutdown:
+        if( m_srv )
+          m_srv$impl.close();
+      case EsEvtServer$$CliendDisconnectRequest:
+        if( m_srv )
+          m_srv$impl.clientDisconnect(
+            evt$payload, 
+            false //<< Send farewell to client address
+          );
+      }
+    }
+  }
+
+  new( port )
+  {
+    m_srv = new ServerImpl( port );
+    m_evtHandler = EsEventHandler::createAsync(
+      this,
+      ES_EVTC_EL3CSVR
+    );
+    m_evtHandler$active = false;
+  }
+
+  function run()
+  var ioresult, iotmocnt = 0;
+  {
+    try
+    {
+      m_evtHandler$active = true;
+      
+      if( m_srv$impl.open() )
+      {
+        EsScriptDebug::log(
+          "Server %s:%d started, listening for clients...",
+          m_srv$impl$address$rawAddress,
+          m_srv$impl$address$port
+        );
+
+        while( 
+          !__scriptHost$aborting &&
+          m_srv$impl$isActive
+        )
+        {
+          if( !m_dev )
+          {
+            deviceLookup();
+          }
+          else
+          {
+            ++iotmocnt;
+            if( iotmocnt >= c_requestCnt )
+            {
+              iotmocnt = 0;
+
+              liveDataRequestAndBroadcast();
+            }
+          }
+
+          m_evtHandler.eventProcess(c_tmoEvents);
+        }
+      }
+    }
+    catch
+    {
+      EsScriptDebug::log(
+        __exception$reason
+      );
+    }
+    if( m_srv )
+      m_srv$impl.close();
+
+    m_evtHandler$active = false;
+  }
+}
+
+function el3c_svr_run(port)
+var sysTickOld, app = new Application(port#asULong());
+{
+  sysTickOld = EsUtilities::systickChange(1);
+  EsSockets::initialize();
+  app.run();
+  EsSockets::uninitialize();
+  EsUtilities::systickRestore(sysTickOld);
+}
+
+// Test execution
+//el3c_svr_run(35000);

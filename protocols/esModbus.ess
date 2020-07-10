@@ -1,0 +1,795 @@
+// MODBUS protocol implementation in ESS
+//
+
+enum ModbusFunction
+{
+  CoilReadMultiple                      = 1, "Read Internal Bits or Physical Coils";
+  DiscreteReadMultiple                  = 2, "Read Discrete Inputs";
+  RegisterHoldingReadMultiple           = 3, "Read Multiple Holding Registers";
+  RegisterInputReadMultiple             = 4, "Read Multiple Input Registers";
+  CoilWrite                             = 5, "Write Single Coil";
+  RegisterHoldingWrite                  = 6, "Write Single Holding Register";
+  Diagnostic                            = 8, "Diagnostic";
+  ExceptionStatusRead                   = 7, "Read Exception Status";
+  CoilWriteMultiple                     = 15, "Write Multiple Coils";
+  RegisterHoldingWriteMultiple          = 16, "Write Multiple Holding Registers";
+  SlaveIDquery                          = 17, "Report Slave ID";
+  FileRecordRead                        = 20, "Read File Record";
+  FileRecordWrite                       = 21, "Write File Record";
+  RegisterWriteMask                     = 22, "Mask Write Register";
+  RegisterReadWriteMultiple             = 23, "Read/Write Multiple Registers";
+  FIFOqueueRead                         = 24, "Read FIFO Queue";
+  DeviceIDquery                         = 43, "Read Device Identification";
+}
+
+enum ModbusError
+{
+  OK                                    = 0, "Success";
+  IllegalFunction                       = 1, "Function code received in the query is not recognized or allowed by slave";
+  IllegalDataAddress                    = 2, "Data address of some or all the required entities are not allowed or do not exist in slave";
+  IllegalDataValue                      = 3, "Value is not accepted by slave";
+  SlaveDeviceFailure                    = 4, "Unrecoverable error occurred while slave was attempting to perform requested action";
+  ACK                                   = 5, "Slave has accepted request and is processing it, but a long duration of time is required";
+  SlaveBusy                             = 6, "Slave is engaged in processing a long-duration command. Retry later";
+  NACK                                  = 7, "Slave cannot perform the programming functions. Request a diagnostic or error information";
+  SlaveMemParityError                   = 8, "Slave detected a parity error in memory. Service may be required on the slave device";
+  GatewayPathUnavailable                = 10, "Modbus gateway is misconfigured";
+  GatewayTargetFailedToRespond          = 11, "Gateway Target Slave Device Failed to Respond";
+
+  // Custom error codes
+  CrcCheckFailed                        = 1000, "Packet CRC check failed";
+  ResponseAddressMismatch               = 1001, "Response address does not match one in request";
+  ResponseFunctionMismatch              = 1002, "Response function code does not match one in request";
+}
+
+const c_MODBUSasciiTmo                  = 1000;
+const c_MODBUS_RTU_EOM                  = 4;    //< MODBUS RTU End Of Message
+const c_MODBUScharReadRetries           = 200;
+
+// MODBUS helpers
+//
+// Set bit item state in bit buffer obj
+function MODBUSitemStateSet(obj, bitIdx, state)
+var byteIdx = (bitIdx / 8) + ((bitIdx % 8) ? 1 : 0),
+  mask = 1 << (bitIdx % 8), b;
+{
+  b = obj[byteIdx];
+  b &= ~mask;
+  if( state )
+    b |= mask;
+  obj[byteIdx] = b;
+}
+
+// Get bit item state from bit buffer obj
+function MODBUSitemStateGet(obj, bitIdx)
+var byteIdx = (bitIdx / 8) + ((bitIdx % 8) ? 1 : 0),
+  mask = 1 << (bitIdx % 8), b;
+{
+  b = obj[byteIdx];
+  return (mask == (b & mask));
+}
+
+function MODBUSswapU16(ui16)
+{
+  return ((ui16 << 8) & 0xFF00) | ((ui16 >> 8) & 0x00FF);
+}
+
+// Set U16 item to byte array object obj
+function MODBUSitemSetU16(obj, idx, u16)
+{
+  EsScriptDebug::log(
+    "MODBUSitemSetU16(obj=%s (cnt: %s), idx=%s, u16=%s)",
+    obj#trace(),
+    obj#isIndexed() ? obj#countGet() : "--",
+    idx#trace(),
+    u16#trace()
+  );
+
+  obj[2*idx] = ((u16#asULong() >> 8) & 0xFF);
+  obj[2*idx+1] = (u16#asULong() & 0xFF);
+}
+
+// Get U16 item from byte array object obj
+function MODBUSitemGetU16(obj, idx)
+var u16;
+{
+  idx *= 2;
+  u16 = ((obj[2*idx]#asULong() << 8) & 0xFF00);
+  u16 |= (obj[2*idx+1]#asULong() & 0xFF);
+
+  return u16;
+}
+
+// Functions strings operations
+//
+function MODBUS_functionIdStrGet(id)
+{
+  if( id in ModbusFunction )
+    return ModbusFunction.valueLabelGet(id);
+
+  return EsStr::format(
+    I"Unknown MODBUS function: %d",
+    id
+  );
+}
+
+function MODBUS_functionIdsStrGet(ids)
+var id, result = "";
+{
+  if( ids#isCollection() )
+  {
+    foreach( id in ids )
+    {
+      if( result#countGet() )
+        result += ", ";
+
+      result += MODBUS_functionIdStrGet(id);
+    }
+    result = "[" + result + "]";
+  }
+  else
+  {
+    result = MODBUS_functionIdStrGet(ids);
+  }
+
+  return result;
+}
+
+// MODBUS data packet
+//
+object HoldingRegsData //< Work-around to dynamic layout inside conditional fields
+{
+  var m_valsBuffLen;
+  esU8 f_vals[ m_valsBuffLen#isEmpty() ? 0 : m_valsBuffLen#asULong() ];
+
+  // U16-aligned items access
+  function itemSet(idx, val)
+  {
+    MODBUSitemSetU16(
+      f_vals,
+      idx,
+      val
+    );
+  }
+
+  // U16-aligned items access
+  function itemGet(idx)
+  {
+    return MODBUSitemGetU16(
+      f_vals,
+      idx
+    );
+  }
+
+  // Raw items data access, may overwrite
+  // items count and byte count fields
+  //
+  function itemsSetRaw(buff)
+  {
+    m_valsBuffLen = buff#countGet();
+    f_vals$buffer = buff;
+  }
+}
+
+object ModbusPacket
+{
+  var m_request;
+
+  esU8 f_addr;
+  esU8 f_func;
+
+  // Dynamic fields and props part
+  //
+  if( f_func & 0x80 ) //< Error Packets
+  {
+    esU8 f_err;
+    
+    property errorCode;
+    read: { return f_err#asByte(); }
+  }
+  else //< Normal packets
+  {
+    if( !m_request#isEmpty() ) //< Responses
+    {
+      if( (f_func & ~0x80) in [ModbusFunction$$CoilReadMultiple, ModbusFunction$$DiscreteReadMultiple] )
+      {
+        esU8 f_valCnt;
+        esU8 f_vals[f_valCnt];
+
+        function itemGet(itemIdx)
+        {
+          return MODBUSitemStateGet(
+            f_vals,
+            itemIdx
+          );
+        }
+
+        property valuesCnt;
+        read: { return m_request$itemsCnt; }
+      }
+      else if( (f_func & ~0x80) in [ModbusFunction$$RegisterHoldingReadMultiple, ModbusFunction$$RegisterInputReadMultiple] )
+      {
+        esU8 f_byteCnt;
+        esU8 f_data[f_byteCnt];
+
+        function itemGet(itemIdx)
+        {
+          return MODBUSitemGetU16(
+            f_data,
+            itemIdx
+          );
+        }
+
+        property valuesCnt;
+        read: { return f_byteCnt#asByte() / 2; }
+      }
+      else if( (f_func & ~0x80) == ModbusFunction$$CoilWrite )
+      {
+        esU16 f_addrCoil;
+        esU16 f_ctl;
+
+        property coilAddr;
+        read: { return MODBUSswapU16( f_addrCoil#asULong() ); }
+
+        property state;
+        read: { return 0x00FF == f_ctl$value; } //< Pre-swapped
+      }
+      else if( (f_func & ~0x80) == ModbusFunction$$CoilWriteMultiple )
+      {
+        esU16 f_addrCoil;
+        esU16 f_writtenCnt;
+        
+        property coilAddr;
+        read: { return MODBUSswapU16( f_addrCoil#asULong() ); }
+        
+        property writtenCnt;
+        read: { return MODBUSswapU16( f_writtenCnt#asULong() ); }
+      }
+      elseif( (f_func & ~0x80) == ModbusFunction$$RegisterHoldingWriteMultiple )
+      {
+        esU16 f_startAddr;
+        esU16 f_itemsCnt;
+
+        property startAddr;
+        read: { return MODBUSswapU16( f_startAddr#asULong() ); }
+ 
+        property itemsCnt;
+        read: { return MODBUSswapU16( f_itemsCnt#asULong() ); }
+      }
+    }
+    else //< Requests
+    {
+      if( (f_func & ~0x80) in [ModbusFunction$$CoilReadMultiple .. ModbusFunction$$RegisterInputReadMultiple] )
+      {
+        esU16 f_startAddr;
+        esU16 f_itemsCnt;
+        
+        property startAddr;
+        read: { return MODBUSswapU16( f_startAddr#asULong() ); }
+        write: { f_startAddr = MODBUSswapU16(__value#asULong() & 0xFFFF); }
+
+        property itemsCnt;
+        read: { return MODBUSswapU16(f_itemsCnt#asULong()); }
+        write: { f_itemsCnt = MODBUSswapU16(__value#asULong() & 0xFFFF); }
+      }
+      else if( (f_func & ~0x80) == ModbusFunction$$CoilWrite )
+      {
+        esU16 f_addrCoil;
+        esU16 f_ctl;
+
+        property coilAddr;
+        read: { return MODBUSswapU16( f_addrCoil#asULong() ); }
+        write: { f_addrCoil = MODBUSswapU16(__value#asULong() & 0xFFFF); }
+
+        property state;
+        read: { return 0x00FF == f_ctl$value; }
+        write: { 
+          if( __value ) 
+            f_ctl = 0x00FF; //< Pre-swapped
+          else
+            f_ctl = 0;
+        }
+      }
+      else if( (f_func & ~0x80) == ModbusFunction$$CoilWriteMultiple )
+      {
+        esU16 f_startAddr;
+        esU16 f_itemsCnt;
+        esU8 f_byteCnt;
+        esU8 f_vals[f_byteCnt];
+
+        function itemSet(bitIdx, state)
+        {
+          MODBUSitemStateSet(
+            f_vals,
+            bitIdx,
+            state
+          );
+        }
+
+        function itemGet(bitIdx)
+        {
+          return MODBUSitemStateGet(
+            f_vals,
+            bitIdx
+          );
+        }
+  
+        property startAddr;
+        read: { return MODBUSswapU16( f_startAddr#asULong() ); }
+        write: { f_startAddr = MODBUSswapU16(__value#asULong() & 0xFFFF); }
+
+        property itemsCnt;
+        read: { return MODBUSswapU16( f_itemsCnt#asULong() ); }
+        write: var cnt = (__value#asULong() & 0xFFFF); { 
+          f_itemsCnt = MODBUSswapU16( cnt ); 
+          f_byteCnt = (cnt / 8) + (cnt % 8) ? 1 : 0;
+        }
+      }
+      else if( (f_func & ~0x80) == ModbusFunction$$RegisterHoldingWriteMultiple )
+      {
+        esU16 f_startAddr;
+        esU16 f_itemsCnt;
+        esU8 f_byteCnt;
+        HoldingRegsData f_data;
+
+        // U16-aligned items access
+        function itemSet(idx, val)
+        {
+          f_data.itemSet(
+            idx,
+            val
+          );
+        }
+
+        // U16-aligned items access
+        function itemGet(idx)
+        {
+          return f_data.itemGet( idx );
+        }
+  
+        // Raw items data access, may overwrite
+        // items count and byte count fields
+        //
+        function itemsSetRaw(buff)
+        var buffsize = buff#countGet(), cnt;
+        {
+          cnt = (buffsize / 2) + ((buffsize % 2) ? 1 : 0);
+          f_itemsCnt = MODBUSswapU16( cnt );
+          f_byteCnt = buffsize % 256;
+          f_data.itemsSetRaw(buff);
+        }
+
+        property startAddr;
+        read: { return MODBUSswapU16( f_startAddr#asULong() ); }
+        write: { f_startAddr = MODBUSswapU16(__value#asULong() & 0xFFFF); }
+
+        property itemsCnt;
+        read: { return MODBUSswapU16( f_itemsCnt#asULong() ); }
+        write: var cnt = (__value#asULong() & 0xFFFF); { 
+          f_itemsCnt = MODBUSswapU16( cnt ); 
+          f_byteCnt = this.byteCntFromItemsCountGet(cnt);
+          f_data.m_valsBuffLen = this.byteLenFromItemCountAndByteCnt();
+        }
+
+        property byteCnt;
+        read: { return f_data.f_vals.countGet(); }
+      }
+    }
+  }
+
+  // Check if call is applicable for specific function ID
+  function checkCallIsApplicableFor( ctx, ids )
+  {
+    if( !(this$func in ids) )
+      throw EsStr::format(
+        EsStr::translate( I"%s is only applicable for Modbus function ID(s): %s, current ID is %d(%s)" ),
+        ctx,
+        MODBUS_functionIdsStrGet(ids),
+        this$func,
+        MODBUS_functionIdStrGet(this$func)
+      );
+  }
+
+  // Overridable byte count calculation
+  // For multiple U16 registers reading|writing
+  //
+  function byteCntFromItemsCountGet(cnt)
+  var result = cnt*2;
+  {
+    checkCallIsApplicableFor( 
+      EsStr::format(
+        "ModbusPacket::byteCntFromItemsCountGet(%d)",
+        cnt
+      ),
+      ModbusFunction$$RegisterHoldingWriteMultiple 
+    );
+
+    EsScriptDebug::log(
+      "ModbusPacket::byteCntFromItemsCountGet(cnt=%d)->%d",
+      cnt,
+      result
+    );
+
+    return result;
+  }
+
+  // Overridable real byte count calculation
+  // For multiple U16 registers reading|writing
+  //
+  function byteLenFromItemCountAndByteCnt()
+  {
+    checkCallIsApplicableFor( 
+      "ModbusPacket::byteLenFromItemCountAndByteCnt",
+      ModbusFunction$$RegisterHoldingWriteMultiple 
+    );
+    
+    EsScriptDebug::log(
+      "ModbusPacket::byteLenFromItemCountAndByteCnt->%d",
+      this.f_byteCnt#asByte()
+    );
+
+    return this.f_byteCnt#asByte();
+  }
+
+  new(request)
+  {
+    m_request = request;
+  }
+
+  property isErrorResponse;
+  read: { return (f_func & 0x80); }
+
+  property addr;
+  read: { return f_addr#asByte(); }
+  write: { f_addr = __value#asByte(); }
+
+  property func;
+  @restriction = ModbusFunction;
+  read: { return (f_func#asByte() & ~0x80); }
+  write: { 
+    if( !(__value in ModbusFunction) )
+      throw EsStr::format(
+        "Unknown MODBUS function code: %d",
+        __value#asULong()
+      );
+
+    f_func = __value#asULong(); 
+  }
+
+  property isResponse;
+  read: { return !m_request#isEmpty(); }
+}
+
+// MODBUS base API
+//
+object Modbus
+{
+  var m_chnl;
+
+  // Packet factory
+  function responsePacketCreate( request )
+  {
+    return new ModbusPacket( request );
+  }
+
+  function crcCalc( buffer )
+  {
+  }
+
+  function crcCheck( buffer )
+  {
+    return false;
+  }
+
+  // Returned is true, if packet is written, false otherwise
+  function packetWrite( packet )
+  {}
+
+  // Returned is null (got nothing), or [errorCode, <null, if error, or received packet, if success>]
+  // If request argument is not null, a packet is implied to be a response to it.
+  //
+  function packetRead( request )
+  {}
+
+  property channel;
+  read: { return m_chnl; }
+  write: { m_chnl = __value; }
+}
+
+// MODBUS ASCII protocol
+//
+object ModbusAscii extends Modbus
+{
+  var m_gotCr, m_gotLf;
+
+  function dataByteRead()
+  var inb, b;
+  {
+    inb = m_chnl.bytesGet(
+      1,
+      c_MODBUSasciiTmo
+    );
+
+    if( inb#isEmpty() )
+      return;
+
+    if( B'\r' == inb[0] )
+      m_gotCr = true;
+    else
+      b = (inb[0] << 8) & 0xF0;
+
+    inb = m_chnl.bytesGet(
+      1,
+      c_MODBUSasciiTmo
+    );
+
+    if( inb#isEmpty() )
+      return;
+
+    if( m_gotCr )
+    {
+      if( B'\n' == inb[0] )
+      {
+        m_gotLf = true;
+        b = 0;
+      }
+      else
+        return;
+    }
+    else
+      b |= inb[0] & 0x0F;
+
+    return b#asByte();
+  }
+
+  function crcCalc( buffer )
+  var b, crc = EsVar::asByte(0);
+  {
+    foreach( b in buffer )
+      crc += b;
+
+    return ~crc + EsVar::asByte(1);
+  }
+
+  function crcCheck( buffer )
+  {
+    return buffer[buffer#countGet()-1] == crcCalc(
+      buffer#sliceGet(0, buffer#countGet()-1)
+    );
+  }
+
+  function packetWrite( packet )
+  var b, inb = packet$buff, out = B"",
+    crc = crcCalc(inb);
+  {
+    out += B':';
+    foreach(b in inb)
+    {
+      out += ((b & 0xF0) >> 8) + 0x30;
+      out += (b & 0x0F) + 0x30;
+    }
+
+    out += ((crc & 0xF0) >> 8) + 0x30;
+    out += (crc & 0x0F) + 0x30;
+
+    out += B'\r';
+    out += B'\n';
+
+    return out#countGet() == m_chnl.bytesPut(
+      out,
+      m_chnl.txTimeEstimateGet( out#countGet() ) + c_MODBUSasciiTmo
+    );
+  }
+
+  function packetRead( request )
+  var b, inb, bb = B"", result;
+  {
+    m_gotCr = false;
+    m_gotLf = false;
+
+    inb = m_chnl.bytesGet(
+      1,
+      c_MODBUSasciiTmo
+    );
+
+    if( inb#isEmpty() )
+      return;
+
+    if( inb[0] == B':' )
+    {
+      do
+      {
+        b = dataByteRead();
+        if( 
+          !b#isEmpty() &&
+          !(
+              m_gotCr && 
+              m_gotLf
+          )
+        )
+          bb += b;
+        else
+          return;
+
+      } while( true );
+    }
+    else
+      return;
+
+    if( crcCheck( bb ) )
+    {
+      result = responsePacketCreate( request );
+      result$buffer = bb#sliceGet(0, bb#countGet()-1); //< Assign buffer without CRC byte
+
+      if( result$isErrorResponse )
+        return [
+          result$errorCode,
+          result
+        ];
+      else if( !request#isEmpty() )
+      {
+        if( request$addr != result$addr )
+          return [
+            ModbusError$$ResponseAddressMismatch,
+            result
+          ];
+        else if( request$addr != result$addr )
+          return [
+            ModbusError$$ResponseFunctionMismatch,
+            result
+          ];
+      }
+
+      return [
+        ModbusError$$OK,
+        result
+      ];
+    }
+    else
+      return [
+        ModbusError$$CrcCheckFailed,
+        null
+      ];
+  }
+}
+
+// MODBUS RTU protocol
+//
+object ModbusRTU extends Modbus
+{
+  function crcCalc( buffer )
+  var idx, b, crc = EsVar::asULong(0xFFFF);
+  {
+    foreach( b in buffer )
+    {
+      crc ^= b;
+
+      for(idx = 8; idx != 0; --idx)
+      {
+        if( crc & 1 )
+        {
+          crc >>= 1;
+          crc ^= 0xA001;
+        }
+        else
+          crc >>= 1;
+      }
+    }
+
+    EsScriptDebug::log(
+      "ModbusRTU::crcCalc->0x%04X",
+      crc
+    );
+
+    return crc;
+  }
+
+  function crcCheck( buffer )
+  var crc16 = (buffer[buffer#countGet()-1]#asULong() << 8) + buffer[buffer#countGet()-2]; //< Lo, Hi
+  var crc16calcd = crcCalc(
+    buffer#sliceGet(0, buffer#countGet()-2)
+  );
+  {
+    EsScriptDebug::log(
+      "ModbusRTU::crcCheck got: 0x%04X calc'd: 0x%04X",
+      crc16,
+      crc16calcd
+    );
+
+    return crc16 == crc16calcd;
+  }
+
+  function packetWrite( packet )
+  var outb = packet$buffer,
+    crc = crcCalc(outb);
+  {
+    outb += EsVar::asByte((crc >> 8) & 0xFF);          //< High
+    outb += EsVar::asByte(crc & 0xFF);               //< Low
+    
+    if( 
+      outb#countGet() == m_chnl.bytesPut(
+        outb,
+        m_chnl.txTimeEstimateGet( outb#countGet() )
+      )
+    )
+    {
+      EsThreadWorker::sleep(
+        m_chnl.txTimeEstimateGet( c_MODBUS_RTU_EOM ) //< Wait at least N chars to signal End of message
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
+  function byteRead( first )
+  var inb;
+  {
+    inb = m_chnl.bytesGet(
+      1,
+      m_chnl.txTimeEstimateGet( 
+        first ? 
+          c_MODBUScharReadRetries :
+          c_MODBUS_RTU_EOM
+      )
+    );
+    
+    if( !inb#isEmpty() && 0 < inb#countGet() )
+      return inb[0];
+  }
+
+  function packetRead( request )
+  var first = true, b, bb = B"", result;
+  {
+    while( true )
+    {
+      b = byteRead( first );
+      if( !b#isEmpty() )
+      {
+        bb += b;
+        first = false; //< Other reads will be waiting for EOMs only
+      }
+      else
+        break;
+    }
+
+    if( 0 == bb#countGet() )
+      return;
+
+    if( crcCheck( bb ) )
+    {
+      result = responsePacketCreate( request );
+      result$buffer = bb#sliceGet(0, bb#countGet()-2); //< Assign buffer without crc16
+
+      if( result$isErrorResponse )
+        return [
+          result$errorCode,
+          result
+        ];
+      else if( !request#isEmpty() )
+      {
+        if( request$addr != result$addr )
+          return [
+            ModbusError$$ResponseAddressMismatch,
+            result
+          ];
+        else if( request$addr != result$addr )
+          return [
+            ModbusError$$ResponseFunctionMismatch,
+            result
+          ];
+      }
+
+      return [
+        ModbusError$$OK,
+        result
+      ];
+    }
+    else
+      return [
+        ModbusError$$CrcCheckFailed,
+        null
+      ];
+  }
+}

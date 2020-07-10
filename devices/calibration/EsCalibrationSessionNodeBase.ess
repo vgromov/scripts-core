@@ -1,0 +1,215 @@
+##require("EsCalibrationHelpers.ess");
+
+/// Calibration session node object
+///
+object EsCalibrationSessionNodeBase
+{
+  var 
+    m_kinds,                    //< Supported calibration sensor kinds for node
+    m_raw,                      //< Raw uncalibrated value(s) of sensor used to calculated spline node.
+    m_calibrated;               //< Calibrated value written during verification stage
+ 
+  /// Overridables
+  ///
+  /// function valueFmt(val)                  : Optional
+  ///
+
+  function valueFmt(val) //< Overridable
+  {
+    return calibrationValueFmtDefault(val);
+  }
+ 
+  // Throws if kinds not initialized or kind is empty. 
+  // Return true if supported, false otherwise
+  //
+  function nodeKindCheckSupported( nodeKind )
+  {
+    if( m_kinds#isEmpty() )
+      throw I"Supported Node Kinds for this Calibration Node are not initialized";
+
+    if( nodeKind#isEmpty() )
+      throw I"Calibration Node Kind may not be empty";
+
+    if( nodeKind in m_kinds )
+      return true;
+      
+    return false;
+  }
+
+  // Throws if kinds not initialized, kind is empty, or kind is not supported
+  function nodeKindCheck( nodeKind )
+  {
+    if( !nodeKindCheckSupported( nodeKind ) )
+    {
+      if( nodeKind in EsCalibrationNodeKind )
+        throw EsStr::format(
+          I"Calibration Node Kind '%s' is not supported",
+          EsCalibrationNodeKind.valueLabelGet(nodeKind)
+        );
+      else
+        throw EsStr::format(
+          I"Calibration Node Kind '%d' is Unknown and not supported",
+          nodeKind
+        );
+    }
+  }
+
+  /// Raw value(s) manipulation and access
+  ///
+  function ensureRawContainerCreated()
+  {
+    if( m_raw#isEmpty() )
+      m_raw = new EsAssocContainer(__metaclass);
+  }  
+
+  function nodeKindsSet(kinds)
+  var kind, existingKinds;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionNodeBase::nodeKindsSet(kinds=%s)",
+      kinds#trace()
+    );
+  
+    ensureRawContainerCreated();
+
+    if( kinds#isEmpty() )
+      m_kinds = [];
+    else if( kinds#isCollection() )
+    {
+      if( kinds in EsCalibrationNodeKind) 
+        m_kinds = kinds;
+      else
+        m_kinds = [];
+    }
+    else if( kinds in EsCalibrationNodeKind )
+      m_kinds = [kinds];
+    else
+      m_kinds = [];
+
+    // Sync raw values container
+    existingKinds = m_raw$keys;
+    foreach( kind in existingKinds )
+    {
+      if( !(kind in m_kinds) )
+        m_raw.valueDelete(kind);
+    }
+  }
+  
+  function rawSet(raw, nodeKind)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionNodeBase::rawSet(raw=%s, nodeKind=%s)",
+      raw#trace(),
+      nodeKind#trace()
+    );
+ 
+    nodeKindCheck(nodeKind);
+    ensureRawContainerCreated();
+
+    if( m_raw.keyExists(nodeKind) )
+      m_raw.valueSet(
+        nodeKind,
+        raw
+      );
+    else
+      m_raw.newValueSet(
+        nodeKind,
+        raw
+      );
+  }
+
+  function rawGet( nodeKind )
+  {
+    nodeKindCheck(nodeKind);
+    ensureRawContainerCreated();
+
+    if( m_raw.keyExists(nodeKind) )
+      return m_raw.valueGet(nodeKind);
+
+    return null;
+  }
+
+  function rawStrGet( nodeKind )
+  var raw = rawGet(nodeKind);
+  {
+    if( raw#isEmpty() )
+      return "";
+
+    return valueFmt(raw);
+  }
+
+  function hasRawValue( nodeKind )
+  var raw;
+  {
+    if( nodeKindCheckSupported(nodeKind) )
+      raw = rawGet(nodeKind);
+
+    return !raw#isEmpty();
+  }
+
+  function hasRawValues()
+  var nodeKind, raw;
+  {
+    foreach(nodeKind in m_kinds)
+      if( !hasRawValue(nodeKind) )
+        return false;
+
+    return true;
+  }
+  
+  /// Stream serialization
+  ///
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite(
+      "kinds",
+      m_kinds
+    );
+
+    stream.valueWrite(
+      "raw",
+      m_raw
+    );
+    
+    stream.valueWrite(
+      "calibrated",
+      m_calibrated
+    );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    m_kinds = stream.valueRead(
+      "kinds",
+      []
+    );
+
+    m_raw = stream.valueRead(
+      "raw",
+      new EsAssocContainer(__metaclass)
+    );
+    
+    m_calibrated = stream.valueRead(
+      "calibrated",
+      null
+    );
+  }
+  
+  /// Properties
+  ///
+
+  property kinds;
+  read: { return m_kinds; }
+  
+  property raw;
+  read: { return m_raw; }
+  
+  property calibrated;
+  read: { return m_calibrated; }
+  
+  property hasCalibration;
+  read: { return !m_calibrated#isEmpty(); }
+}

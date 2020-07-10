@@ -1,0 +1,80 @@
+// el3c-calibration script
+##require("EsDataTypes.ess");
+##require("devices/EsDeviceBase.ess");
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("devices/calibration/EsCalibrationSessionBase.ess");
+##require("devices/el3c.ess");
+##require("Consts.ess");
+##require("Helpers.ess");
+##require("ProfileClear.ess");
+##require("ProfileColor.ess");
+##require("CalibrationData.ess");
+
+/// Calibration|verification session object
+object EL3C_CalibrationSession extends EsCalibrationSessionBase
+{
+  /// Overridables:
+  ///
+  /// calibrationDeviceDataCreate(fwId, settings)     : Mandatory
+  /// 
+
+  function calibrationDeviceDataCreate(fwId, settings)
+  {
+    EsScriptDebug::log(
+      "EL3C_CalibrationSession::calibrationDeviceDataCreate(fwId, settings)",
+      fwId#trace(),
+      settings#trace()
+    );
+  
+    return new EL3C_CalibrationData(
+        this,
+        fwId,
+        settings
+      );
+  }
+
+  //
+  // Overridables end
+
+  // Parametrized constructor.
+  new(devType, mode, profilesGlobal)
+  var type;
+  {
+    EsScriptDebug::log(
+      "EL3C_CalibrationSession::new(devType=%s, mode=%s, profilesGlobal=%s)",
+      devType#trace(), 
+      mode#trace(), 
+      profilesGlobal#trace()
+    );
+    
+    checkCalibrationProfilesForDeviceTypeInitialized(profilesGlobal);    
+    
+    if( !m_profiles.keyExists( EL3C_ClearCalibrationProfile$type ) )
+      throw EsStr::format(
+        "Non-existent EL3C calibration session profile %s.",
+        EL3C_ClearCalibrationProfile$type
+      );
+  }
+
+  /// Properties
+  ///  
+  
+  /// Get clear calibration profile
+  property profileClear;
+  read: { 
+    return m_profiles.valueGetDef(
+      EL3C_ClearCalibrationProfile$type,
+      null
+    ); 
+  }
+  
+  /// Get color calibration profile
+  property profileColor;
+  read: { 
+    return m_profiles.valueGetDef(
+      EL3C_ColorCalibrationProfile$type,
+      null
+    ); 
+  }
+}
+//-----------------------------------------------------------------------------

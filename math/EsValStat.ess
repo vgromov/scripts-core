@@ -1,0 +1,79 @@
+/// Calculated Statistics flags
+///
+enum EsValStatFlags
+{
+  InvalidAvg  = 0x00000001, "Average stat. member was not calculated yet";
+  InvalidA    = 0x00000002, "Ua stat. member was not calculated yet";
+  InvalidB    = 0x00000004, "Ub stat. member was not calculated yet";
+  InvalidC    = 0x00000008, "Uc stat. member was not calculated yet";
+  InvalidU    = 0x00000010, "U stat. member was not calculated yet";
+  Invalid     = EsValStatFlags$$InvalidAvg |
+                EsValStatFlags$$InvalidA |
+                EsValStatFlags$$InvalidB |
+                EsValStatFlags$$InvalidC |
+                EsValStatFlags$$InvalidU;
+  DoingAvg    = 0x00000020, "Temporary avg calculation flag";
+}
+
+/// Calculated Statistics on specific value
+///
+object EsValStat 
+{
+  esF   f_min;    ///< Minimum value over calculation range
+  esF   f_max;    ///< Maximum value over calculation range
+  esF   f_avg;    ///< Average value over calculation range
+  esF   f_ua;     ///< Calculated type A error
+  esF   f_ub;     ///< Calculated type B error
+  esF   f_uc;     ///< Calculated type C error
+  esF   f_u;      ///< Overall error
+  esU32 f_cnt;
+  esU32 f_flags;
+
+  // Properties
+  //
+  
+  // Validity flags
+  //
+  property avgValid;
+  read: { return 0 == (f_flags & EsValStatFlags$$InvalidAvg); }
+  
+  property uaValid;
+  read: { return 0 == (f_flags & EsValStatFlags$$InvalidA); }
+
+  property ubValid;
+  read: { return 0 == (f_flags & EsValStatFlags$$InvalidB); }
+
+  property ucValid;
+  read: { return 0 == (f_flags & EsValStatFlags$$InvalidC); }
+
+  property uValid;
+  read: { return 0 == (f_flags & EsValStatFlags$$InvalidU); }
+  
+  property valid;
+  read: { return 0 == (f_flags & EsValStatFlags$$Invalid); }
+  
+  // Stat data
+  property sampleSize;
+  read: { return f_cnt#asULong(); }
+  
+  property minimum;
+  read: { return f_min; }
+
+  property maximum;
+  read: { return f_max; }
+  
+  property average;
+  read: { return f_avg; }
+  
+  property ua;
+  read: { return f_ua; }
+
+  property ub;
+  read: { return f_ub; }
+
+  property uc;
+  read: { return f_uc; }
+  
+  property u;
+  read: { return f_u; }
+}

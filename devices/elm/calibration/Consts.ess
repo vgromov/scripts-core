@@ -1,0 +1,4 @@
+/// ELM calibration constants
+
+/// Maximum calibration node count
+const c_ELM_CalibrationNodesCnt = 12;

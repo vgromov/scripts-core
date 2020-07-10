@@ -1,0 +1,17 @@
+##require("devices/calibration/EsCalibrationProfileNodeBase.ess");
+
+/// Reference profile node
+///
+object EL3C_ClearProfileNode extends EsCalibrationProfileNodeBase
+{
+  // Base class overrides
+  //
+  // nodeObjectTypeCheck( obj )                         : Optional
+  // valueFmt( val )                                    : Optional
+  //
+  function valueFmt(val)
+  {
+    return EL3C_ValueFmt(val);
+  }
+}
+//-----------------------------------------------------------------------------

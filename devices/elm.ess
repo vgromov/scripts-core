@@ -1,0 +1,194 @@
+// Scripting device support for ELM photo-appliance
+##require("EsDeviceBase.ess");
+##require("../math/EsSpline.ess");
+##require("../math/EsValStat.ess");
+##require("EsDataTypes.ess");
+##require("elm/Consts.ess");
+##require("elm/FmtHelpers.ess");
+##require("elm/Flags.ess");
+##require("elm/Data.ess");
+##require("elm/CalibrationAndSettings.ess");
+
+/// ELM device object
+object ELM extends EsDeviceBase
+{
+  var m_health;
+
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in ELM_Rpid )
+      return ELM_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in ELM_Rpid )
+      return rpcSigGet(ELM_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(
+      fwId, 
+      EsDeviceType$$ELM, 
+      ELM$type
+    );
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ELM);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + ELM_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+    result += EsRpcStdId$$ENTER_BOOT;
+    result += EsRpcStdId$$FW_UPLOAD_START;
+    result += EsRpcStdId$$FW_UPLOAD;
+    result += EsRpcStdId$$FW_UPLOAD_END;
+    
+    return result;
+  }
+  
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var cnt, result = null;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+    {
+      result = new ELM_Health(rpcResult);    // use ELM health implementation instead of unparsed standard one
+      m_health = result;
+    }
+    else if( rpcId == ELM_Rpid$$CalibrationGet )
+    {
+      result = new ELM_Calibration();
+      cnt = rpcResult#countGet() / 20; //< TODO: fix non-dynamically laid out objects report size = 0 if not attributed as fixedSize EsSplineNode$size;
+
+      result$illuminance.countSet(
+        cnt
+      );
+      result$illuminance.f_nodes$buffer = rpcResult#asBinBuffer();
+    }
+    else if( rpcId in [ ELM_Rpid$$LiveDataGet, ELM_Rpid$$LiveDataGetRaw ] )
+    {
+      result = new ELM_Data(); 
+      result.f_val$value = rpcResult; //< We're getting ready-to-use float from ELM devices
+
+      if( m_health )
+        result.f_errors.f_errors$value = m_health$errors;
+
+      //EsScriptDebug::log("ELM_Data received (size=%d)", rpcResult#asBinBuffer()#countGet());
+    }
+    else if( ELM_Rpid$$SavedDataGet == rpcId )
+    {
+      result = new ELM_SavedData();
+      result$buffer = rpcResult#asBinBuffer();
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(
+        rpcId, 
+        rpcArgs, 
+        rpcResult
+      );
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    internalInit(null);    
+  }
+  
+  new(fwId)
+  {
+    internalInit(fwId);
+  }
+  
+  /// ELM custom response handlers
+  ///
+  /// Download settings object
+  function settingsDownload()
+  var settings = new ELM_Settings(m_fwId), rpcResult, cnt;
+  {
+    rpcResult = rpcCall(ELM_Rpid$$CalibrationGet, null);
+    if( !rpcResult[0] )
+      return rpcResult;
+
+    settings$calibration.copyFrom(
+      rpcResult[1]
+    );
+    
+    rpcResult = [];
+    rpcResult += true;
+    rpcResult += settings;
+    
+    return rpcResult;
+  }
+  
+  /// Upload settings object
+  function settingsUpload(settings)
+  var batch = [];
+  {
+    if( settings.f_fwId != m_fwId )
+      throw "Could not upload incompatible device settings";
+    
+    settings.crcUpdate();
+    
+    batch#append(
+      [
+        ELM_Rpid$$CalibrationSet,
+        settings$calibration$illuminance$nodes$buffer
+      ]
+    );
+    
+    batch = rpcBatchCall(batch);
+    //EsScriptDebug::log(batch);
+    
+    // We're not interested in returning entire batch result.
+    // just treat batch results as a whole.
+    if( deviceCheckBatchResultOk(batch) )
+    {
+      batch = [];
+      batch#append(
+        [
+          true,
+          null      // nothing is returned
+        ]
+      );
+    }
+    else
+    {
+      batch = [];
+      batch#append(
+        [
+          false,
+          "Device settings upload failed"
+        ]
+      );
+    }
+    
+    return batch;
+  }
+  
+  /// Properties
+  ///
+
+  /// Currently active opmode
+  property opmode;
+  read: { return ELM_Opmode$$Illuminance; }
+  
+  /// Opmode string
+  property opmodeStr;
+  read: { return ELM_Opmode$$Illuminance$$label; }
+}

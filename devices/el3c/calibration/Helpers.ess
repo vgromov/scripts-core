@@ -1,0 +1,122 @@
+/// EL3C Calibration helpers
+///
+
+function el3cDataTypeCheck(dataType, doThrow)
+{
+  if( !(dataType in dataTypesByCategory(EsDataTypeCategory$$Lighting)) )
+  {
+    if( doThrow )
+      throw EsStr::format(
+        I"EL3C Does not support %s data",
+        EsDataType.valueLabelGet(dataType)
+      );
+
+    return false;
+  }
+  
+  return true;
+}
+
+function el3cUnitsGet(dataType)
+{
+  el3cDataTypeCheck(
+    dataType, 
+    true
+  );
+
+  if( EsDataType$$Illuminance == dataType )
+    return c_el3c_unitE;
+  else if( EsDataType$$Luminance == dataType )
+    return c_el3c_unitL;
+  else if( EsDataType$$Flicker == dataType )
+    return c_el3c_unitP;
+  else if( EsDataType$$ColorTemp == dataType )
+    return c_el3c_unitCT;
+}  
+
+function el3ccreate(fwId)
+{
+  if( EsDeviceType$$EL3C == fwId$devType )
+    return new EL3C(fwId);
+}
+
+function el3ccreate(fwId, caps)
+var dev;
+{
+  if( EsDeviceType$$EL3C == fwId$devType )
+  {
+    dev = new EL3C(fwId);
+    dev.m_caps = caps;
+  }
+  
+  return dev;
+}
+
+function el3copmodeCheck(device, opmode)
+var result, opmodeNeeded;
+{
+  result = device.rpcCall(EL3C_Rpid$$WorkmodeGet, null);
+  if( result[0] )
+  {
+    if( !(result[1] in [EL3C_OpMode$$Illuminance .. EL3C_OpMode$$Luminance]) )
+      opmodeNeeded = EL3C_OpMode$$Illuminance;
+    
+    if( !opmode#isEmpty() && 
+        (opmode in [EL3C_OpMode$$Illuminance .. EL3C_OpMode$$Luminance])
+    )
+      opmodeNeeded = opmode;
+      
+    if( opmodeNeeded != result[1] )  
+      result = device.rpcCall(EL3C_Rpid$$WorkmodeSet, opmodeNeeded);
+    
+    return result[0];
+  }
+  
+  return false;
+}
+
+function el3cstateBatchPrepare()
+var batch = [];
+{
+  batch#append(
+    [
+      EsRpcStdId$$DATETIME_GET,
+      null    
+    ]
+  );
+
+  batch#append(
+    [
+      EsRpcStdId$$POWER_STATUS_GET,
+      null
+    ]
+  );
+  
+  return batch;
+}
+
+function el3cstateRequest(device)
+var result;
+{
+  return device.rpcBatchCall( el3cstateBatchPrepare() );
+}
+
+function el3cliveRequest(device, verification)
+var batch = el3cstateBatchPrepare(), 
+  item = [], result;
+{
+  if( !verification )
+  {
+    item += EL3C_Rpid$$RawDataGet;
+    item += null;
+    batch#append(item);
+  }
+  else  
+  {
+    item += EL3C_Rpid$$LiveDataGet;
+    item += null;
+    batch#append(item);
+  }
+  
+  return device.rpcBatchCall(batch);
+}

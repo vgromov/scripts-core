@@ -1,0 +1,129 @@
+##require("../core.ess");
+##require("../math.ess");
+##require("../math/EsSpline.ess");
+##require("../misc/io_monitors.ess");
+##require("../devices/radexAq.ess");
+
+// Save downloaded data, if any,
+// to the text file
+//
+function dataSave(data)
+var path, file, rec, contents = "";
+{
+  if( 
+    data#isEmpty() || 
+    !data#countGet()
+  )
+    return;
+
+  path = EsPath::create(
+    EsPath::stdDocsGet(), 
+    "usbRadexAQ_" + EsPath::makeSafe(
+      EsDateTime::now()#asString()
+    ),
+    "txt"
+  );
+  file = new EsFile(
+    path.pathGet(EsPathFlag$$Default, ""),
+    EsFileFlag$$Write | EsFileFlag$$Text
+  );
+
+  EsScriptDebug::log(
+    "Writing data to %s",
+    path.pathGet(EsPathFlag$$Default, "")
+  );
+
+  foreach( rec in data )
+    contents += rec$buffer#asString() + ":" + rec#asString() + "\r\n";
+
+  file.open();
+  file.stringWrite( contents );
+  file.close();
+}
+
+// Main code:
+//
+
+// create io channel && rpc master
+var chnl = new EsChannelIoUart();
+var master, worker, dev, rpcResult;
+
+// Find all available free UART channels on USB
+var protomon, comm, comms = EsChannelIoUart::enumerate(
+    false,  //< Skip Busy ports
+    true    //< USB bus only
+  );
+
+try {
+
+if( !comms#countGet() )
+  throw "Could not find any non-busy USB ports";
+
+foreach( comm in comms )
+{
+  EsScriptDebug::log(comm);
+
+  // Extract the first match found
+  if( !comm[2]#find("RADEX-AQ")#isEmpty() )
+  {
+    comm = comm[0]; //< Now we have full UART device path
+    break;
+  }
+}
+
+if( !comm#isString() )
+  throw "Could not find RADEX-AQ USB port";  
+
+master = new EsRpcMaster();
+
+// configure channel, assign to master
+EsScriptDebug::log(
+  "Found RADEX-AQ on: %s",
+  comm  
+);
+
+// Uncomment to use channel debug monitor helper
+//chnl$monitor = new ChnlIoMonitor();
+
+chnl$port = comm;
+
+// Uncomment to use protocol debug monitor helper
+protomon = new ProtoIoMonitor();
+protomon$customRpids = RADEX_AQ_Rpid;
+master$monitor = protomon;
+
+master$channel = chnl;
+master$packetTimeout = 4000;
+master.activate();
+
+dev = new RADEX_AQ(
+  deviceKnownCapsFwIdRead(
+    master,
+    master.getImplementedRPCs()
+  )
+);
+
+dev$ioMaster = master;
+
+rpcResult = dev.settingsDownload();
+if( rpcResult[0] )
+  EsScriptDebug::log(
+    "Settings: %s",
+    rpcResult[1]
+  );
+
+rpcResult = dev.allSavedDataDownload();
+if( rpcResult[0] )
+{
+  EsScriptDebug::log(
+    "All saved data downloaded\nDumping nodes...\n"
+  );
+
+  dataSave(rpcResult[1]);
+}
+
+}
+catch
+{
+  EsScriptDebug::log("An exception occurred: %s", __exception$reason);  
+}

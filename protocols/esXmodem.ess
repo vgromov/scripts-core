@@ -1,0 +1,126 @@
+// ESS XMODEM IO implementation
+//
+
+// XMODEM special symbols
+//
+enum XmodemCh {
+  SOH = B'\x01', "Start of Header";
+  EOT = B'\x04', "End of Transmission";
+  ACK = B'\x06', "Acknowledge";
+  NAK = B'\x15', "Not Acknowledge";
+  ETB = B'\x17', "End of Transmission Block";
+  CAN = B'\x18', "Cancel";
+  EOF = B'\x1A', "End Of File";
+  C   = B'C',    "CRC16 Request";
+  // Quarta-specific stuff:
+  RST = B'2',    "Bootloader Reset";
+  PING= B'\x05', "Bootloader Ping";
+}
+
+const c_XmodemDataSize = 128;
+
+// XMODEM packet object
+//
+object XmodemPacket
+{
+  var m_checksumMode;
+  esU8 f_hdr;
+  esU8 f_num;
+  esU8 f_xnum;
+  esU8 f_data[c_XmodemDataSize];
+  
+  if( m_checksumMode#isEmpty() || XmodemCh$$NAK == m_checksumMode )
+  {
+    esU8 f_checksum;
+
+    function checksumAppend(checksum, ch)
+    {
+      if(checksum > 255-ch)
+        return ch-(255-checksum);
+      else
+        return checksum#asByte() + ch#asByte();
+    }
+
+    function checksumFinalize(checksum)
+    {
+      return checksum#asByte();
+    }
+  }
+  else
+  {
+    esU16 f_checksum;
+
+    function checksumAppend(checksum, ch)
+    var idx = 8;
+    {
+      checksum ^= (ch << 8);
+
+      do
+      {
+        if(checksum & 0x8000)
+          checksum = (checksum << 1) ^ 0x1021;
+        else
+          checksum = (checksum << 1);
+
+      } while(--idx);
+
+      return checksum;
+    }
+
+    function checksumFinalize(checksum)
+    {
+      return ((checksum & 0x00FF) << 8) + ((checksum & 0xFF00) >> 8);
+    }
+  }
+
+  new( num, data, dataoffs, checksumMode )
+  var idx, cnt, checksum = 0, ch;
+  {
+    m_checksumMode = checksumMode;
+
+    f_hdr = XmodemCh$$SOH;
+    
+    if( !num#isEmpty() )
+      f_num = num;
+    else
+      f_num = 0;
+
+    f_xnum = EsVar::asByte(255-f_num);
+    
+    // Fill all packet with EOFs
+    if( data#isEmpty() || dataoffs >= data#countGet() )
+    {
+      idx = 0;
+      ch = XmodemCh$$EOF;
+      while(idx < 128)
+      {
+        f_data[idx++] = ch;
+        checksum = this.checksumAppend(checksum, ch);
+      }
+    }
+    else
+    {
+      // Fill the rest of packet with EOFs
+      cnt = data#countGet() - dataoffs;
+      if( cnt > 128 )
+        cnt = 128;
+
+      for(idx = 0; idx < cnt; ++idx)
+      {
+        ch = data[idx + dataoffs];
+        f_data[idx] = ch;
+        checksum = this.checksumAppend(checksum, ch);
+      }
+      
+      ch = EsVar::asByte(XmodemCh$$EOF);
+      while(idx < 128)
+      {
+        f_data[idx++] = ch;
+        checksum = this.checksumAppend(checksum, ch);
+      }
+    }
+
+    // Finalize CRC calculation
+    this.f_checksum = this.checksumFinalize(checksum);
+  }
+}

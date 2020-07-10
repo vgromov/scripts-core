@@ -1,0 +1,109 @@
+##require("Consts.ess");
+
+/// ELM health && flags parser objects
+///
+
+/// ELM Health state object
+object ELM_Health
+{
+  esU32 f_errors;
+  
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+ 
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & ELM_Error$$HwErrI2cBus1)
+      result += ELM_Error$$HwErrI2cBus1$$label;
+    if(f_errors & ELM_Error$$HwErrI2cBus2)
+      result += ELM_Error$$HwErrI2cBus2$$label;
+    if(f_errors & ELM_Error$$HwErrSensorE)
+      result += ELM_Error$$HwErrSensorE$$label;
+    if(f_errors & ELM_Error$$HwErrEEPROM)
+      result += ELM_Error$$HwErrEEPROM$$label;
+    if(f_errors & ELM_Error$$HwErrADC)
+      result += ELM_Error$$HwErrADC$$label;
+    if(f_errors & ELM_Error$$HwErrBatteryCritical)
+      result += ELM_Error$$HwErrBatteryCritical$$label;
+    if(f_errors & ELM_Error$$ErrCalibrationInvalid)
+      result += ELM_Error$$ErrCalibrationInvalid$$label;
+    if(f_errors & ELM_Error$$ErrCalibrationNotApplied)
+      result += ELM_Error$$ErrCalibrationNotApplied$$label;
+    if(f_errors & ELM_Error$$ErrAppInvalid)
+      result += ELM_Error$$ErrAppInvalid$$label;
+    if(f_errors & ELM_Error$$ErrSysHardFault)
+      result += ELM_Error$$ErrSysHardFault$$label;
+    if(f_errors & ELM_Error$$ErrSysMemFault)
+      result += ELM_Error$$ErrSysMemFault$$label;
+    if(f_errors & ELM_Error$$ErrSysBusFault)
+      result += ELM_Error$$ErrSysBusFault$$label;
+    if(f_errors & ELM_Error$$ErrSysUsageFault)
+      result += ELM_Error$$ErrSysUsageFault$$label;
+    if(f_errors & ELM_Error$$ErrSysUserAssertion)
+      result += ELM_Error$$ErrSysUserAssertion$$label;
+    if(f_errors & ELM_Error$$ErrSysAppCoreVerIncompat)
+      result += ELM_Error$$ErrSysAppCoreVerIncompat$$label;
+    if(f_errors & ELM_Error$$ErrSysAppTypeIncompat)
+      result += ELM_Error$$ErrSysAppTypeIncompat$$label;
+
+    return result;
+  }
+
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+  
+  /// Properties
+  ///
+  property errors;
+  read: { return f_errors$value; }
+
+  /// Return true if health critical error was latched
+  property hasCriticalError;
+  read: { 
+    return 0 != (f_errors & 
+      ( 
+        ELM_Error$$HwErrI2cBus1             |
+        ELM_Error$$HwErrI2cBus2             |
+        ELM_Error$$HwErrSensorE             |
+        ELM_Error$$HwErrEEPROM              |
+        ELM_Error$$HwErrADC                 |
+        ELM_Error$$ErrAppInvalid            |
+        ELM_Error$$ErrSysHardFault          |
+        ELM_Error$$ErrSysMemFault           |
+        ELM_Error$$ErrSysBusFault           |
+        ELM_Error$$ErrSysUsageFault         |
+        ELM_Error$$ErrSysUserAssertion      |
+        ELM_Error$$ErrSysAppCoreVerIncompat |
+        ELM_Error$$ErrSysAppTypeIncompat
+      )
+    ); 
+  }
+  
+  /// Return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { 
+    return 0 != (
+      f_errors & (
+        ELM_Error$$HwErrBatteryCritical     |
+        ELM_Error$$ErrCalibrationInvalid    |
+        ELM_Error$$ErrCalibrationNotApplied
+      )
+    ); 
+  }
+  
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}

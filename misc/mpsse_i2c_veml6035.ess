@@ -1,0 +1,336 @@
+/// FTxxxx MPSSE script test.
+/// Interfacing the I2C with VEML6035 on it.
+///
+
+// Enumerate available MPSSE devices
+var devInfos = EsFtdiDriver::enumerate(
+      true,   //< Include busy devices
+      true    //< Include only MPSSE-capable devices
+    );
+
+if( !devInfos#countGet() )
+  throw "Could not find any MPSSE-capable devices";
+
+// Take the first found device and open it  
+var dev = EsFtdiDriver::deviceCreate(
+  EsFtdiDeviceKind$$MPSSE_I2C,
+  devInfos[0]
+);
+  
+if( !dev )
+  throw EsStr::format(
+    "Could not create MPSSE device of type %s for %s",
+    EsFtdiDeviceKind$$MPSSE_I2C$$label,
+    devInfos[0]
+  );
+
+if( !dev.open() )
+  throw EsStr::format(
+    "Could not open MPSSE device %s",
+    devInfos[0]
+  );
+
+// Set OS systicks period to 1 ms
+var systick = EsUtilities::systickChange(
+  1
+);
+
+const c_veml6035_addr = 0x52;
+
+function veml6035registerRead(bus, reg)
+var buff;
+{
+  bus.write(
+    c_veml6035_addr,
+    reg#asByte(),
+    EsFtdiMpsseI2cIO$$START_BIT
+  );
+  
+  buff = bus.read(
+    c_veml6035_addr,
+    2,
+    EsFtdiMpsseI2cIO$$START_BIT|
+    EsFtdiMpsseI2cIO$$STOP_BIT|
+    EsFtdiMpsseI2cIO$$NACK_LAST_BYTE
+  );
+  
+  if( 2 == buff#countGet() )
+    return buff[0] + (buff[1] << 8);
+}
+
+function veml6035registerWrite(bus, reg, data)
+var buff = B"\0\0\0";
+{
+  buff[0] = reg;
+  buff[1] = (data#asULong() & 0xFF);
+  buff[2] = ((data#asULong() >> 8) & 0xFF);
+  
+  return 3 == bus.write(
+    c_veml6035_addr,
+    buff,
+    EsFtdiMpsseI2cIO$$START_BIT|
+    EsFtdiMpsseI2cIO$$STOP_BIT|
+    EsFtdiMpsseI2cIO$$BREAK_ON_NACK
+  );
+}
+
+function veml6035configRead(bus)
+var raw, tmp, cfg = []; // 12 SENSITIVITY, 11 DOUBLE_GAIN, 10 GAIN, 9:6 ALS_EXPOSURE, 5:4 ALS_THLD_TRIGGER_CNT, 3 INT_CHNL, 2 CHNL_EN, 1 INT_EN, 0 SHDN
+{
+  raw = veml6035registerRead(
+    bus, 
+    0x00
+  );
+  
+  cfg += (raw >> 12) & 0x01;
+  cfg += (raw >> 11) & 0x01;
+  cfg += (raw >> 10) & 0x01;
+  
+  // Decode exposure
+  tmp = ((raw >> 6) & 0x0F);
+  switch( tmp )
+  {
+  case 0:
+    cfg += 100;
+  case 1:
+    cfg += 200;
+  case 2:
+    cfg += 400;
+  case 3:
+    cfg += 800;
+  case 8:
+    cfg += 50;
+  case 12:
+    cfg += 25;
+  default:
+    cfg += "invalid";
+  }
+
+  // Decode interrupt trigger
+  tmp = ((raw >> 4) & 0x03);
+  switch( tmp )
+  {
+  case 0:
+    cfg += 1;
+  case 1:
+    cfg += 2;
+  case 2:
+    cfg += 4;
+  case 3:
+    cfg += 8;
+  }
+
+  cfg += (raw >> 3) & 0x01; //< Interrupt channel
+  cfg += (raw >> 2) & 0x01; //< Channel enable
+  cfg += (raw >> 1) & 0x01; //< Interrupt enable
+  cfg += raw & 0x01;        //< Shutdown
+
+  return cfg;
+}
+
+function veml6035configWrite(bus, sensitivity, doubleGain, gain, exposureTime, triggerCnt, intChannel, channelEn, intEnable, shutdown )
+var raw = 0;
+{
+  if( sensitivity )
+    raw |= (0x01 << 12);
+  
+  if( doubleGain )
+    raw |= (0x01 << 11);
+
+  if( gain )
+    raw |= (0x01 << 10);
+
+  switch(exposureTime)
+  {
+  case 25:
+    raw |= (0x0C << 6);
+  case 50:
+    raw |= (0x08 << 6);
+  case 200:
+    raw |= (0x01 << 6);
+  case 400:
+    raw |= (0x02 << 6);
+  case 800:
+    raw |= (0x03 << 6);
+  }
+  
+  switch( triggerCnt )
+  {
+  case 2:
+    raw |= (0x01 << 4);
+  case 4:
+    raw |= (0x02 << 4);
+  case 8:
+    raw |= (0x03 << 4);
+  }
+  
+  if( intChannel )
+    raw |= 0x08;
+  
+  if( channelEn )
+    raw |= 0x04;
+  
+  if( intEnable)
+    raw |= 0x02;
+  
+  if( shutdown )
+    raw |= 0x01;
+  
+  return veml6035registerWrite(
+    bus,
+    0x00,
+    raw
+  );
+}
+
+function veml6035thresholdRead(bus)
+var result = [0,0];
+{
+  result[1] = veml6035registerRead(
+    bus, 
+    0x01
+  );
+
+  result[0] = veml6035registerRead(
+    bus, 
+    0x02
+  );
+  
+  return result;
+}
+
+function veml6035thresholdWrite(bus, low, high)
+{
+  return veml6035registerWrite(
+    bus, 
+    0x01,
+    high
+  ) &&
+  veml6035registerWrite(
+    bus, 
+    0x02,
+    low
+  );
+}
+
+function veml6035statusRead(bus)
+{
+  return veml6035registerRead(
+    bus, 
+    0x06
+  );
+}
+
+function veml6035alsRead(bus)
+{
+  return veml6035registerRead(
+    bus, 
+    0x04
+  );
+}
+
+function veml6035whiteRead(bus)
+{
+  return veml6035registerRead(
+    bus, 
+    0x05
+  );
+}
+
+dev$clockRate = EsFtdiMpsseI2cClock$$FAST;
+dev.configApply();
+
+// Lookup devices on I1C bus
+var addr, addrs = [], tmp, str, tmo;
+for(addr = 0; addr < 128; ++addr)
+{
+  // Ping devices for read
+  if( 
+    dev.ping(
+      addr,
+      false
+    )
+  )
+    addrs += addr;
+}
+
+if( addrs#countGet() )
+{
+  EsScriptDebug::log(
+    "Found I2C devices on bus: %s",
+    addrs
+  );
+  
+  if( c_veml6035_addr in addrs )
+  {
+    EsScriptDebug::log(
+      "VEML6035 found."
+    );
+  
+    tmp = veml6035configRead(dev);
+    // 12 SENSITIVITY, 11 DOUBLE_GAIN, 10 GAIN, 9:6 ALS_EXPOSURE, 5:4 ALS_THLD_TRIGGER_CNT, 3 INT_CHNL, 2 CHNL_EN, 1 INT_EN, 0 SHDN
+    EsScriptDebug::log(
+      "VEML6035 Power-On config:" + 
+      "\nSensitivity=" + (tmp[0] ? "low" : "high") +
+      "\nGain mul.=" + (tmp[1] ? "x2" : "x1") +
+      "\nGain=" + (tmp[2] ? "x2" : "x1") +
+      "\nExposure=" + tmp[3]#asString() + "ms" +
+      "\nThreshold trigger after=" + tmp[4]#asString() + " detection(s)" + 
+      "\nInt channel=" + (tmp[5] ? "WHITE" : "ALS") +
+      "\nChnl enabled=" + (tmp[6] ? "ALS and WHITE" : "ALS-only") +
+      "\nInt enabled=" + (tmp[7] ? "Yes" : "No") +
+      "\nShutdown=" + (tmp[8] ? "Yes" : "No");
+    );
+    
+    EsScriptDebug::log( 
+      ">> Configuring Sensor for measurements..."
+    );
+
+    tmo = 400;
+    veml6035configWrite(
+      bus, 
+      0,  //< High sensitivity
+      1,  //< Gain multiplier = x2
+      1,  //< Gain = x2 
+      tmo, 
+      4, 
+      0,  //< ALS interrupt  
+      0,  //< ALS only channel 
+      0,  //< Interrupt disabled
+      0   //< Power ON 
+    );
+
+    tmp = veml6035configRead(dev);
+    EsScriptDebug::log(
+      "VEML6035 configured to:" + 
+      "\nSensitivity=" + (tmp[0] ? "low" : "high") +
+      "\nGain mul.=" + (tmp[1] ? "x2" : "x1") +
+      "\nGain=" + (tmp[2] ? "x2" : "x1") +
+      "\nExposure=" + tmp[3]#asString() + "ms" +
+      "\nThreshold trigger after=" + tmp[4]#asString() + " detection(s)" + 
+      "\nInt channel=" + (tmp[5] ? "WHITE" : "ALS") +
+      "\nChnl enabled=" + (tmp[6] ? "ALS and WHITE" : "ALS-only") +
+      "\nInt enabled=" + (tmp[7] ? "Yes" : "No") +
+      "\nShutdown=" + (tmp[8] ? "Yes" : "No");
+    );
+
+    while( 1 )
+    {
+      EsThreadWorker::sleep(tmo+100);
+      tmp = veml6035alsRead(dev);
+
+      EsScriptDebug::log(
+        ">> Illuminance=" + tmp#asDouble() * 0.0008 
+      );
+    }
+  }
+}
+else
+  EsScriptDebug::log(
+    "I2C devices not found"
+  );
+
+dev.close();
+
+// Restore OS systicks
+EsUtilities::systickRestore( systick );

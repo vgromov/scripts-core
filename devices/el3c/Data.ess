@@ -1,0 +1,530 @@
+/// EL3C Color data point structure
+/// Data interpretation notes:
+/// 1) Error flags field duplicated that of device health value
+/// 2) Data flags describe device working mode|data fields validity
+/// *for instance, mode flag may be set to modeBgnd, then, while validBgnd is not set,
+/// bgndTmo is bgnd measurement ETA, in seconds, otherwise, it's duration of bgnd measuement,
+/// and bgnd is valid measured bgnd value
+///
+object EL3C_Data
+{
+  /// Data fields
+  ///
+  
+  esDT  f_ts;               ///< Data timestamp
+  EL3C_Health f_errors;     ///< Device error flags
+  EL3C_DataFlags f_flags;   ///< Data state|validity flags
+  esF   f_val;              ///< Measured value (either illuminance or luminance, depending on mode flag)
+  esF   f_valOrg;           ///< Original value (for Bgnd. trimming mode)
+  esF   f_kp;               ///< Pulsation coefficient, in %
+  esF   f_kpOrg;            ///< Original pulsation coefficient (for Bgnd. trimming mode)
+  esF   f_kpi;              ///< Pulsation calculated by integral algo
+  esF   f_kpiOrg;           ///< Original pulsation calculated by integral algo
+  esF   f_bgnd;             ///< Measured background value (for Bgnd. trimming mode)
+  esF   f_x;                ///< CIE x component
+  esF   f_y;                ///< CIE y component
+  esF   f_ct;               ///< Color temperature in K
+  esU16 f_bgndTmo;          ///< Bgnd measurement duration, in seconds
+  esU16 f_bgndEta;          ///< Bgnd measurement countdown, in seconds
+  
+  /// Calibration framework-specific interface allowing unified access to raw or calibrated data
+  /// dataKind parameter has meaning for raw data only, so live calibrated data objects may just ignore it
+  ///
+  function valueGet(dataType, dataKind)
+  {
+    EsScriptDebug::log(
+      "EL3C_Data::valueGet(dataType=%s, dataKind=%s)",
+      dataType#trace(),
+      dataKind#trace()
+    );  
+  
+    if( dataType in [EsDataType$$Illuminance, EsDataType$$Luminance] )
+      return this$val;
+    else if( dataType == EsDataType$$Flicker )
+      return this$kpi;
+  }
+  
+  function valueStrGet(dataType, dataKind)
+  var result = "";
+  {
+    EsScriptDebug::log(
+      "EL3C_Data::valueStrGet(dataType=%s, dataKind=%s)",
+      dataType#trace(),
+      dataKind#trace()
+    );  
+  
+    if( dataType in [EsDataType$$Illuminance, EsDataType$$Luminance] )
+      result = this$valStr;
+    else if( dataType == EsDataType$$Flicker )
+      result = this$kpiStr;
+
+    EsScriptDebug::log(
+      " ..result->%s",
+      result#trace()
+    );
+    
+    return result;
+  }
+  
+  /// Properties
+  ///
+  
+  /// Timestamp
+  property ts;
+  read: { return f_ts$value; }
+  /// Timestamp string
+  property tsStr;
+  read: { return f_ts.asString(); }  
+  
+  /// Errors
+  property errors;
+  read: { return f_errors; }
+  
+  /// Data flags
+  property flags;
+  read: { return f_flags; }
+  
+  property isLowLight;
+  read: { return f_flags$isLowLight; }
+  
+  /// Value
+  property val;
+  read: { return f_val$value; }
+  
+  /// Value string components property
+  property valStrMulti;
+  read: 
+  {
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+      return EL3C_strMultiGet( $val, c_el3c_unitE, f_flags$valvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $val, c_el3c_unitL, f_flags$valvalid);
+  }
+  
+  /// Value string
+  property valStr;
+  read: { return EL3C_fromStrMulti( $valStrMulti ); }
+  
+  /// Original value
+  property valOrg;
+  read: { return f_valOrg$value; }
+  
+  /// Value string components property
+  property valOrgStrMulti;
+  read: 
+  {
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+      return EL3C_strMultiGet( $valOrg, c_el3c_unitE, f_flags$valOrgvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $valOrg, c_el3c_unitL, f_flags$valOrgvalid);
+  }
+  
+  /// Value string
+  property valOrgStr;
+  read: { return EL3C_fromStrMulti( $valOrgStrMulti ); }
+  
+  /// Pulsation (Modulation) coefficient, in %
+  property kp;
+  read: { return f_kp$value; }
+  
+  /// pulsation string components
+  property kpStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kp, c_el3c_unitP, f_flags$kpvalid ); }
+  
+  /// pulsation string
+  property kpStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpStrMulti ); }  
+  
+  /// Original Pulsation (Modulation) coefficient, in %
+  property kpOrg;
+  read: { return f_kpOrg$value; }
+  
+  /// pulsation string components
+  property kpOrgStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpOrg, c_el3c_unitP, f_flags$kpOrgvalid ); }
+  
+  /// pulsation string
+  property kpOrgStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpOrgStrMulti ); }    
+  
+  /// Pulsation (Integral) coefficient, in %
+  property kpi;
+  read: { return f_kpi$value; }
+  
+  /// pulsation string components
+  property kpiStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpi, c_el3c_unitP, f_flags$kpivalid ); }
+  
+  /// pulsation string
+  property kpiStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpiStrMulti ); }  
+  
+  /// Original Pulsation (Integral) coefficient, in %
+  property kpiOrg;
+  read: { return f_kpiOrg$value; }
+  
+  /// pulsation string components
+  property kpiOrgStrMulti;
+  read: {  return EL3C_strMultiNoMulPartGet( $kpiOrg, c_el3c_unitP, f_flags$kpiOrgvalid ); }
+  
+  /// pulsation string
+  property kpiOrgStr;
+  read: { return EL3C_fromStrMultiNoMulPart( $kpiOrgStrMulti ); }  
+  
+  /// Measured Background value
+  property valBgnd;
+  read: { return f_bgnd$value; }
+  
+  /// Value string components property
+  property valBgndStrMulti;
+  read: 
+  {
+    if( EL3C_OpMode$$Illuminance == f_flags$opmode )  
+      return EL3C_strMultiGet( $valBgnd, c_el3c_unitE, f_flags$valBgndvalid);
+    else if( EL3C_OpMode$$Luminance == f_flags$opmode )
+      return EL3C_strMultiGet( $valBgnd, c_el3c_unitL, f_flags$valBgndvalid);
+  }
+  
+  /// Value string
+  property valBgndStr;
+  read: { return EL3C_fromStrMulti( $valBgndStrMulti ); } 
+  
+  /// CIE x component
+  property cie_x;
+  read: { return f_x$value; }
+  
+  /// Value string
+  property cie_xStr;
+  read: { return EL3C_CieValueFmt($cie_x, f_flags$xyvalid); }
+  
+  /// Value string components property
+  property cie_xStrMulti;
+  read: 
+  var result = []; 
+  { 
+    result += $cie_xStr;
+    return result; 
+  }
+  
+  /// CIE y component
+  property cie_y;
+  read: { return f_y$value; }
+  
+  /// Value string
+  property cie_yStr;
+  read: { return EL3C_CieValueFmt($cie_y, f_flags$xyvalid); }
+  
+  /// Value string components property
+  property cie_yStrMulti;
+  read: 
+  var result = []; 
+  { 
+    result += $cie_yStr;
+    return result; 
+  }
+  
+  /// Correlated color temperature in K
+  property cct;
+  read: { return f_ct$value; }
+  
+  /// Value string components property
+  property cctStrMulti;
+  read: { return EL3C_strMultiNoMulPartGet($cct, c_el3c_unitCT, f_flags$ctvalid); } 
+  
+  /// Value string
+  property cctStr;
+  read: { return EL3C_fromStrMultiNoMulPart($cctStrMulti); }
+  
+  /// Background integration (exposure) interval
+  property bgndExp;
+  read: { return f_bgndTmo$value; }
+  
+  /// Background integration ETA
+  property bgndEta;  
+  read: { return f_bgndEta$value; }
+    
+  /// Overall validation checking
+  property valid;
+  read:
+  {
+    if( !f_flags$isBgndTrimming )
+    {
+      // In this mode we require just value to be valid, at least
+      return f_flags$valvalid;      
+    }
+    else
+    {
+      return 0 == f_bgndEta &&
+        f_flags$valvalid &&
+        f_flags$valOrgvalid &&
+        f_flags$valBgndvalid &&
+        f_flags$bgndExpvalid;
+    }
+  }
+  
+  /// Parsed Flags properties delegation
+  ///
+  
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return f_flags$opmode; } 
+  
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return f_flags$opmodeStr; } 
+  
+  /// Return sanitized opmode modifier
+  property opmodeModifier;
+  read: { return f_flags$opmodeModifier; }
+  
+  /// Return sanitized opmode modifier string
+  property opmodeModifierStr;
+  read: { return f_flags$opmodeModifierStr; }
+  
+  /// Return true if opmode contains BgndTrim modifier
+  property isBgndTrimming;
+  read: { return f_flags$isBgndTrimming; }
+  
+  /// Return true if opmode contains Autonomous modifier
+  property isAutonomous;
+  read: { return f_flags$isAutonomous; }
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags$dataState; }
+  
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return f_flags$dataStateStr; } 
+  
+  /// Return data validity flags
+  ///
+  property valvalid;
+  read: { return f_flags$valvalid; }
+  
+  property valOrgvalid;
+  read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$valOrgvalid; 
+  }
+  
+  property kpvalid;
+  read: { return f_flags$kpvalid; }
+  
+  property kpOrgvalid;
+  read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$kpOrgvalid; 
+  }
+  
+  property kpivalid;
+  read: { return f_flags$kpivalid; }
+  
+  property kpiOrgvalid;
+  read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$kpiOrgvalid; 
+  }
+  
+  property valBgndvalid;
+  read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$valBgndvalid; 
+  }
+  
+  property bgndExpvalid;
+  read: { 
+    return f_flags$isBgndTrimming && 
+      0 == f_bgndEta &&
+      f_flags$bgndExpvalid; 
+  }
+  
+  property xyvalid;
+  read: { return f_flags$xyvalid; }
+
+  property cie_xvalid;
+  read: { return f_flags$xyvalid; }
+
+  property cie_yvalid;
+  read: { return f_flags$xyvalid; }
+  
+   property ctvalid;
+  read: { return f_flags$ctvalid; }  
+}
+
+/// Raw data structure, used in calibration process
+///
+object EL3C_RawData
+{
+  var m_hwCfgCustom;
+  
+  EL3C_Health f_errors; ///< Device error flags
+  esF   f_val;          ///< Measured raw value (either illuminance or luminance, depending on mode flag)
+  esF   f_kp;           ///< Pulsation coefficient, in %
+  esF   f_kpi;          ///< Integral pulsation coefficient, in %
+  esU32 f_cntAnl;       ///< How many input points were used in clear sensor data calculation
+  
+  if( 
+    !m_hwCfgCustom#isEmpty() && 
+    (m_hwCfgCustom & EL3C_HwCfgCustom$$OPT3001) 
+  )
+  {
+    esF   f_valDig;     ///< Digital sensor data
+    esU32 f_cntDig;     ///< How many input points were used to calculate digital node   
+
+    function asString()
+    {
+      return "<B><U>Fast sensor:</U></B><UL><LI><B>Val:</B> " + EsStr::format("%0.2f", propertyGet("val")) +
+        "</LI><LI><B>K<SUB>p</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kp")) + 
+        "</LI><LI><B>K<SUB>pi</SUB>:</B> " + EsStr::format("%0.1f", propertyGet("kpi")) + 
+        "</LI><LI><B>Cnt:</B> " + propertyGet("cntAnl") + 
+        "</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>C:</B> " + propertyGet("valDig") + 
+        "</LI><LI><B>Cnt:</B> " + propertyGet("cntDig") +
+        "</LI></UL>";
+    }
+
+    /// Measured digital sensor value
+    property valDig;
+    read: { return f_valDig$value; }
+    
+    /// How many input points were used in digital sensor data calculation
+    property cntDig;
+    read: { return f_cntDig$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_valDig < 4 || f_val < 10; }        
+  }
+  else if( 
+    !m_hwCfgCustom#isEmpty() && 
+    (
+      0 == m_hwCfgCustom || 
+      (m_hwCfgCustom & EL3C_HwCfgCustom$$MAX4400)
+    )
+  ) //< Either no digital sensor flags, or MAX is specified
+  {
+    esF   f_c;            ///< Clear channel of color sensor
+    esF   f_r;            ///< Red channel of color sensor
+    esF   f_g;            ///< Green channel of color sensor
+    esF   f_b;            ///< Blue channel of color sensor
+    esU16 f_att;          ///< Currently used attenuation value 1|4|16|256
+    esU16 f_cntColor;     ///< How many input points were used to calculate color node  
+
+    function asString()
+    {
+      return EsStr::format(
+        "<B><U>Fast sensor:</U></B><UL><LI><B>Val:</B> %0.2f</LI><LI><B>K<SUB>p</SUB>:</B> %0.1f</LI><LI><B>K<SUB>pi</SUB>:</B> %0.1f</LI><LI><B>Cnt:</B> %d</LI></UL><B><U>Slow sensor:</U></B><UL><LI><B>Val:</B> %0.2f</LI><LI><B>Cnt:</B> %d</LI></UL>",
+        propertyGet("val"),
+        propertyGet("kp"),
+        propertyGet("kpi"),
+        propertyGet("cntAnl"),
+        propertyGet("valDig"),
+        propertyGet("cntDig")
+      );    
+    }
+
+    /// Clear channel of color sensor
+    property white;
+    read: { return f_c$value; }
+    /// Red channel of color sensor
+    property red;
+    read: { return f_r$value; }
+    /// Green channel of color sensor
+    property green;
+    read: { return f_g$value; }            
+    /// Blue channel of color sensor
+    property blue;
+    read: { return f_b$value; }            
+    /// Currently used attenuation value 1|4|16|256
+    property att;
+    read: { return f_att$value; }
+    /// How many input points were used to calculate color node          
+    property cntColor;
+    read: { return f_cntColor$value; }
+    
+    /// Low light checking
+    property isLowLight;
+    read: { return f_c < 2000 || f_val < 10; }
+    
+    /// Compatibility properties
+    property valDig;
+    read: { return $white; }    
+
+    property cntDig;
+    read: { return $cntColor; }    
+  }
+  
+  new()
+  {
+    m_hwCfgCustom = 0;
+  }
+
+  new(hwCfgCustom)
+  {
+    m_hwCfgCustom = hwCfgCustom;
+  }
+
+  /// Calibration framework-specific interface allowing unified access to raw or calibrated data
+  /// dataKind parameter has meaning for raw data only, so live calibrated data objects may just ignore it
+  ///
+  function valueGet(dataType, dataKind)
+  var result;
+  {
+    EsScriptDebug::log(
+      "EL3C_RawData::valueGet(dataType=%s, dataKind=%s)",
+      dataType#trace(),
+      dataKind#trace()
+    );
+  
+    if( dataType in [EsDataType$$Illuminance, EsDataType$$Luminance] )
+    {
+      if( EsCalibrationNodeKind$$Fast == dataKind )
+        result = this$val;
+      else if( EsCalibrationNodeKind$$Slow == dataKind ) 
+        result = this$valDig;
+    }
+    else if( 
+      dataType == EsDataType$$Flicker && 
+      EsCalibrationNodeKind$$Fast == dataKind 
+    )
+      result = this$kpi;
+      
+    EsScriptDebug::log(
+      " ..result->%s",
+      result#trace()
+    );
+    
+    return result;
+  }
+  
+  function valueStrGet(dataType, dataKind)
+  var val = valueGet(dataType, dataKind);
+  {
+    if(val#isEmpty() )
+      return "";
+      
+    return val#asString();
+  }  
+
+  /// Data access properties
+  ///
+  /// System error flags
+  property errors;
+  read: { return f_errors; }
+  /// Measured analog sensor value
+  property val;
+  read: { return f_val$value; }
+  /// Pulsation (modulation) coefficient, in % 
+  property kp;
+  read: { return f_kp$value; }
+  /// Pulsation (integral) coefficient, in %           
+  property kpi;
+  read: { return f_kpi$value; }
+  /// How many input points were used in analog sensor data calculation
+  property cntAnl;
+  read: { return f_cntAnl$value; }
+}

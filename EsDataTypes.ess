@@ -1,0 +1,262 @@
+/// Database of known|supported device data types && conversion utilities
+///
+
+/// Units database
+##require("esDataUnitsDb.ess");
+
+/// Custom units conversion functions
+///
+##require("dataTypeConverters/temperature.ess");
+
+/// Category checking
+/// 
+function dataTypeCategoryCheck(category)
+{
+  if( category in EsDataTypeCategory )
+    return;
+    
+  throw I"Unknown data type category";
+}
+
+/// Categorized data types DB
+///
+function dataTypesByCategory( category )
+{
+  dataTypeCategoryCheck( category );
+  
+  return c_dataTypesByCategory[category];
+} 
+
+function dataTypeNamesGet(types)
+var type, typeNames = [];
+{
+  foreach(type in types)
+  {
+    if( !(type in EsDataType) )
+      throw EsStr::format(
+        I"Type %s in not a known Data Type",
+        type#trace()
+      );
+    
+    typeNames += EsDataType.valueLabelGet(type);
+  }
+  
+  return typeNames;
+}
+
+/// Return data type name
+///
+function dataTypeNameGet(type)
+{
+  if( !(type in EsDataType) )
+    return I"Unknown data type";
+    
+  return EsDataType.valueLabelGet(type);
+}
+
+/// Check data type validity
+///
+function dataTypeCheck(type)
+{
+  if( !(type in EsDataType) )
+    throw EsStr::format(
+      I"Unknown data type value %d",
+      type
+    );
+}
+
+/// Data Units indexed by Data Type
+///
+function dataUnitsByDataType(type)
+{
+  dataTypeCheck(type);
+  
+  switch(type)
+  {
+  case EsDataType$$Illuminance:
+    return [
+      EsDataUnits$$Lux
+    ];
+  case EsDataType$$Luminance:
+    return [
+      EsDataUnits$$Cd_M2,
+      EsDataUnits$$Nit,
+      EsDataUnits$$Stilb,
+      EsDataUnits$$Lambert
+    ];
+  case EsDataType$$Flicker:
+    return [
+      EsDataUnits$$Percent
+    ];
+  case EsDataType$$CIE1931XYZ:
+    return [
+      
+    ];
+  case EsDataType$$ColorTemp:
+    return [
+      EsDataUnits$$Kelvin
+    ];
+  case EsDataType$$Percent:
+    return [
+      EsDataUnits$$Percent
+    ];
+  case EsDataType$$Time:
+    return [
+      EsDataUnits$$Day,
+      EsDataUnits$$Hour,
+      EsDataUnits$$Minute,
+      EsDataUnits$$Second
+    ];
+  case EsDataType$$Length:
+    return [
+    ];
+  case EsDataType$$Temperature:
+    return [
+      EsDataUnits$$Celcius,
+      EsDataUnits$$Fahrenheit,
+      EsDataUnits$$Kelvin
+    ];
+  case EsDataType$$AbsorbedRadiationDose:
+    return [
+      EsDataUnits$$Rad,
+      EsDataUnits$$Gray
+    ];
+  case EsDataType$$DoseEquivalentRate:
+    return [
+      EsDataUnits$$Sievert,
+      EsDataUnits$$Rem,
+      EsDataUnits$$QuartaRoentgen
+    ];
+  case EsDataType$$RadiationExposureDose:
+    return [
+      EsDataUnits$$Roentgen,
+      EsDataUnits$$Coulomb_kg
+    ];
+  }
+}  
+
+/// Check if data unit is known
+///
+function dataUnitCheck(unit)
+{
+  if( !(unit in EsDataUnits) )
+    throw EsStr::format(
+      I"Unknown data unit %d",
+      unit
+    );
+}
+
+/// Units data elements access
+///
+function dataUnitConversionsGet(unit)
+{
+  dataUnitCheck(unit);
+  
+  return c_dataUnitsDb[unit][0];
+}
+
+function dataUnitPowersGet(unit)
+{
+  dataUnitCheck(unit);
+  
+  return c_dataUnitsDb[unit][1];
+}
+
+/// Return unit label block by unit ID and multiplier
+/// If block may not be found by multiplier, return a
+/// label block for a base unit multiplier.
+///
+function dataUnitLabelsByMultiplierGet(unit, multiplier)
+var pwrElt, pwrElts = dataUnitPowersGet(unit);
+{
+  foreach( pwrElt in pwrElts )
+  {
+    if( 
+      EsMath::areEqualFloats(
+        pwrElt[1],
+        multiplier
+      )
+    )
+      return pwrElt[0];
+  }
+
+  return pwrElts[0][0];
+}
+
+/// Return unit label and multiplier block by unit ID and multiplier
+/// If block may not be found by multiplier, return a
+///  block with a base unit multiplier.
+///
+function dataUnitLabelAndMulBlock(unit, multiplier)
+var pwrElt, pwrElts = dataUnitPowersGet(unit);
+{
+  foreach( pwrElt in pwrElts )
+  {
+    if( 
+      EsMath::areEqualFloats(
+        pwrElt[1],
+        multiplier
+      )
+    )
+      return pwrElt;
+  }
+  
+  return pwrElts[0];
+}
+
+
+/// Short-long labels access
+///
+function dataUnitLabelLongGet(unit, multiplier)
+{
+  return EsStr::translate( 
+    dataUnitLabelsByMultiplierGet(
+      unit,
+      multiplier
+    )[0] 
+  );
+}
+
+function dataUnitLabelShortGet(unit, multiplier)
+{
+  return EsStr::translate(
+    dataUnitLabelsByMultiplierGet(
+      unit,
+      multiplier
+    )[1]
+  );
+}
+
+/// Conversion between base units
+///
+function dataUnitBaseConvert(val, unitFrom, unitTo)
+var conv, convToBlock;
+{
+  if( unitFrom == unitTo )
+    return val;
+
+  dataUnitCheck(unitTo);
+  convToBlock = dataUnitConversionsGet(unitFrom);
+
+  // Check if unitTo is convertible from unitFrom
+  foreach(conv in convToBlock)
+  {
+    if( conv[0] == unitTo )
+    {
+      if( conv[1]#isNumeric() )
+        return val*conv[1];
+      else //< Consider conv[1] is a name of custom converter method name
+        return __scriptHost.call(
+          conv[1],
+          val
+        );
+    }
+  }
+
+  // Conversion-to is not found - throw an exception
+  throw EsStr::format(
+    I"Unit %s is not convertible from unit %s",
+    EsDataUnits.valueLabelGet(unitTo),
+    EsDataUnits.valueLabelGet(unitFrom)
+  );
+}

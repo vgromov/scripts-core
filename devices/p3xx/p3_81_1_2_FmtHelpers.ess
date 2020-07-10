@@ -1,0 +1,22 @@
+/// P3_81_1_2 data formatting helpers
+///
+
+// Value formatters
+//
+// A/m to mkT convertion
+const c_p3_81xx_am2mktl = 1.2566371;
+// P3_81xx units
+const c_p3_81xx_unitsB = ["mkT", "mT", "T"];
+const c_p3_81xx_unitsH = ["A/m", "kA/m", "MA/m"];
+
+/// Value formatters
+///
+function P3_81_1_2_am2mkt( val )
+{
+	return val*c_p3_81xx_am2mktl;
+}
+
+function P3_81_1_2_fromStrMulti( multi )
+{
+	return multi[1] + " " + multi[2];
+}

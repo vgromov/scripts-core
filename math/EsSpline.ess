@@ -1,0 +1,345 @@
+##require("../math.ess");
+
+/// Spline structure data && methods
+///
+/// Spline node
+object EsSplineNode
+{
+  esF f_x;  ///< Spline interval start
+  esF f_a;  ///< pow 0
+  esF f_b;  ///< pow 1
+  esF f_c;  ///< pow 2
+  esF f_d;  ///< pow 3
+  
+  /// Initializing constructor
+  new(x, a, b, c, d)
+  {
+    f_x = x$value;
+    f_a = a$value;
+    f_b = b$value;
+    f_c = c$value;
+    f_d = d$value;
+  }
+  
+  /// Calculate spline value for specified x
+  function calculate(x)
+  var delta;
+  {
+    delta = (x - f_x);
+    return f_a + (f_b + (f_c + f_d * delta) * delta) * delta;  
+  }
+  
+  /// Data access
+  property x;
+  read: { return f_x$value; }
+  write: { f_x = __value; }
+
+  property a;
+  read: { return f_a$value; }
+  write: { f_a = __value; }
+  
+  property b;
+  read: { return f_b$value; }
+  write: { f_b = __value; }
+  
+  property c;
+  read: { return f_c$value; }
+  write: { f_c = __value; }
+  
+  property d;
+  read: { return f_d$value; }
+  write: { f_d = __value; }
+}
+
+///---------------------------------------------------------------------
+/// Spline object without embedded CRC field
+///
+object EsSplineNoCrc
+{
+  var m_maxLen;
+  
+  esU16 f_cnt;
+  EsSplineNode f_nodes[f_cnt];
+    
+  /// Default constructor  
+  new()
+  {
+    EsScriptDebug::log("EsSplineNoCrc::new()");
+  
+    m_maxLen = 65535;
+  }  
+    
+  /// Constructor taking max length value as parameter
+  new(maxLen)
+  {
+    EsScriptDebug::log(
+      "EsSplineNoCrc::new(maxLen=%s)",
+      maxLen#trace()
+    );
+    
+    m_maxLen = maxLen;
+  }    
+  
+  /// Return true if spline contains at least 1 node
+  function isEmpty()
+  {
+    return 0 == f_cnt;    
+  }
+  
+  /// Return true if spline is valid (non empty and nodes are sorted)
+  function isValid()
+  var node, prevX;
+  {
+    if( !isEmpty() )
+    {
+      foreach(node in f_nodes)
+      {
+        if( !prevX#isEmpty() && node.f_x < prevX )
+          return false;
+        else
+          prevX = node.f_x;
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /// Check len against maximum length restriction
+  function maxLenCheck(len)
+  {
+    if( m_maxLen#isEmpty() ) //< May happen during implicit creation from stream with dynamic layout objects
+      return;
+    
+    if( len > m_maxLen )
+      throw EsStr::format(I"Spline length must not exceed %u, requested %u", m_maxLen, len);
+  }
+  
+  /// Check node object is valid, does not have the same x as an existing one
+  function nodeCheck(node)
+  var lnode;
+  {
+    if( node#isEmpty() || !node.isKindOk("EsSplineNode") )
+      throw I"Node object is empty or of incompatible type";
+      
+    foreach(lnode in f_nodes)
+    {
+      if( EsUtils::areEqualFloats(node.f_x, lnode.f_x) )
+        throw I"Node with specified x already exists within spline";
+    }
+  }
+  
+  /// Set new nodes count with length checking
+  function countSet(newCount)
+  { 
+    if( newCount#isEmpty() )
+      newCount = 0;
+      
+    maxLenCheck(newCount);
+  
+    f_cnt = newCount;
+  }
+  
+  /// Return node at index
+  function nodeGet(idx)
+  var node;
+  {
+    node = f_nodes[idx];
+    return node.clone();
+  }
+  
+  /// Set new spline node data at specified index
+  function nodeSet(idx, node)
+  {
+    nodeCheck(node);
+    
+    f_nodes[idx].copyFrom(node);
+  }
+
+  /// Set new spline node data at specified index
+  function nodeSet(idx, x, a, b, c, d)
+  var node = f_nodes[idx];
+  {
+    node$x = x;
+    node$a = a;
+    node$b = b;
+    node$c = c;
+    node$d = d;
+  }
+  
+  /// Find corresponding spline node by argument value
+  /// If spline is empty, or node is not found, empty value is returned
+  /// Otherwise, result is the found node object.
+  ///
+  function nodeFind(x)
+  var node, left, mid, right;
+  {
+    if( !isEmpty() )
+    {
+      node = f_nodes[0];
+      if( x <= node.f_x) //< use the first node, if x is out of range left-wise
+        return node;
+      else
+      {
+        node = f_nodes[f_cnt - 1];
+        if(x >= node.f_x) //< use the last node, if x is out of range right-wise
+          return node;
+        else
+        {
+          // Binary search in the [ x[0], ..., x[n-2] ] last element is excluded, it should be returned by 'if' above 
+          left = 0;
+          right = f_cnt-1;
+          while( left != right-1 )
+          {
+            mid = (left+right)/2;
+            if( f_nodes[mid].f_x >= x )
+              right = mid;
+            else
+              left = mid;
+          }
+      
+          node = f_nodes[left];
+        }
+      }
+    }
+    
+    return node;    
+  }
+  
+  /// Calculate spline value for specified argument
+  /// If spline is empty - null is returned
+  function calculate(x)
+  var node = nodeFind(x);
+  {
+    if( !node#isEmpty() )
+      return node.calculate(x);
+  }
+  
+  // Assign EsMathSpline nodes collection to EsSpline object
+  function fromMathNodes(nodes)
+  var node, idx = 0;
+  {
+    if( nodes#isEmpty() )
+      countSet(0);
+    else
+    {  
+      countSet( nodes#countGet() );
+      
+      foreach(node in nodes)
+        nodeSet(idx++, node[0], node[2], node[3], node[4], node[5]);
+    }
+  }
+  
+  /// Properties
+  ///
+  
+  /// Spline node collection max length restriction
+  property maxLen;
+  read: { return m_maxLen; }
+  write: 
+  {
+    if( !(__value in [2 .. 65535]) )
+      throw EsStr::format(I"Spline collection maximum length %d is out of [2..65536] range", __value);
+      
+    m_maxLen = __value;  
+    if( f_cnt > m_maxLen )
+      f_cnt = m_maxLen;
+  }
+  
+  /// Validity check
+  property valid;
+  read: { return isValid(); }
+  
+  /// Access nodes count
+  property cnt;
+  read: { return f_cnt$value; }
+  write: { countSet(__value); }
+
+  /// Read-only nodes access
+  property nodes;
+  read: { return f_nodes; }
+}
+
+///---------------------------------------------------------------------
+/// Spline with CRC support
+///
+object EsSpline extends EsSplineNoCrc
+{
+  var m_crcInvalid;
+  esU8 f_crc;
+    
+  /// Default constructor  
+  new()
+  {
+    EsSplineNoCrc::new();
+    m_crcInvalid = false;
+  }  
+    
+  /// Constructor taking max length value as parameter
+  new(maxLen)
+  {
+    EsSplineNoCrc::new(maxLen);
+    m_crcInvalid = false;
+  }    
+    
+  /// CRC8 calculator  
+  function crcCalc()
+  var crc = new EsCRC8(f_cnt#asBinBuffer(), 0xAB);
+  {
+    if( f_cnt$value > 0 )
+      crc.update(f_nodes#asBinBuffer());
+    
+    return crc;
+  }
+  
+  /// Calculate CRC8 and update f_crc field
+  function crcUpdate()
+  {
+    if( m_crcInvalid )
+    {
+      f_crc = crcCalc()$value;
+      m_crcInvalid = false;
+    }
+  }
+
+  /// Set new nodes count with length checking
+  function countSet(newCount)
+  {
+    EsSplineNoCrc::countSet(newCount);
+    m_crcInvalid = true;
+  }
+  
+  /// Set new spline node data at specified index
+  function nodeSet(idx, node)
+  {
+    EsSplineNoCrc::nodeSet(idx, node);
+    m_crcInvalid = true;
+  }
+
+  /// Set new spline node data at specified index
+  function nodeSet(idx, x, a, b, c, d)
+  {
+    EsSplineNoCrc::nodeSet(idx, x, a, b, c, d);
+    m_crcInvalid = true;
+  }
+
+  /// Properties
+  ///
+  
+  /// Calculate and return crc8 of spline data
+  property crc;
+  read: 
+  { 
+    crcUpdate();
+    return f_crc$value; 
+  }
+  
+  /// Return true if spline crc is OK
+  property crcIsOk;
+  read: 
+  var crc = new EsCRC8(f_crc#asBinBuffer(), f_crc$value);
+  { 
+    return 0 == crc$value; 
+  }
+}

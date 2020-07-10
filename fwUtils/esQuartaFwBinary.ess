@@ -1,0 +1,99 @@
+// Quarta user firmware part binary format
+//
+object EsQuartaFwBinary
+{
+  var 
+    m_data,
+    m_offsId,
+    m_descr,
+    m_id;
+  
+  // misc checks
+  function emptyCheck()
+  {
+    if( m_data#isEmpty() )
+      throw EsStr::translate(
+        I"Firmware image is empty"
+      );
+  }
+  
+  function fwOffsAndSizeCheck(offs, size)
+  var thisSize = m_data#countGet();
+  {
+    if( thisSize <= offs )
+      throw EsStr::format(
+        EsStr::translate(
+          I"The specified data offset '%d' is too big for firmware image size '%d'"
+        ),
+        offs, 
+        thisSize
+      );
+    
+    if( thisSize < offs+size )
+      throw EsStr::format(
+        EsStr::translate(
+          I"The data chunk with size '%d' and offset '%d' does not fit firmware image size '%d'"
+        ),
+        size, 
+        offs, 
+        thisSize
+      );
+  }
+
+  function fwIdExtract(typeExpected)
+  var idx, id;
+  {
+    emptyCheck();
+
+    id = new EsFirmwareId(typeExpected);
+
+    fwOffsAndSizeCheck(
+      m_offsId, 
+      id$size
+    );  
+  
+    id$buffer = m_data#sliceGet(
+      m_offsId, 
+      m_offsId+id$size
+    );
+
+    fwIdValidate(
+      id, 
+      typeExpected, 
+      m_descr
+    );
+
+    return id;
+  }
+
+  new(hexData, typeExpected, offsId, descr)
+  {
+    m_data = EsStr::hexToBin(hexData);
+
+    m_offsId = offsId#asULong();
+    m_descr = descr;
+
+    m_id = fwIdExtract(typeExpected);
+  }
+
+  property description;
+  read: { return m_descr#asString(); }
+
+  property binaryData;
+  read: { return m_data#asBinBuffer(); }
+
+  property byteSize;
+  read: { return m_data#countGet(); }
+
+  property firmwareId;
+  read: { return m_id.clone(); }
+
+  property deviceType;
+  read: { return m_id$deviceType; }
+
+  property versionMajor;
+  read: { return m_id$version$major; }
+
+  property versionMinor;
+  read: { return m_id$version$minor; }
+}

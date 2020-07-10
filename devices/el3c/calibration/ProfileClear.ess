@@ -1,0 +1,128 @@
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("ProfileClearNode.ess");
+
+/// Clear calibration profile object
+///
+object EL3C_ClearCalibrationProfile extends EsCalibrationProfileBase
+{
+  // Overridables
+  //
+  // canAppendNode(dataType)                                        : Highly recommended  
+  // profileNodeCreate( dataType, refVal, deviation )               : Mandatory
+  // profileNodeCreateNew( dataType )                               : Mandatory
+  // defaultNodesCreate( dataType )                                 : Optional
+  // isOkGet()                                                      : Mandatory
+  // isComplete( dataType )                                         : Mandatory
+  // completenessCriterionGet( dataType )                           : Mandatory  
+  //
+  
+  function canAppendNode(dataType)
+  {
+    EsCalibrationProfileBase::canAppendNode(dataType);
+    
+    return nodesCountGet(dataType) < c_EL3C_MaxCalibrationNodesCnt;
+  }
+
+  function profileNodeCreate( dataType, refVal, deviation )
+  {
+    EsCalibrationProfileBase::profileNodeCreate( 
+      dataType, 
+      refVal, 
+      deviation
+    );
+
+    return new EL3C_ClearProfileNode(
+      refVal, 
+      deviation
+    );
+  }
+  
+  function profileNodeCreateNew( dataType )
+  {
+    return profileNodeCreate(
+      dataType,
+      0.,
+      0.01
+    );
+  }
+
+  // Internal helper. Create default node collection contents
+  function defaultNodesCreate( dataType )
+  var nodes = [];
+  {
+    EsScriptDebug::log(
+      "EL3C_ClearCalibrationProfile::defaultNodesCreate( dataType=%s )",
+      dataType#trace()
+    );
+  
+    EsCalibrationProfileBase::defaultNodesCreate( dataType );
+
+    if( dataType in [EsDataType$$Illuminance .. EsDataType$$Flicker] )
+    {
+      nodes += profileNodeCreate(
+        dataType,
+        0, 
+        0.1
+      );
+
+      nodes[0].m_system = true;
+    }
+
+    if( EsDataType$$Flicker == dataType )
+    {
+      // Flicker will always have 2 system points - 0 and 100%
+      nodes += profileNodeCreate(
+        dataType,
+        100, 
+        0.1
+      );
+      nodes[1].m_system = true;
+    }
+    
+    m_nodes.valueSet(
+      dataType,
+      nodes
+    );
+  }
+  
+  function isOkGet()
+  { 
+    return  0 < nodesCountGet( EsDataType$$Illuminance ) && 
+            0 < nodesCountGet( EsDataType$$Luminance ) && 
+            0 < nodesCountGet( EsDataType$$Flicker );
+  }
+  
+  function isComplete( dataType )
+  {
+    EsCalibrationProfileBase::isComplete(dataType);
+    
+    return 2 <= nodesCountGet( dataType );
+  }
+  
+  function completenessCriterionGet( dataType )
+  {
+    EsCalibrationProfileBase::completenessCriterionGet( dataType );
+    
+    return EsStr::format(
+      I"Valid Calibration profile for '%s' should have at least two reference nodes set.",
+      dataTypeNameGet(dataType)
+    );
+  }    
+  
+  new(name)
+  {
+    EsScriptDebug::log(
+      "EL3C_ClearCalibrationProfile::new(name=%s)",
+      name#trace()
+    );
+  
+    EsCalibrationProfileBase::new(
+      EsDeviceType$$EL3C, 
+      [EsDataType$$Illuminance, EsDataType$$Luminance, EsDataType$$Flicker], 
+      name
+    );
+    
+    defaultNodesInit();
+  }
+}
+//-----------------------------------------------------------------------------

@@ -1,0 +1,1024 @@
+
+/// FTxxxx MPSSE script test.
+/// Interfacing the AS7261 device on I2C bus.
+///
+
+enum AS7261_Mode
+{
+  XYZ_NIR       = 0, "Continuous: X, Y, Z, NIR";
+  XYDC          = 1, "Continuous: X, Y, D, C";
+  XYZ_NIR_DC    = 2, "Continuous: X, Y, Z, NIR, D and C";
+  OneShot       = 3, "One-Shot";
+}
+
+object AS7261_Control
+{
+  esU8 f_raw;
+  
+  function asString()
+  var str = [];
+  {
+    if( this$gainError )
+      str += "Gain error";
+    if( this$intOutput )
+      str += "DataReady Pin";
+    str += "Gain: " + this$gain#asString();
+    str += "Mode: " + AS7261_Mode.valueLabelGet( this$workmode );
+    if( this$dataReady )
+      str += "DataReady";
+    
+    return EsStr::fromArray(
+      str, 
+      ", ", 
+      "[", 
+      "]"
+    );
+  }
+
+  property reset;
+  write: { 
+    if(__value) 
+      f_raw |= 0x80;
+    else
+      f_raw &= ~0x80;
+  }
+
+  property gainError;
+  read: { return 0x80 == (f_raw & 0x80); }
+
+  property intOutput;
+  read: { return 0x40 == (f_raw & 0x40); }
+  write: {  
+    if(__value)
+      f_raw |= 0x40;
+    else
+      f_raw &= ~0x40;
+  }
+
+  property gain;
+  @lookup = [1, 3.7, 16, 64];
+  @default = 16;
+  read: { return EsVar::asDouble( @lookup[ (f_raw & 0x30) >> 4 ] ); }
+  write: var idx; {
+    f_raw &= ~0x30; //< Cleanup gain bits
+    for(idx = 0; idx < EsVar::countGet(@lookup); ++idx)
+    {
+      if( EsMath::areEqualFloats(__value, @lookup[idx]) )
+      {
+        f_raw |= (idx << 4);
+        return;
+      }
+    }
+    f_raw |= 0x20;
+  }
+
+  property workmode;
+  @restriction = AS7261_Mode;
+  @default = AS7261_Mode$$XYZ_NIR_DC;
+  read: { return (f_raw & 0x0C) >> 2; }
+  write: {
+    f_raw &= 0x0C;
+    if( __value in AS7261_Mode )
+      f_raw |= (__value << 2);
+    else
+      f_raw |= (@default << 2);
+  }
+
+  property dataReady;
+  read: { return 0x02 == (f_raw & 0x02); }
+  write: {
+    if( __value )
+      f_raw |= 0x02;
+    else
+      f_raw &= ~0x02;
+  }
+
+  property factoryReset;
+  write: {
+    if( __value )
+      f_raw |= 0x01;
+    else
+      f_raw &= ~0x01;
+  }
+}
+
+enum AS7261_LedDrvCurrent {
+  _12_5 = 0, "12.5 mA";
+  _25   = 1, "25 mA";
+  _50   = 2, "50 mA";
+  _100  = 3, "100 mA";
+}
+
+enum AS7261_LedIndCurrent {
+  _1    = 0, "1 mA";
+  _2    = 1, "2 mA";
+  _4    = 2, "4 mA";
+  _8    = 3, "8 mA";
+}
+
+object AS7261_LedControl
+{
+  esU8 f_raw;
+
+  function asString()
+  var str = [];
+  {
+    if( this$driverEnable )
+      str += "LED Driver enabled";
+    else
+      str += "LED Driver enabled";
+    str += "LED Driv. current: " + AS7261_LedDrvCurrent.valueLabelGet( this$driverCurrentLimit );
+
+    if( this$indicatorEnable )
+      str += "LED Indicator enabled";
+    else
+      str += "LED Indicator disabled";
+    str += "LED Ind. current: " + AS7261_LedIndCurrent.valueLabelGet( this$indicatorCurrentLimit );
+    
+    return EsStr::fromArray(
+      str, 
+      ", ", 
+      "[", 
+      "]"
+    );
+  }
+
+  property driverCurrentLimit;
+  @restriction=AS7261_LedDrvCurrent;
+  read: { return (f_raw & 0x30) >> 4; }
+  write: {
+    if( !(__value in AS7261_LedDrvCurrent) )
+      throw "Invalid LED driving current limit value";
+    
+    f_raw &= ~0x30;
+    f_raw |= (__value & 0x03) << 4;
+  }
+
+  property driverEnable;
+  read: { return 0x08 == (f_raw & 0x08); }
+  write: {
+    f_raw &= ~0x08;
+    if( __value )
+      f_raw |= 0x08;
+  }
+
+  property indicatorCurrentLimit;
+  @restriction=AS7261_LedIndCurrent;
+  read: { return (f_raw & 0x06) >> 1; }
+  write: {
+    if( !(__value in AS7261_LedIndCurrent) )
+      throw "Invalid LED indicator current limit value";
+
+    f_raw &= ~0x06;
+    f_raw |= (__value & 0x03) << 1;
+  }
+
+  property indicatorEnable;
+  read: { return 0x01 == (f_raw & 0x01); }
+  write: {
+    f_raw &= ~0x01;
+    if( __value )
+      f_raw |= 0x01;
+  }
+}
+
+object AS7261
+{
+  var m_regRetries,
+    m_vregRetries,
+    m_bus,
+    m_addr,
+    m_status,
+    m_devType,
+    m_hwVersion,
+    m_fwMajor,
+    m_fwMinor,
+    m_fwSubver,
+    m_ctl,
+    m_intTime,
+    m_temp,
+    m_ledCtl,
+    m_data,
+    m_specint,
+    m_caldata;
+
+  function registerRead(reg)
+  var retries = m_regRetries, buff;
+  {
+    while( retries )
+    {
+      m_bus.write(
+        m_addr,
+        reg#asByte(),
+        EsFtdiMpsseI2cIO$$START_BIT
+      );
+
+      buff = m_bus.read(
+        m_addr,
+        1,
+        EsFtdiMpsseI2cIO$$START_BIT|
+        EsFtdiMpsseI2cIO$$STOP_BIT|
+        EsFtdiMpsseI2cIO$$NACK_LAST_BYTE
+      );
+
+      if( !buff#isEmpty() && 1 == buff#countGet() )
+        break;
+
+      EsThreadWorker::sleep(1);
+      --retries;
+    }
+
+    if( !retries )
+      throw EsStr::format(
+        "Error reading register %0.2d",
+        reg#asByte()
+      );
+
+    return buff#asByte();
+  }
+
+  function registerWrite(reg, data)
+  var written = 0, buff = EsVar::as( EsVariantType$$VAR_BIN_BUFFER );
+  {
+    buff += reg#asByte();
+    buff += data#asByte();
+    written = m_bus.write(
+      m_addr,
+      buff,
+      EsFtdiMpsseI2cIO$$START_BIT|
+      EsFtdiMpsseI2cIO$$STOP_BIT|
+      EsFtdiMpsseI2cIO$$BREAK_ON_NACK
+    );
+
+    if( written != buff#countGet() )
+      throw EsStr::format(
+        "Error writing register %0.2d",
+        reg#asByte()
+      );
+  }
+
+  function statusUpdate()
+  {
+    m_status = registerRead(0);
+//    EsScriptDebug::log("S:%0.2X", m_status);
+  }
+
+  function vregRead(vreg)
+  var retries = m_vregRetries;
+  {
+    while( retries && !this$regwriteValid )
+    {
+      EsThreadWorker::sleep(1);
+      --retries;
+    }
+
+    if( !retries )
+      throw EsStr::format(
+        "Timed out on reading virtual register %0.2X",
+        vreg#asByte()
+      );
+
+    registerWrite(
+      0x01,
+      vreg
+    );
+
+    retries = m_vregRetries;
+    while( retries && !this$regreadValid )
+    {
+      EsThreadWorker::sleep(1);
+      --retries;
+    }
+
+    if( !retries )
+      throw EsStr::format(
+        "Timed out on reading data from virtual register %0.2X",
+        vreg#asByte()
+      );
+
+    return registerRead(
+      0x02
+    );
+  }
+
+  function vregWrite(vreg, data)
+  var retries = m_vregRetries;
+  {
+    while( retries && !this$regwriteValid )
+      --retries;
+
+    if( !retries )
+      throw EsStr::format(
+        "Timed out on virtual register address %0.2X",
+        vreg#asByte()
+      );
+
+    registerWrite(
+      0x01,
+      vreg | 0x80
+    );
+
+    retries = m_vregRetries;
+    while( retries && !this$regwriteValid )
+      --retries;
+
+    if( !retries )
+      throw EsStr::format(
+        "Timed out on writing data to virtual register %0.2X",
+        vreg#asByte()
+      );
+
+    return registerWrite(
+      0x01,
+      data
+    );
+  }
+
+  function uint16vregRead(vreg)
+  var val;
+  {
+    val = vregRead(vreg++)#asULong() << 8;
+    val |= vregRead(vreg)#asULong();
+
+/*    EsScriptDebug::log(
+      "uint16vregRead(%0.2X): %s",
+      vreg-1,
+      val#asBinBuffer()
+    );
+*/
+
+    return val;
+  }
+
+  function uint32vregRead(vreg)
+  var val;
+  {
+    val = vregRead(vreg++)#asULong() << 24;
+    val |= vregRead(vreg++)#asULong() << 16;
+    val |= vregRead(vreg++)#asULong() << 8;
+    val |= vregRead(vreg)#asULong();
+
+/*    EsScriptDebug::log(
+      "uint32vregRead(%0.2X): %s",
+      vreg-3,
+      val#asBinBuffer()
+    );
+*/
+    return val;
+  }
+
+  function floatVregRead(vreg)
+  var buff = B"\0\0\0\0", float = new esF();
+  {
+    buff[3] = vregRead(vreg++);
+    buff[2] = vregRead(vreg++);
+    buff[1] = vregRead(vreg++);
+    buff[0] = vregRead(vreg);
+
+/*   EsScriptDebug::log(
+      "floatVregRead(%0.2X): %s",
+      vreg-3,
+      buff
+    );
+*/
+    float$buffer = buff;
+    return float$value;
+  }
+
+  new()
+  {
+    m_regRetries = 100;
+    m_vregRetries = 1000;
+    m_addr = 0x49;
+    m_ctl = new AS7261_Control();
+    m_ledCtl = new AS7261_LedControl();
+    m_data = [];
+    m_caldata = [];
+  }
+
+  // Operations on known virtual registers
+  function hwVersionUpdate()
+  {
+    if( m_devType#isEmpty() )
+      m_devType = vregRead(0x00);
+    if( m_hwVersion#isEmpty() )
+      m_hwVersion = vregRead(0x01);
+  }
+
+  function fwVersionUpdate()
+  {
+    if( m_fwMajor#isEmpty() )
+    {
+      vregWrite(0x02, 1);
+      m_fwMajor = vregRead(0x02) << 8;
+
+      vregWrite(0x02, 2);
+      m_fwMinor = vregRead(0x02) << 8;
+
+      vregWrite(0x02, 3);
+      m_fwSubver = vregRead(0x02) << 8;
+      
+      vregWrite(0x03, 1);
+      m_fwMajor |= vregRead(0x03);
+
+      vregWrite(0x03, 2);
+      m_fwMinor |= vregRead(0x03);
+
+      vregWrite(0x03, 3);
+      m_fwSubver |= vregRead(0x03);
+    }
+  }
+
+  function controlUpdate()
+  {
+    m_ctl.f_raw = vregRead(0x04);
+    return m_ctl.clone();
+  }
+
+  function integrationTimeUpdate()
+  {
+    m_intTime = vregRead(0x05);
+  }
+
+  function ledControlUpdate()
+  {
+    m_ledCtl.f_raw = vregRead(0x07);
+    return m_ledCtl.clone();
+  }
+
+  function dataUpdate(readCalibrated)
+  {
+    m_data = [];
+    m_specint = 0;
+    m_caldata = [];
+    switch( m_ctl$workmode )
+    {
+    case AS7261_Mode$$XYZ_NIR:
+      {
+        m_data += uint16vregRead(0x08);
+        m_data += uint16vregRead(0x0A);
+        m_data += uint16vregRead(0x0C);
+        m_data += uint16vregRead(0x0E);
+        
+        m_specint = m_data[0]+m_data[1]+m_data[2]+m_data[3];
+      }
+    case AS7261_Mode$$XYDC:
+      {
+        m_data += uint16vregRead(0x08);
+        m_data += uint16vregRead(0x0A);
+        m_data += uint16vregRead(0x10);
+        m_data += uint16vregRead(0x12);
+
+        m_specint = m_data[0]+m_data[1]-2*m_data[2];
+      }
+    case AS7261_Mode$$XYZ_NIR_DC, AS7261_Mode$$OneShot:
+      {
+        m_data += uint16vregRead(0x08);
+        m_data += uint16vregRead(0x0A);
+        m_data += uint16vregRead(0x0C);
+        m_data += uint16vregRead(0x0E);
+        m_data += uint16vregRead(0x10);
+        m_data += uint16vregRead(0x12);
+
+        m_specint = m_data[0]+m_data[1]+m_data[2]+m_data[3]-4.*m_data[4];
+        
+        if( readCalibrated )
+        {
+          m_caldata += floatVregRead(0x14);
+          m_caldata += floatVregRead(0x18);
+          m_caldata += floatVregRead(0x1C);
+          m_caldata += floatVregRead(0x20);
+          m_caldata += floatVregRead(0x24);
+          m_caldata += floatVregRead(0x28);
+          m_caldata += floatVregRead(0x2C);
+          m_caldata += floatVregRead(0x30);
+          m_caldata += floatVregRead(0x34);
+          m_caldata += floatVregRead(0x38);
+          
+          if( m_fwMajor < 12 )
+          {
+            m_caldata += uint32vregRead(0x3C);
+            m_caldata += uint32vregRead(0x40);
+          }
+          else
+          {
+            m_caldata += uint16vregRead(0x3C);
+            m_caldata += uint16vregRead(0x3E);
+          }
+        }
+      }
+    }
+    
+    if( EsMath::areEqualFloats(m_specint, 0) )
+      m_specint = 1;
+
+    return m_data;
+  }
+
+  // Properties
+  property bus;
+  read: { return m_bus; }
+  write: { m_bus = __value; }
+
+  property regreadValid;
+  read: { statusUpdate(); return 0x01 == (m_status & 0x01); }
+
+  property regwriteValid;
+  read: { statusUpdate(); return 0x02 != (m_status & 0x02); }
+
+  property deviceType;
+  read: { hwVersionUpdate(); return m_devType; }
+
+  property hwVersion;
+  read: { hwVersionUpdate(); return m_hwVersion; }
+
+  property fwMajor;
+  read: { fwVersionUpdate(); return m_fwMajor; }
+
+  property fwMinor;
+  read: { fwVersionUpdate(); return m_fwMinor; }
+
+  property fwSubversion;
+  read: { fwVersionUpdate(); return m_fwSubver; }
+
+  property control;
+  read: { return m_ctl; }
+  write: var val = __value#isKindOf("AS7261_Control") ? __value.f_raw : __value;
+  {
+    vregWrite(
+      0x04,
+      val
+    );
+    
+    // If requesting softreset - give device a chance to reboot before
+    // reading anything back
+    //
+    if( val & 0x80 )
+      EsThreadWorker::sleep(500);
+    
+    // If writing to control register - do not read back from it,
+    // Each control read may reset data ready flag, which is vital 
+    // for completion polling operations
+    //
+    m_ctl.f_raw = (val & 0x7F);
+  }
+
+  property ledControl;
+  read: { return m_ledCtl; }
+  write: var val = __value#isKindOf("AS7261_LedControl") ? __value.f_raw : __value; 
+  {
+    vregWrite(
+      0x07,
+      val
+    );
+    ledControlUpdate();
+  }
+
+  property integrationTime;
+  @optimal = 64.;
+  read: { return m_intTime#asDouble() * 2.8; }
+  write: var val = __value / 2.8; 
+  {
+    val = val#asULong();
+
+    if( val > 255 )
+      val = 255;
+    else if( val < 1 )
+      val = 1;
+
+    vregWrite(
+      0x05,
+      val
+    );
+    integrationTimeUpdate();
+  }
+
+  property deviceTemp;
+  read: { return vregRead(0x06); }
+
+  property data;
+  read: { return m_data; }
+
+  property caldata;
+  read: { return m_caldata; }
+
+  // Parsed raw data elements
+  //
+  property xRaw;
+  read: { 
+    if( m_data#countGet() > 0 )
+      return m_data[0];
+    
+    return null;
+  }
+
+  property yRaw;
+  read: { 
+    if( m_data#countGet() > 1 )
+      return m_data[1];
+    
+    return null;
+  }
+
+  property zRaw;
+  read: { 
+    if( m_ctl$workmode != AS7261_Mode$$XYDC && m_data#countGet() > 2 )
+      return m_data[2];
+    
+    return null;
+  }
+
+  property nirRaw;
+  read: { 
+    if( m_ctl$workmode != AS7261_Mode$$XYDC && m_data#countGet() > 3 )
+      return m_data[3];
+    
+    return null;
+  }
+
+  property darkRaw;
+  read: { 
+    if( m_ctl$workmode == AS7261_Mode$$XYDC && m_data#countGet() > 2 )
+      return m_data[2];
+    else if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_data#countGet() > 4 )
+      return m_data[4];
+
+    return null;
+  }
+
+  property clearRaw;
+  read: { 
+    if( m_ctl$workmode == AS7261_Mode$$XYDC && m_data#countGet() > 3 )
+      return m_data[3];
+    else if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_data#countGet() > 5 )
+      return m_data[5];
+
+    return null;
+  }
+
+  property integralRaw;
+  read: { return m_specint; }
+
+  // Parsed calibrated data elements
+  //
+  property x;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 0 )
+      return m_caldata[0];
+
+    return null;
+  }
+
+  property y;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 1 )
+      return m_caldata[1];
+
+    return null;
+  }
+
+  property z;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 2 )
+      return m_caldata[2];
+
+    return null;
+  }
+
+  property integralXYZ;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 2 )
+      return $x+$y+$z;
+
+    return null;
+  }
+
+  property x1931;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 3 )
+      return m_caldata[3];
+
+    return null;
+  }
+
+  property y1931;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 4 )
+      return m_caldata[4];
+
+    return null;
+  }
+
+  property z1931;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 4 )
+      return 1.-($x1931 + $y1931);
+
+    return null;
+  }
+
+  property upri;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 5 )
+      return m_caldata[5];
+
+    return null;
+  }
+
+  property vpri;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 6 )
+      return m_caldata[6];
+
+    return null;
+  }
+
+  property u;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 7 )
+      return m_caldata[7];
+
+    return null;
+  }
+
+  property v;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 8 )
+      return m_caldata[8];
+
+    return null;
+  }
+
+  property DUV;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 9 )
+      return m_caldata[9];
+
+    return null;
+  }
+
+  property LUX;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 10 )
+      return m_caldata[10];
+
+    return null;
+  }
+
+  property CCT;
+  read: {
+    if( m_ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC && m_caldata#countGet() > 11 )
+      return m_caldata[11];
+
+    return null;
+  }
+}
+
+function rgbsAdjust(comp)
+{
+  if( EsMath::abs(comp) < 0.0031308 )
+    return 12.92 * comp;
+
+  return 1.055 * EsMath::powNM(
+    comp, 
+    0.41666
+  ) - 0.055;
+}
+
+function xyzToRgb(x, y, z, maxCh, isrgbs)
+var idx, sum = 0, rgb = [0, 0, 0];
+{
+  rgb[0] = 3.2404542*x - 1.5371385*y - 0.4985314*z;
+  rgb[1] = -0.9692660*x + 1.8760108*y + 0.0415560*z;
+  rgb[2] = 0.0556434*x - 0.2040259*y + 1.0572252*z;
+
+  if( isrgbs )
+  {
+    for(idx = 0; idx < 3; ++idx )
+      rgb[idx] = rgbsAdjust( rgb[idx] );
+  }
+
+  for(idx = 0; idx < 3; ++idx )
+    sum += rgb[idx];
+  
+  for(idx = 0; idx < 3; ++idx )
+    rgb[idx] = (rgb[idx] * maxCh#asDouble()) / sum;
+  
+  return rgb;
+}
+
+// Enumerate available MPSSE devices
+var devInfos = EsFtdiDriver::enumerate(
+      true,   //< Include busy devices
+      true    //< Include only MPSSE-capable devices
+    );
+
+if( !devInfos#countGet() )
+  throw "Could not find any MPSSE-capable devices";
+
+// Take the first found device and open it  
+var dev = EsFtdiDriver::deviceCreate(
+  EsFtdiDeviceKind$$MPSSE_I2C,
+  devInfos[0]
+);
+  
+if( !dev )
+  throw EsStr::format(
+    "Could not create MPSSE device of type %s for %s",
+    EsFtdiDeviceKind$$MPSSE_I2C$$label,
+    devInfos[0]
+  );
+
+if( !dev.open() )
+  throw EsStr::format(
+    "Could not open MPSSE device %s",
+    devInfos[0]
+  );
+
+// Set OS systicks period to 1 ms
+var systick = EsUtilities::systickChange(
+  1
+);
+
+dev$clockRate = EsFtdiMpsseI2cClock$$FAST;
+dev.configApply();
+
+// Lookup devices on I1C bus
+const c_as7261_addr = 0x49;
+const с_xCorr = 0.0432416;
+const с_yCorr = 0.0471360;
+const с_zCorr = 0.2015323;
+const c_cWhite = 5045.7;
+const c_normY = 2067.2;
+const c_delayLineLen = 10;
+
+var addr, str = [], addrs = [], as7261, ctl, ledCtl, lCorr, normCorr,
+  xyz = [0,0,0], rgb, 
+  task = new EsProgressMonitorTask("_task_color_measurement");
+
+var dlx = new EsMathDelayLine(c_delayLineLen), dly = new EsMathDelayLine(c_delayLineLen), 
+  dlz = new EsMathDelayLine(c_delayLineLen), dlc = new EsMathDelayLine(c_delayLineLen), 
+  dld = new EsMathDelayLine(c_delayLineLen);
+
+for(addr = 0; addr < 128; ++addr)
+{
+  // Ping devices for read
+  if( 
+    dev.ping(
+      addr,
+      false
+    )
+  )
+  {
+    addrs += addr;
+    str += EsStr::format("0x%0.2X", addr);
+  }
+}
+
+if( addrs#countGet() )
+{
+  EsScriptDebug::log(
+    "Found I2C devices on bus: %s",
+    EsStr::fromArray(
+      str,
+      ", ",
+      "[",
+      "]"
+    )
+  );
+  
+  if( c_as7261_addr in addrs )
+  {
+    as7261 = new AS7261();
+    as7261$bus = dev;
+
+    EsScriptDebug::log(
+      "AS7261: TYPE=%0.2X HW=%0.2X FW=%d.%d.%d",
+      as7261$deviceType,
+      as7261$hwVersion,
+      as7261$fwMajor,
+      as7261$fwMinor,
+      as7261$fwSubversion
+    );
+
+    ctl = as7261.controlUpdate();
+    ledCtl = as7261.ledControlUpdate();
+    EsScriptDebug::log(
+      "Initial Control: %0.2X : %s; LED control: %0.2X : %s",
+      ctl.f_raw,
+      ctl,
+      ledCtl.f_raw,
+      ledCtl
+    );
+    as7261.integrationTimeUpdate();
+    EsScriptDebug::log(
+      "Initial Exposure: %f ms",
+      as7261$integrationTime
+    );
+
+    EsScriptDebug::log(
+      "Requesting soft reset"
+    );
+    ctl$reset = true;
+    as7261$control = ctl;
+
+    ctl = as7261$control;
+    EsScriptDebug::log(
+      "Control after softreset: %0.2X : %s",
+      ctl.f_raw,
+      ctl
+    );
+
+    ledCtl$driverEnable = true;
+    ledCtl$driverCurrentLimit = AS7261_LedDrvCurrent$$_12_5;
+    ledCtl$indicatorEnable = false;
+    ledCtl$indicatorCurrentLimit = AS7261_LedIndCurrent$$_2;
+    as7261$ledControl = ledCtl;
+
+    as7261.integrationTimeUpdate();
+    EsScriptDebug::log(
+      "Exposure after softreset: %f ms",
+      as7261$integrationTime
+    );
+
+    as7261$integrationTime = 200;
+
+    EsScriptDebug::log(
+      "Requesting meauserement"
+    );
+    ctl$workmode = AS7261_Mode$$OneShot; //AS7261_Mode$$XYZ_NIR_DC;
+    ctl$gain = 3.7;
+    ctl$dataReady = false;
+    as7261$control = ctl;
+
+    task.initialize(
+      "Measuring XYZ color, please, wait",
+      c_delayLineLen,
+      0
+    );
+    task.attachTo(
+      __scriptHost$progressMonitor
+    );
+
+    while( !__scriptHost$aborting && !dlx$saturated )
+    {
+      EsThreadWorker::sleep( 
+        (ctl$workmode >= AS7261_Mode$$XYZ_NIR_DC ) ? 
+          (2 * as7261$integrationTime) : 
+          as7261$integrationTime 
+      );
+      ctl = as7261.controlUpdate();
+
+      if( ctl$dataReady )
+      {
+        as7261.dataUpdate(false); //< false => do not attempt to read calibrated data
+
+        dlx.itemAppend( as7261$xRaw );
+        dly.itemAppend( as7261$yRaw );
+        dlz.itemAppend( as7261$zRaw );
+        dlc.itemAppend( as7261$clearRaw );
+        dld.itemAppend( as7261$darkRaw );
+
+        ctl$workmode = AS7261_Mode$$OneShot;//AS7261_Mode$$XYZ_NIR_DC;
+        ctl$gain = 3.7;
+        ctl$dataReady = false;
+        as7261$control = ctl;
+
+        task$position = dlx$count;
+      }
+    }
+
+    ledCtl$driverEnable = false;
+    as7261$ledControl = ledCtl;
+
+    EsScriptDebug::log(
+      "C raw=%f, Y raw=%f",
+      dlc$value,
+      dly$value
+    );
+
+    lCorr = dlc$value / c_cWhite;
+    normCorr = 100. / (c_normY * с_yCorr);
+
+    xyz[0] = dlx$value*с_xCorr*lCorr*normCorr;
+    xyz[1] = dly$value*с_yCorr*lCorr*normCorr;
+    xyz[2] = dlz$value*с_zCorr*lCorr*normCorr;
+
+    EsScriptDebug::log(
+      "XYZ=[%f; %f; %f] Lcorr=%f",
+      xyz[0],
+      xyz[1],
+      xyz[2],
+      lCorr
+    );
+  }
+}
+else
+  EsScriptDebug::log(
+    "I2C devices not found"
+  );
+
+dev.close();
+
+// Restore OS systicks
+EsUtilities::systickRestore( systick );

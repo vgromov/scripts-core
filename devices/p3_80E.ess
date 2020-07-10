@@ -1,0 +1,147 @@
+// scripting device support for P3-80E Octava appliances
+##require("../math.ess");
+##require("EsDeviceBase.ess");
+##require("p3xx/Consts.ess");
+##require("p3xx/Flags.ess");
+##require("p3xx/p3_80E_FmtHelpers.ess");
+##require("p3xx/p3_80E_Data.ess");
+
+// Octava P3_80E device
+//
+object P3_80E extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+///
+/// Local opmode
+  var m_opMode,
+/// current minmax accumulators
+	m_min, m_max,
+	m_tsStart, m_ts;
+	
+/// Specific services
+	function minimaxReset()
+	{
+		m_max = 0;
+		m_min = c_math_FLT_MAX;
+	}
+	
+	function measurementsReset()
+	{
+		m_tsStart = EsDateTime::now();
+		m_ts = m_tsStart;
+		minimaxReset();
+	}
+	
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return P3XX_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in P3XX_Rpid )
+      return rpcSigGet(P3XX_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsOctavaDeviceType$$P380E, "P3_80E");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsOctavaDeviceType$$P380E);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 0;
+  }
+
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + P3XX_Rpid$values;
+  {
+    result += EsRpcStdId$$HW_INFO_GET;
+		result += EsRpcStdId$$HEALTH_INFO_GET; 
+		result += EsRpcStdId$$SHUTDOWN;
+		result += EsRpcStdId$$POWER_STATUS_GET;
+    
+    return result;
+  }
+  
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null, duration;
+  {
+    if( EsRpcStdId$$HEALTH_INFO_GET == rpcId )
+      result = new P3XX_Health(rpcResult);    // use P380E health implementation instead of unparsed standard one
+    else if( P3XX_Rpid$$GetMode == rpcId )
+    {
+      result = rpcResult;
+			// in addition, save opmode in internal cache
+      m_opMode = result;
+    }
+    else if( P3XX_Rpid$$GetLiveData == rpcId )
+    {
+      result = new P3_80E_Data();
+      result$buffer = rpcResult#asBinBuffer();
+			// update curent timestamp
+			m_ts = EsDateTime::now();
+			result.m_ts = m_ts;
+			
+			// reset|accumulate minimax accumilator, if not running
+			if( result$state$isRunning )
+			{
+				if( m_min > result$e )
+					m_min = result$e;
+				if( m_max < result$e )
+					m_max = result$e;
+
+				result.f_eMin = m_min;
+				result.f_eMax = m_max;
+				
+				duration = m_ts-m_tsStart;
+				result.f_msrLen = duration$allSeconds;
+			}	
+			else
+			{
+				measurementsReset();
+				result.reset();
+			}
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+   
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = P3XX_OpMode$$None;
+    internalInit(null);
+		measurementsReset();
+  }
+  
+  new(fwId)
+  {
+    m_opMode = P3XX_OpMode$$None;
+    internalInit(fwId);
+		measurementsReset();
+  }
+
+	/// Properties
+	///
+	/// Currently active opmode
+	property opmode;
+	read: { return m_opMode; }
+	
+	/// Return current opmode string
+	property opmodeStr;
+	read: { return P3XX_OpMode.valueLabelGet(m_opMode); }
+}

@@ -1,0 +1,861 @@
+// OBSIDIAN Data structs
+//
+
+object OBSIDIAN_Data
+{
+  var                   m_cfg; //< Link to an instance of device's configuration object OBSIDIAN_Cfg
+
+  esF                   f_der;
+  esF                   f_derSko;
+  esF                   f_derAvg;
+  esU32                 f_timeAvg;
+  esF                   f_doseUser1;
+  esU32                 f_doseUser1AccTime;
+  esF                   f_doseUser2;
+  esU32                 f_doseUser2AccTime;
+  esF                   f_betaFlowDensity;
+  esF                   f_betaSko;
+  esF                   f_gammaBgndFlowDensity;
+  esF                   f_gammaBgndSko;
+  esU16                 f_betaMsrTime;
+  esU16                 f_gammaBgndMsrTime;
+  esF                   f_pulsesPerSecondLatest;
+  esF                   f_countingRateCurrent;
+  esF                   f_adcPulsesSumPerSecond;
+  esU32                 f_psuMsrTime;
+  esF                   f_psuCorrPerTime;
+  esU16                 f_msrDuration;
+  esU16                 f_msrSpikeCount;
+  esF                   f_amplSumCurrentPerSecond;
+  esU16                 f_batLvl;
+  esU16                 f_dcLvlCoarse;
+  esU16                 f_dcLvlCoarseCorr;
+  esU16                 f_dcLvlFine;
+  esU16                 f_dcLvlFineCorr;
+  esI16                 f_tempX10;
+  esF                   f_vbias;
+  esU16                 f_comp1cntPerSecond;
+  esU16                 f_chnlPeakCs137;
+  esU32                 f_dateTime;
+  esU8                  f_s;
+  esU8                  f_m;
+  esU8                  f_h;
+  esU8                  f_day;
+  esU8                  f_mon;
+  esU8                  f_year;
+  esU32                 f_dateTimeRecentPwrOn;
+  esU32                 f_dateTimeRecentPwrOff;
+  OBSIDIAN_State        f_state;
+  
+  /// Data API
+  ///
+  
+  /// Threshol checking helpers
+  ///
+
+  // DER threshold warning level. 
+  // Return values from OBSIDIAN_ThresholdCheck enum
+  //
+  function derThresholdCheck(der)
+  {
+    if( 
+      m_cfg#isEmpty() ||
+      (
+        !m_cfg$thresholdDERdangerEnabled &&
+        !m_cfg$thresholdDERwarningEnabled
+      )
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+    
+    if( 
+      m_cfg$thresholdDERdangerEnabled && 
+      der >= m_cfg$thresholdDERdanger
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+
+    if( 
+      m_cfg$thresholdDERwarningEnabled && 
+      der >= m_cfg$thresholdDERwarning
+    )
+      return OBSIDIAN_ThresholdCheck$$Warning;
+      
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  }
+  
+  /// Dose threshold checking
+  function doseThresholdCheck(dose)
+  { 
+    if( 
+      m_cfg#isEmpty() ||
+      !m_cfg$thresholdDoseEnabled
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+      
+    if(  
+      m_cfg$thresholdDoseEnabled &&
+      dose >= m_cfg$thresholdDose
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+      
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  }  
+
+  /// Beta threshold checking
+  function betaThresholdCheck(beta)
+  { 
+    if( 
+      m_cfg#isEmpty() ||
+      !m_cfg$thresholdBetaEnabled
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+      
+    if(  
+      m_cfg$thresholdBetaEnabled &&
+      beta >= m_cfg$thresholdBeta
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+      
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  }  
+
+  /// Data read-out properties
+  ///
+  
+  /// Timestamp
+  property ts;
+  read: 
+  var dt = new EsDateTime(); 
+  { 
+    dt$year = 2000 + f_year$value;
+    dt$month = f_mon$value;
+    dt$dayOfMonth = f_day$value;
+    dt$hours = f_h$value;
+    dt$minutes = f_m$value;
+    dt$seconds = f_s$value;
+    
+    return dt$value; 
+  }
+  
+  /// Device state
+  property state;
+  read: { return f_state.clone(); }
+
+  // ---------------------------------------------------------------------
+  // Dynamic main value property.
+  // Depending on m_cfg$units selector, selecting either DER, or CPM/CPS
+  //
+  property mainValue;
+  read: var result; {
+    if( m_cfg#isEmpty() )
+      result = this$der;
+    else
+    {
+      switch( m_cfg$units )
+      {
+      case [OBSIDIAN_Unit$$uQRh, OBSIDIAN_Unit$$uSvh]:
+        result = this$der;
+      case [OBSIDIAN_Unit$$CPS, OBSIDIAN_Unit$$CPM]:
+        result = this$countingRate;
+      }
+    }
+
+    return result;
+  }
+  
+  property mainValueThresholdCheck;
+  read: { return derThresholdCheck( f_der$value ); }
+
+  property mainValueStrMulti;
+  read: var result; {
+    if( m_cfg#isEmpty() )
+      result = this$derStrMulti;
+    else
+    {
+      switch( m_cfg$units )
+      {
+      case [OBSIDIAN_Unit$$uQRh, OBSIDIAN_Unit$$uSvh]:
+        result = this$derStrMulti;
+      case [OBSIDIAN_Unit$$CPS, OBSIDIAN_Unit$$CPM]:
+        result = this$countingRateStrMulti;
+      }
+    }
+    
+    return result;
+  }
+
+  property mainValueStr;
+  read: { return obsidianValStrFromMultiGet( $mainValueStrMulti ); }
+
+  // Dynamic label for main value property
+  property mainValueLabelStr;
+  read: { 
+    if( 
+      m_cfg#isEmpty() ||
+      (m_cfg$units in [OBSIDIAN_Unit$$uQRh, OBSIDIAN_Unit$$uSvh])
+    )
+      return EsStr::translate( I"Dose Equivalent Rate" );
+    else
+      return EsStr::translate( I"Count Rate" );
+  }
+
+  // DER ----------------------------------------------------------------
+  property der;
+  read: { 
+    return obsidianDERvalGet(
+      f_der$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    );
+  }
+  
+  property derThresholdCheck;
+  read: { return derThresholdCheck( f_der$value ); }  
+
+  property derStrMulti;
+  read: { 
+    return obsidianDERvalStrMultiGet(
+      f_der$value,
+      f_derSko$value,
+      obsidianEffectiveUnitsGet(m_cfg),
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      false //< Do not force showing deviation
+    );
+  }
+
+  property derStr;
+  @label = I"Dose Equivalent Rate (DER)";
+  read: { return obsidianValStrFromMultiGet( $derStrMulti ); }
+
+  property derAccTime;
+  read: { return f_timeAvg$value; }
+
+  property derAccTimeStrMulti;
+  read: { return obsidianTimeSpanStrMultiGet( $derAccTime, 100 ); }
+
+  property derAccTimeStr;
+  read: { return obsidianValStrFromMultiGet( $derAccTimeStrMulti ); }
+
+  // Counting rate ---------------------------------------------------------
+  property countingRate;
+  read: { 
+    return obsidianCountRateValGet(
+      f_countingRateCurrent$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    );
+  }
+
+  property countingRateDeviation;
+  read: {
+    if( 0 < f_msrDuration )
+      return 2. * 
+        EsMath::sqrt( 
+          f_countingRateCurrent$value * 
+          f_msrDuration$value#asDouble() 
+        ) / f_msrDuration$value#asDouble();
+  }
+
+  property countingRateStrMulti;
+  read: { 
+    return obsidianCountRateStrMultiGet(
+      f_countingRateCurrent$value,
+      $countingRateDeviation,
+      obsidianEffectiveUnitsGet(m_cfg),
+      obsidianEffectiveDeviationPresentationGet(m_cfg)
+    ); 
+  }
+
+  property countingRateStr;
+  @label = I"Counting Rate";
+  read: { return obsidianValStrFromMultiGet( $countingRateStrMulti ); }
+
+  // User 1 Dose ------------------------------------------------------------
+  property doseUser1;
+  read: { 
+    return obsidianDoseValGet(
+      f_doseUser1$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    ); 
+  }
+  
+  property doseUser1thresholdCheck;
+  read: { return doseThresholdCheck( f_doseUser1$value ); }
+  
+  property doseUser1StrMulti;
+  read: { 
+    return obsidianDoseValStrMultiGet(
+      f_doseUser1$value, 
+      null, 
+      obsidianEffectiveUnitsGet(m_cfg), 
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      true //< Do scale
+    );
+  }
+  
+  property doseUser1Str;
+  @label = I"User 1 Dose";
+  read: { return obsidianValStrFromMultiGet( $doseUser1StrMulti ); }
+
+  property doseUser1AccTime;
+  read: { return f_doseUser1AccTime$value; }
+  
+  property doseUser1AccTimeStrMulti;
+  read: { return obsidianTimeSpanStrMultiGet( this$doseUser1AccTime, 0 ); }
+
+  property doseUser1AccTimeStr;
+  read: { return obsidianValStrFromMultiGet( $doseUser1AccTimeStrMulti ); }
+
+  // User 2 Dose ------------------------------------------------------------
+  property doseUser2;
+  read: { 
+    return obsidianDoseValGet(
+      f_doseUser2$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    ); 
+  }
+
+  property doseUser2thresholdCheck;
+  read: { return doseThresholdCheck( f_doseUser2$value ); }
+  
+  property doseUser2StrMulti;
+  read: { 
+    return obsidianDoseValStrMultiGet(
+      f_doseUser2$value, 
+      null, 
+      obsidianEffectiveUnitsGet(m_cfg), 
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      true //< Do scale
+    );
+  }
+
+  property doseUser2Str;
+  @label = I"User 2 Dose";
+  read: { return obsidianValStrFromMultiGet( $doseUser2StrMulti ); }
+  
+  property doseUser2AccTime;
+  read: { return f_doseUser2AccTime$value; }
+  
+  property doseUser2AccTimeStrMulti;
+  read: { return obsidianTimeSpanStrMultiGet( this$doseUser2AccTime, 0 ); }
+
+  property doseUser2AccTimeStr;
+  read: { return obsidianValStrFromMultiGet( $doseUser2AccTimeStrMulti ); }
+  
+  // Beta Flow Density -----------------------------------------------------
+  property betaFd;
+  read: { return f_betaFlowDensity$value; }
+  
+  property betaFdStrMulti;
+  read: { 
+    return obsidianBetaOrGammaFdStrMultiGet(
+      this$betaFd, 
+      f_betaSko$value, 
+      obsidianEffectiveDeviationPresentationGet(m_cfg)
+    ); 
+  }
+  
+  property betaFdThresholdCheck;
+  read: { return betaThresholdCheck( f_betaFlowDensity$value ); }
+  
+  property betaFdStr;
+  @label = I"Beta Flow Density";
+  read: { return obsidianValStrFromMultiGet( $betaFdStrMulti ); }
+
+  property betaFdAccTime;
+  read: { return f_betaMsrTime$value; }
+  
+  property betaFdAccTimeStrMulti;
+  read: { return obsidianTimeSpanStrMultiGet( this$betaFdAccTime, 100 ); }
+  
+  property betaFdAccTimeStr;
+  read: { return obsidianValStrFromMultiGet( $betaFdAccTimeStrMulti ); }
+
+  // Gamma background Flow Density -----------------------------------------
+  property gammaBgndFd;
+  read: { return f_gammaBgndFlowDensity$value; }
+  
+  property gammaBgndFdStrMulti;
+  read: { 
+   return obsidianBetaOrGammaFdStrMultiGet(
+      this$gammaBgndFd, 
+      f_gammaBgndSko, 
+      obsidianEffectiveDeviationPresentationGet(m_cfg)
+    ); 
+  }
+  
+  property gammaBgndFdStr;
+  @label = I"Gamma bgnd. Flow Density";
+  read: { return obsidianValStrFromMultiGet( $gammaBgndFdStrMulti ); }
+
+  property gammaBgndFdAccTime;
+  read: { return f_gammaBgndMsrTime; }
+  
+  property gammaBgndFdAccTimeStrMulti;
+  read: { return obsidianTimeSpanStrMultiGet( this$gammaBgndFdAccTime, 100 ); }
+  
+  property gammaBgndFdAccTimeStr;
+  read: { return obsidianValStrFromMultiGet( $gammaBgndFdAccTimeStrMulti ); }
+
+  // Temperature ------------------------------------------------------------
+  property temperature;
+  read: { return f_tempX10#asDouble()/10.; }
+}
+
+//--------------------------------------------------------------------------------------------------------
+// Persistent data blocks
+//
+
+// Beta+Gamma
+//
+object OBSIDIAN_DataPersistentBeta
+{
+  var                   m_cfg; //< Link to an instance of device's configuration object OBSIDIAN_Cfg
+
+  esU16                 f_idx;
+  esU32                 f_tsEnd;
+  esU32                 f_msrDuration;
+  esF                   f_betaFlowDensity;
+  esF                   f_betaSko;
+  esF                   f_gammaBgndDer;
+  esF                   f_thresholdBeta;
+  esU16                 f_sessionIdx;
+  
+  /// Beta threshold checking
+  function betaThresholdCheck(beta)
+  { 
+    if( 
+      m_cfg#isEmpty() ||
+      !m_cfg$thresholdBetaEnabled
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+      
+    if(  
+      m_cfg$thresholdBetaEnabled &&
+      beta >= f_thresholdBeta$value
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+      
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  } 
+
+  // Common properties
+  //
+  property isNull;
+  read: { return 0xFFFFFFFF == f_tsEnd; }
+  
+  property tsEnd;
+  @label = I"Measurement Date Time";
+  read: { return obsidianTsToDT( f_tsEnd )$value; }
+  
+  property sessionIndex;
+  read: { return f_sessionIdx$value; }
+  
+  property index;
+  read: { return f_idx$value; }
+  
+  // Data properties
+  //
+  // Beta ---------------------------------------------------
+  property betaFd;
+  @label = I"Beta Flow Density";
+  read: { return f_betaFlowDensity$value; }
+  
+  property betaFdStrMulti;
+  @label = I"Beta Flow Density";
+  read: { 
+    return obsidianBetaOrGammaFdStrMultiGet(
+      this$betaFd, 
+      f_betaSko$value, 
+      obsidianEffectiveDeviationPresentationGet(m_cfg)
+    ); 
+  }
+  
+  property betaFdThresholdCheck;
+  read: { return betaThresholdCheck( f_betaFlowDensity$value ); }
+  
+  property betaFdStr;
+  @label = I"Beta Flow Density";
+  read: { return obsidianValStrFromMultiGet( $betaFdStrMulti ); }
+
+  property betaFdAccTime;
+  @label = I"Measurement duration";
+  read: { return f_msrDuration$value; }
+  
+  property betaFdAccTimeStrMulti;
+  @label = I"Measurement duration";
+  read: { return obsidianTimeSpanStrMultiGet( $betaFdAccTime, 100 ); }
+  
+  property betaFdAccTimeStr;
+  @label = I"Measurement duration";
+  read: { return obsidianValStrFromMultiGet( $betaFdAccTimeStrMulti ); }
+  
+  // Gamma background DER -----------------------------------------
+  property gammaBgndDer;
+  @label = I"Gamma bgnd. DER";
+  read: { 
+    return obsidianDERvalGet(
+      f_gammaBgndDer$value,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      )
+    ); 
+  }
+  
+  property gammaBgndDerStrMulti;
+  @label = I"Gamma bgnd. DER";
+  read: { 
+   return obsidianDERvalStrMultiGet(
+      f_gammaBgndDer$value,
+      null,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      ),
+      null,
+      false //< Do not force showing deviation
+    );
+  }
+  
+  property gammaBgndDerStr;
+  @label = I"Gamma bgnd. DER";
+  read: { return obsidianValStrFromMultiGet( $gammaBgndDerStrMulti ); }
+}
+
+//----------------------------------------------------------------------------------------------
+// User doses
+//
+object OBSIDIAN_DataPersistentDose
+{
+  var                   m_cfg; //< Link to an instance of device's configuration object OBSIDIAN_Cfg
+
+  esU16                 f_idx;
+  esU32                 f_tsEnd;
+  esF                   f_doseUser1;
+  esU32                 f_doseUser1AccTime;
+  esF                   f_doseUser2;
+  esU32                 f_doseUser2AccTime;
+  esF                   f_thresholdDose;
+  esU16                 f_sessionIdx;
+
+  /// Dose threshold checking
+  function doseThresholdCheck(dose)
+  { 
+    if( 
+      m_cfg#isEmpty() ||
+      !m_cfg$thresholdDoseEnabled
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+      
+    if(  
+      m_cfg$thresholdDoseEnabled &&
+      dose >= f_thresholdDose$value
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+      
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  }
+
+  // Common properties
+  //
+  property isNull;
+  read: { return 0xFFFFFFFF == f_tsEnd; }
+  
+  property tsEnd;
+  @label = I"Measurement Date Time";
+  read: { return obsidianTsToDT( f_tsEnd )$value; }
+  
+  property sessionIndex;
+  read: { return f_sessionIdx$value; }
+  
+  property index;
+  read: { return f_idx$value; }
+  
+  // User 1 Dose ------------------------------------------------------------
+  property doseUser1;
+  @label = I"User 1 Dose";
+  read: { 
+    return obsidianDoseValGet(
+      f_doseUser1$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    ); 
+  }
+  
+  property doseUser1thresholdCheck;
+  read: { return doseThresholdCheck( f_doseUser1$value ); }
+  
+  property doseUser1StrMulti;
+  @label = I"User 1 Dose";
+  read: { 
+    return obsidianDoseValStrMultiGet(
+      f_doseUser1$value, 
+      null, 
+      obsidianEffectiveUnitsGet(m_cfg), 
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      false //< Do not scale
+    );
+  }
+  
+  property doseUser1Str;
+  @label = I"User 1 Dose";
+  read: { return obsidianValStrFromMultiGet( $doseUser1StrMulti ); }
+
+  property doseUser1AccTime;
+  @label = I"User 1 Dose Accumulation duration";
+  read: { return f_doseUser1AccTime$value; }
+  
+  property doseUser1AccTimeStrMulti;
+  @label = I"User 1 Dose Accumulation duration";
+  read: { return obsidianTimeSpanStrMultiGet( this$doseUser1AccTime, 0 ); }
+
+  property doseUser1AccTimeStr;
+  @label = I"User 1 Dose Accumulation duration";
+  read: { return obsidianValStrFromMultiGet( $doseUser1AccTimeStrMulti ); }
+
+  // User 2 Dose ------------------------------------------------------------
+  property doseUser2;
+  @label = I"User 2 Dose";
+  read: { 
+    return obsidianDoseValGet(
+      f_doseUser2$value,
+      obsidianEffectiveUnitsGet(m_cfg)
+    ); 
+  }
+
+  property doseUser2thresholdCheck;
+  read: { return doseThresholdCheck( f_doseUser2$value ); }
+  
+  property doseUser2StrMulti;
+  @label = I"User 2 Dose";
+  read: { 
+    return obsidianDoseValStrMultiGet(
+      f_doseUser2$value, 
+      null, 
+      obsidianEffectiveUnitsGet(m_cfg), 
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      false //< Do not scale
+    );
+  }
+
+  property doseUser2Str;
+  @label = I"User 2 Dose";
+  read: { return obsidianValStrFromMultiGet( $doseUser2StrMulti ); }
+  
+  property doseUser2AccTime;
+  @label = I"User 2 Dose Accumulation duration";
+  read: { return f_doseUser2AccTime$value; }
+  
+  property doseUser2AccTimeStrMulti;
+  @label = I"User 2 Dose Accumulation duration";
+  read: { return obsidianTimeSpanStrMultiGet( this$doseUser2AccTime, 0 ); }
+
+  property doseUser2AccTimeStr;
+  @label = I"User 2 Dose Accumulation duration";
+  read: { return obsidianValStrFromMultiGet( $doseUser2AccTimeStrMulti ); } 
+}
+
+//------------------------------------------------------------------------------------------
+// DER
+//
+object OBSIDIAN_DataPersistentDER
+{
+  var                   m_cfg; //< Link to an instance of device's configuration object OBSIDIAN_Cfg
+
+  esU16                 f_idx;
+  esU32                 f_tsEnd;
+  esU16                 f_msrDuration;
+  esF                   f_der;
+  esF                   f_derSko;
+  esF                   f_derAvg;
+  esF                   f_thresholdDER;
+  esI16                 f_tempX10;
+  esU16                 f_sessionIdx;
+
+  // DER threshold warning level. 
+  // Return values from OBSIDIAN_ThresholdCheck enum
+  //
+  function derThresholdCheck(der)
+  {
+    if( 
+      m_cfg#isEmpty() ||
+      (
+        !m_cfg$thresholdDERdangerEnabled &&
+        !m_cfg$thresholdDERwarningEnabled
+      )
+    )
+      return OBSIDIAN_ThresholdCheck$$None;
+    
+    if( 
+      (
+        m_cfg$thresholdDERdangerEnabled ||
+        m_cfg$thresholdDERwarningEnabled
+      ) &&
+      der >= f_thresholdDER$value
+    )
+      return OBSIDIAN_ThresholdCheck$$Danger;
+
+    return OBSIDIAN_ThresholdCheck$$Normal;
+  }
+
+  // Common properties
+  //
+  property isNull;
+  read: { return 0xFFFFFFFF == f_tsEnd; }
+  
+  property tsEnd;
+  @label = I"Measurement Date Time";
+  read: { return obsidianTsToDT( f_tsEnd )$value; }
+  
+  property sessionIndex;
+  read: { return f_sessionIdx$value; }
+  
+  property index;
+  read: { return f_idx$value; }
+
+  // Data properties
+  //
+  // DER ----------------------------------------------------------------
+  property der;
+  @label = I"Dose Equivalent Rate";
+  read: { 
+    return obsidianDERvalGet(
+      f_der$value,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      )
+    );
+  }
+  
+  property derThresholdCheck;
+  read: { return derThresholdCheck( f_der$value ); }
+
+  property derStrMulti;
+  @label = I"Dose Equivalent Rate";
+  read: { 
+    return obsidianDERvalStrMultiGet(
+      f_der$value,
+      f_derSko$value,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      ),
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      false //< Do not force showing deviation
+    );
+  }
+
+  property derStr;
+  @label = I"Dose Equivalent Rate";
+  read: { return obsidianValStrFromMultiGet( $derStrMulti ); }
+  
+  // DER Average ----------------------------------------------------------
+  property derAvg;
+  @label = I"Average Dose Equivalent Rate";
+  read: { 
+    return obsidianDERvalGet(
+      f_derAvg$value,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      )
+    );
+  }
+  
+  property derAvgThresholdCheck;
+  read: { return derThresholdCheck( f_derAvg$value ); }  
+
+  property derAvgStrMulti;
+  @label = I"Average Dose Equivalent Rate";
+  read: { 
+    return obsidianDERvalStrMultiGet(
+      f_derAvg$value,
+      f_derSko$value,
+      obsidianDEReffectiveUnitsGet( 
+        obsidianEffectiveUnitsGet(m_cfg)
+      ),
+      obsidianEffectiveDeviationPresentationGet(m_cfg),
+      false //< Do not force showing deviation
+    );
+  }
+
+  property derAvgStr;
+  @label = I"Average Dose Equivalent Rate";
+  read: { return obsidianValStrFromMultiGet( $derAvgStrMulti ); }
+
+  property derAccTime;
+  @label = I"Accumulation duration";
+  read: { return f_msrDuration$value; }
+
+  property derAccTimeStrMulti;
+  @label = I"Accumulation duration";
+  read: { return obsidianTimeSpanStrMultiGet( $derAccTime, 100 ); }
+
+  property derAccTimeStr;
+  @label = I"Accumulation duration";
+  read: { return obsidianValStrFromMultiGet( $derAccTimeStrMulti ); }
+  
+  // Temperature ------------------------------------------------------------
+  property temperature;
+  read: { return f_tempX10#asDouble()/10.; }  
+}
+
+//-----------------------------------------------------------------------------------------
+// Spectrum
+//
+object OBSIDIAN_Spectrum
+{
+  var                   m_cfg, //< Link to an instance of device's configuration object OBSIDIAN_Cfg
+                        m_chnlCs137,
+                        m_chnlEnergies;
+
+  esU16                 f_spec[c_OBSIDIAN_SpectrumLength];
+  esU16                 f_specMsrDuration;
+  
+  function energiesCalculate()
+  var idx, energyPerChannel;
+  {
+    m_chnlEnergies = [];
+    m_chnlEnergies#countSet(c_OBSIDIAN_SpectrumLength);
+
+    if( m_cfg )
+    {
+      m_chnlCs137 = m_cfg.f_chnlCs137$value;
+  
+      EsScriptDebug::log(
+        "OBSIDIAN_Spectrum::energiesCalculate() m_chnlCs137 = %s",
+        m_chnlCs137#trace()
+      );
+
+      if( 0 < m_chnlCs137 )
+      {
+        energyPerChannel = c_OBSIDIAN_Cs137_energy / m_chnlCs137#asDouble();
+
+        for(idx = 0; idx < c_OBSIDIAN_SpectrumLength; ++idx)
+          m_chnlEnergies[idx] = idx#asDouble() * energyPerChannel;
+      }
+    }
+  }
+
+  function configSet(cfg)
+  {
+    m_cfg = cfg;
+    energiesCalculate();
+  }
+
+  property cs137channel;
+  read: { return m_chnlCs137; }
+
+  property energies;
+  @label = I"Energy in channel";
+  read: { return m_chnlEnergies; }
+
+  property counts;
+  @label = I"Counts in channel";
+  read: { return f_spec; }
+
+  property msrDuration;
+  @label = I"Measurement duration";
+  read: { return f_specMsrDuration$value; }
+
+  property msrDurationStrMulti;
+  @label = I"Measurement duration";
+  read: { return obsidianTimeSpanStrMultiGet(f_specMsrDuration$value, 100); }
+
+  property msrDurationStr;
+  @label = I"Measurement duration";
+  read: { return $msrDurationStrMulti[0]; }
+}

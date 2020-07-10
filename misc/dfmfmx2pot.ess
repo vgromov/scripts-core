@@ -1,0 +1,175 @@
+// Extract all dfm and fmx files strings into pot file
+// @props   - a comma-separated string, list of property names, which text content we need to extract
+// @pot     - output *.pot file name and path. 
+//
+
+// DFM and FMX files enumeration helper object
+object DfmFmxEnumerator
+{
+ var m_path,
+     m_helper, 
+     m_files;
+ 
+ new(path)
+ {
+  m_path = path;
+  m_helper = new EsPathEnumeratorHelper(this);
+  m_files = [];
+ }
+
+  function search()
+  {
+    m_files = [];
+    m_helper.enumerate(
+      m_path, 
+      "*.dfm", 
+      EsPathEnumeratorFlag$$Recursive
+    );
+    m_helper.enumerate(
+      m_path, 
+      "*.fmx", 
+      EsPathEnumeratorFlag$$Recursive
+    );
+  }
+ 
+  function onObject(curPath, name, isDir)
+  {
+    if( !isDir )
+      m_files += curPath+name;
+
+    return true;
+  }
+ 
+ property files;
+ read: { return m_files; }
+}
+
+// The main entry point
+function dfmfmx2pot(srcPath, props, potFile)
+var path, fileOut, fileInPath, fileIn, 
+  dfmFmxEnumerator = new DfmFmxEnumerator(srcPath),
+  tok, prop, propIdx, propCount = 0, regex, regexPattern, 
+  match, contentsIn, str, strings = [];
+{
+  EsScriptDebug::log(
+    "dfmfmx2pot(srcPath='%s', props='%s', potFile='%s')",
+    srcPath,
+    props,
+    potFile
+  );
+  
+  path = EsPath::createFromFilePath(potFile);
+  
+  if( "pot" != path$fileExt )
+    throw "Improper input file type. POT expected, got '" + path$fileExt + "'";
+
+  /// Prepare regex pattern using props string  
+  tok = new EsStringTokenizer();
+  tok$skipMultipleSeparators = false;
+  tok$separators = ",;";
+  tok$text = props;
+
+  while( tok$moreTokens )
+  {
+    prop = tok$nextToken;
+    if( !regexPattern#isEmpty() )
+      regexPattern += "|";
+    else
+      regexPattern = "";
+    
+    regexPattern += "(?:" + prop + "\\s=\\s'([^']+)')";
+    ++propCount;
+  }
+  
+  EsScriptDebug::log("regexPattern='%s'", regexPattern);
+  EsScriptDebug::log("propCount=%d", propCount);
+  
+  regex = new EsRegEx(
+    regexPattern,
+    EsRegExCompileFlag$$DEFAULT
+  );
+  
+  dfmFmxEnumerator.search();
+
+  EsScriptDebug::log("files=%s", dfmFmxEnumerator$files);
+  
+  foreach( fileInPath in dfmFmxEnumerator$files )
+  {
+    fileIn = new EsFile(
+      fileInPath, 
+      EsFileFlag$$Read|EsFileFlag$$Text
+    );
+    
+    if( !fileIn.open() )
+      throw "Cannot open input file '" + fileInPath + "'";
+      
+    EsScriptDebug::log("Processing file '%s'", fileInPath);
+
+    contentsIn = fileIn.readAllAsString();
+    fileIn.close();
+    
+    regex$text = contentsIn;
+    while( regex$matches )
+    {
+//      EsScriptDebug::log("Matching at offset %d", regex$offset);
+
+      for(propIdx = 1; propIdx <= propCount; ++propIdx)
+      {
+//        EsScriptDebug::log("Checking for property field %d", propIdx);
+
+        match = regex.matchRangeGet(propIdx);
+        
+        if( !match#isEmpty() )
+        {
+//          EsScriptDebug::log("Property field %d matched", propIdx);
+          
+          regex$offset = match[1];
+          
+          str = contentsIn#sliceGet(
+            match[0], 
+            match[1]
+          );
+          
+          EsScriptDebug::log("Matched string '%s'", str);
+          
+          if( str != "-" && strings#find(str)#isEmpty() )
+          {
+            EsScriptDebug::log("Matched string appended");
+           
+            strings += str;
+          }
+        
+          break;
+        }
+      }
+    }
+  }
+
+  EsScriptDebug::log("Found strings: %s", strings);
+
+  /// Write output pot file
+  fileOut = new EsFile(
+    potFile, 
+    EsFileFlag$$Write|EsFileFlag$$Text
+  );
+  
+  /// Initialize pot file
+  if( !fileOut.open() )
+    throw "Could not open output file '" + potFile + "'";
+    
+  /// Write pot file
+  fileOut.stringWrite("msgid \"\"\nmsgstr \"\"\n");
+  fileOut.stringWrite("\"Content-Type: text/plain; charset=UTF-8\\n\"\n");
+  fileOut.stringWrite("\"Content-Transfer-Encoding: 8bit\\n\"\n\n");
+  foreach(str in strings)
+  {
+    fileOut.stringWrite( 
+      EsStr::format(
+        "msgid \"%s\"\nmsgstr \"\"\n\n",
+        str
+      ) 
+    );
+  }
+  
+  fileOut.close();
+}

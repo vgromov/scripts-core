@@ -1,0 +1,243 @@
+/// EL3C health && flags parser objects
+///
+
+/// EL3C Health state object
+object EL3C_Health
+{
+  var m_verStr;
+  esU32 f_errors;
+  /// Constructor
+  new(health)
+  {
+    f_errors = health;
+  }
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_errors & EL3C_Error$$PwrCritical)
+      result += EL3C_Error$$PwrCritical$$label;
+    if(f_errors & EL3C_Error$$I2C)
+      result += EL3C_Error$$I2C$$label;
+    if(f_errors & EL3C_Error$$RTC)
+      result += EL3C_Error$$RTC$$label;
+    if(f_errors & EL3C_Error$$RTC_Invalid)
+      result += EL3C_Error$$RTC_Invalid$$label;
+    if(f_errors & EL3C_Error$$Storage)
+      result += EL3C_Error$$Storage$$label;
+    
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      if(f_errors & EL3C_Error$$ClearNoCal)
+        result += EL3C_Error$$ClearNoCal$$label;
+      if(f_errors & EL3C_Error$$ColorNoCal)
+        result += EL3C_Error$$ColorNoCal$$label;
+      if(f_errors & EL3C_Error$$ColorNoSensor)
+        result += EL3C_Error$$ColorNoSensor$$label;
+    }
+    else
+    {
+      if(f_errors & EL3C_Error$$AnlNoCal)
+        result += EL3C_Error$$AnlNoCal$$label;
+      if(f_errors & EL3C_Error$$DigNoCal)
+        result += EL3C_Error$$DigNoCal$$label;
+      if(f_errors & EL3C_Error$$DigNoSensor)
+        result += EL3C_Error$$DigNoSensor$$label;
+    }
+    
+    return result;
+  }
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+	
+	/// Properties
+	///
+  property verStr;
+  read: { return m_verStr; }
+  write: { m_verStr = __value#asString(); }
+  
+	property errors;
+	read: { return f_errors$value; }
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { 
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      return 0 != (f_errors & 
+                                    ( EL3C_Error$$I2C|
+                                      EL3C_Error$$RTC|
+                                      EL3C_Error$$Storage|
+                                      EL3C_Error$$ColorNoSensor 
+                                    )
+                          ); 
+    }
+    else
+    {
+      return 0 != (f_errors & 
+                                    ( EL3C_Error$$I2C|
+                                      EL3C_Error$$RTC|
+                                      EL3C_Error$$Storage|
+                                      EL3C_Error$$DigNoSensor 
+                                    )
+                          ); 
+    }
+  }
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { 
+    if( m_verStr#isEmpty() || m_verStr < "1.5" )
+    {
+      return 0 != (f_errors & 
+                    ( EL3C_Error$$RTC_Invalid|
+                      EL3C_Error$$ClearNoCal|
+                      EL3C_Error$$ColorNoCal
+                    )
+      );        
+    }
+    else
+    {
+      return 0 != (f_errors & 
+                    ( EL3C_Error$$RTC_Invalid|
+                      EL3C_Error$$AnlNoCal|
+                      EL3C_Error$$DigNoCal
+                    )
+      );        
+    }
+  }
+	// Return true if error flags contain warnings			
+	property hasWarning;
+	read: { return 0 != (f_errors & EL3C_Error$$PwrCritical); }
+	
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return f_errors != 0;  }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+/// EL3C Color data flags|state helper object
+///
+object EL3C_DataFlags
+{
+  esU32 f_flags;
+  
+  /// Constructor with assignment
+  new( flags )
+  {
+    f_flags = flags;
+  }
+  
+  /// Return opmode modifier description as a list of strings
+  function ommAsStrings()
+  var omm = (f_flags & 0xF0), result = []; 
+  { 
+    if(EL3C_OpModeModifier$$None == omm)
+      result += EL3C_OpModeModifier$$None$$label;
+    else
+    {
+      if( omm & EL3C_OpModeModifier$$BgndTrim )
+        result += EL3C_OpModeModifier$$BgndTrim$$label;
+        
+      if( omm & EL3C_OpModeModifier$$Autonomous )
+        result += EL3C_OpModeModifier$$Autonomous$$label;
+    }
+    
+    return result;
+  }
+  
+  /// Return opmode modifiers as string
+  function ommAsString()
+  {
+    return EsStr::fromArray(ommAsStrings(), "; ", "", "");
+  }
+  
+  /// Return data state as a string collection
+  function dsAsStrings()
+  var ds = (f_flags & 0xF00), result = [];
+  {
+    if( EL3C_DataState$$None == ds )
+      result += EL3C_DataState$$None$$label;
+    else
+    {
+      if( ds & EL3C_DataState$$LowSignal )
+        result += EL3C_DataState$$LowSignal$$label;
+    }
+    
+    return result;
+  }
+  
+  /// Return data state as string
+  function dsAsString()
+  {
+    return EsStr::fromArray(dsAsStrings(), "; ", "", "");
+  }
+  
+  /// Parsed flags properties
+  ///
+  /// Return sanitized opmode value
+  property opmode;
+  read: { return (f_flags & 0x0F); } 
+  /// Return sanitized opmode value string
+  property opmodeStr;
+  read: { return EL3C_OpMode.valueLabelGet( $opmode ); } 
+  
+  /// Return sanitized opmode modifier
+  property opmodeModifier;
+  read: { return (f_flags & 0xF0); }
+  /// Return sanitized opmode modifier string
+  property opmodeModifierStr;
+  read: { return ommAsString(); }
+  /// Return true if opmode contains BgndTrim modifier
+  property isBgndTrimming;
+  read: { return f_flags & EL3C_OpModeModifier$$BgndTrim; }
+	/// Return true if opmode contains Autonomous modifier
+  property isAutonomous;
+  read: { return f_flags & EL3C_OpModeModifier$$Autonomous; }
+  
+  /// Return data state
+  property dataState;
+  read: { return f_flags & 0xF00; }
+  /// Return data state string representation
+  property dataStateStr;
+  read: { return dsAsString(); }
+  /// Separately output low light condition
+  property isLowLight;
+  read: { return EL3C_DataState$$LowSignal == ($dataState & EL3C_DataState$$LowSignal); }
+  
+  /// Return data validity flags
+  ///
+	property valvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$val); }
+	
+	property valOrgvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$valOrg); }
+	
+	property kpvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kp); }
+	
+	property kpOrgvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpOrg); }
+	
+	property kpivalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpi); }
+  
+	property kpiOrgvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$kpiOrg); }
+  
+	property valBgndvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgnd); }
+  
+	property bgndExpvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$bgndTmo); }
+  
+	property xyvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$xy); }
+  
+ 	property ctvalid;
+	read: { return 0 == (f_flags & EL3C_DataInvalid$$ct); }
+}

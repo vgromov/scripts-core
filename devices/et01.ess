@@ -1,0 +1,95 @@
+// scripting device support for et-01 microclimate-appliance
+##require("EsDeviceBase.ess");
+##require("et01/Consts.ess");
+##require("et01/FmtHelpers.ess");
+##require("et01/Data.ess");
+
+/// ET01 device object
+object ET01 extends EsDeviceBase
+@nomarshal;
+{
+/// Device-specific vars
+  var m_opMode;
+  
+/// Mandatory base overrides
+  function rpcNameGetById(rpcId)
+  {
+    if( rpcId in ET01_Rpid )
+      return ET01_Rpid.valueLabelGet(rpcId);
+    
+    return EsDeviceBase::rpcNameGetById(rpcId);
+  }
+  
+  function rpcSigGetById(rpcId)
+  {
+    if( rpcId in ET01_Rpid )
+      return rpcSigGet(ET01_Rpid.valueLabelGet(rpcId));
+    
+    return EsDeviceBase::rpcSigGetById(rpcId);
+  }
+  
+  function fwIdAssert(fwId)
+  {
+    EsDeviceBase::fwIdAssert(fwId);
+    fwIdValidate(fwId, EsDeviceType$$ET, "ET01");
+  }
+
+  function fwIdDefaultSet()
+  {
+    m_fwId = new EsFirmwareId(EsDeviceType$$ET);
+    m_fwId.f_serial.f_year = EsDateTime::now()$year;
+    m_fwId.f_fwVer.f_major = 1;
+    m_fwId.f_fwVer.f_minor = 46;
+  }
+  
+  function defaultCapsGet()
+  var result = EsDeviceBase::defaultCapsGet() + ET01_Rpid$values;
+  {
+    result += EsRpcStdId$$HEALTH_INFO_GET;
+		result += EsRpcStdId$$SHUTDOWN;
+    
+    return result;
+  }
+
+  function rpcCallResultHandle(rpcId, rpcArgs, rpcResult)
+  var result = null;
+  {
+		if( ET01_Rpid$$LiveDataGet == rpcId )
+    {
+      result = new ET01_Data(m_opMode);
+      result$buffer = rpcResult#asBinBuffer();
+			result.f_ts = EsDateTime::now();
+    }
+    else if( ET01_Rpid$$OperationModeGet == rpcId )
+    {
+      result = rpcResult;
+      m_opMode = result;
+    }
+    else 
+      result = EsDeviceBase::rpcCallResultHandle(rpcId, rpcArgs, rpcResult);
+    
+    return result;
+  }
+  
+  /// Constructors
+  new()
+  {
+    m_opMode = ET01_OpMode$$Idle;
+    internalInit(null);
+  }
+  
+  new(fwId)
+  {
+    m_opMode = ET01_OpMode$$Idle;
+    internalInit(fwId);
+  }
+  
+/// Properties
+///
+/// Currently opmode
+	property opmode;
+	read: { return m_opMode; }
+	/// Return opmode string
+	property opmodeStr;
+	read: { return ET01_OpMode.valueLabelGet(m_opMode); }
+}

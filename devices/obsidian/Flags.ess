@@ -1,0 +1,137 @@
+// OBSIDIAN States and Flags
+//
+
+enum OBSIDIAN_StateFlag
+{
+  ErrGeneric                    = 0x0001, I"Device is not operating properly";
+  ErrNoPulses                   = 0x0002, I"No counter pulses detected";
+  ErrHwFRAM                     = 0x0004, I"FRAM contents is invalid";
+  ErrHwDC                       = 0x0008, I"DC channel error";
+  ErrHwRTC                      = 0x0010, I"RTC hardware error";
+  ErrHwDAC                      = 0x0020, I"DAC hardware error";
+  ErrHwTmpSensor                = 0x0040, I"Temperature sensor error";
+  ErrDC_overload                = 0x0080, I"DC channel overload";
+  MED_DC_mode                   = 0x0100, I"DER is calculated based on DC channels";
+  USB_powered                   = 0x0200, I"Auxiliary power (USB) is used";
+  ProtectedParametersWriteable  = 0x0400, I"Protected parameters write allowed";
+}
+
+// OBSIDIAN state object
+//
+object OBSIDIAN_State
+{
+  esU16 f_val;
+
+  new(val)
+  {
+    f_val = val#asULong();
+  }
+  
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_val & OBSIDIAN_StateFlag$$ErrGeneric )
+      result += OBSIDIAN_StateFlag$$ErrGeneric$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrNoPulses )
+      result += OBSIDIAN_StateFlag$$ErrNoPulses$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrHwFRAM )
+      result += OBSIDIAN_StateFlag$$ErrHwFRAM$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrHwDC )
+      result += OBSIDIAN_StateFlag$$ErrHwDC$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrHwRTC )
+      result += OBSIDIAN_StateFlag$$ErrHwRTC$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrHwDAC )
+      result += OBSIDIAN_StateFlag$$ErrHwDAC$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrHwTmpSensor )
+      result += OBSIDIAN_StateFlag$$ErrHwTmpSensor$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ErrDC_overload )
+      result += OBSIDIAN_StateFlag$$ErrDC_overload$$label;
+
+    return result;
+  }
+
+  // Return state flags as string collection
+  function statesAsStrings()
+  var result = [];
+  {
+    if(f_val & OBSIDIAN_StateFlag$$MED_DC_mode )
+      result += OBSIDIAN_StateFlag$$MED_DC_mode$$label;
+    if(f_val & OBSIDIAN_StateFlag$$USB_powered )
+      result += OBSIDIAN_StateFlag$$USB_powered$$label;
+    if(f_val & OBSIDIAN_StateFlag$$ProtectedParametersWriteable )
+      result += OBSIDIAN_StateFlag$$ProtectedParametersWriteable$$label;
+
+    return result;
+  }
+
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(
+      errorsAsStrings() + statesAsStrings(),
+      "; ", 
+      "", 
+      ""
+    );
+  }
+  
+  property value;
+  read: { return f_val#asULong(); }
+  
+  property errors;
+  read: { 
+    return f_val#asULong() & (
+      OBSIDIAN_StateFlag$$ErrGeneric |
+      OBSIDIAN_StateFlag$$ErrNoPulses |
+      OBSIDIAN_StateFlag$$ErrHwFRAM |
+      OBSIDIAN_StateFlag$$ErrHwDC |
+      OBSIDIAN_StateFlag$$ErrHwRTC |
+      OBSIDIAN_StateFlag$$ErrHwDAC |
+      OBSIDIAN_StateFlag$$ErrHwTmpSensor |
+      OBSIDIAN_StateFlag$$ErrDC_overload
+    );
+  }
+  
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { return 0 != $errors; }
+
+  // Return true if error flags contain warnings      
+  property hasWarning;
+  read: { return false; }
+
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return false; }
+  
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return $hasCriticalError; }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+// OBSIDIAN configuration flags
+//
+enum OBSIDIAN_Flags
+{
+  SoundOn               = 0x0001;
+  VibroOn               = 0x0002;
+  MsrClosedFilterOn     = 0x0004;
+  BgndSubOn             = 0x0008;
+  Threshold1on          = 0x0010;
+  Threshold2on          = 0x0020;
+  ThresholdDoseOn       = 0x0040;
+  ThresholdBetaOn       = 0x0080;
+  BLEon                 = 0x0100;
+  DERloggingOn          = 0x0200;
+  BetaLoggingOn         = 0x0400;
+  DefaultSettings       = 0x0800;
+  User1doseRunning      = 0x1000;
+  User2doseRunning      = 0x2000;
+  TimeFormat12h         = 0x4000;
+  BetaExpertMode        = 0x8000;
+}

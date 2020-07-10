@@ -1,0 +1,339 @@
+// NMEA183 parser
+//
+// -----------------------------------------------------------------------------------
+// Talker sentences
+// 
+// $TTSSS[,D0,D1,....][*HH]<CR><LF>
+// TT - talker ID
+// SSS - sentence ID
+// D0..DN - data fields
+// *HH - optional hex checksum byte = All sentence chars between $ and *, XORED.
+//
+// Sentence length (between $ and <CR><LF>) is variable, up to max value of 80 bytes.
+//
+// -----------------------------------------------------------------------------------
+// Query sentences
+//
+// $TTLLQ,SSS[*HH][<CR>][<LF>] 
+// TT - talker (requester) ID
+// LL - listener ID (device, being queried)
+// Q - literal query sentence identifier
+//
+// -----------------------------------------------------------------------------------
+// Proprietary sentences
+//
+// $PMMM[MD0..MDN][,D0,D1,...][*HH]<CR><LF>
+// P - literal proprietary sentence identifier
+// MMM - manufacturer ID
+// MD0..MDN - manufacturer-specific data
+// The rest of the sentence is formatted the same way as the generic one.
+//
+
+enum NMEA_DIRECTION
+{
+  IN  = 0;
+  OUT = 1;
+}
+
+enum GGA_QUALITY
+{
+  Invalid = 0;
+  GPS     = 1;
+  DGPS    = 2;
+}
+
+object EsNmea0183
+{
+  var m_re,     //< Sentence regex parser 
+    m_tok,      //< Sentence tokenizer
+    m_buff,     //< Receive buffer
+    m_handler;  //< NMEA event handler object
+  
+  // Reset reception buffer
+  function receptionBufferReset()
+  {
+    m_buff = EsVar::as(EsVariantType$$VAR_BIN_BUFFER);
+  }
+  
+  // Calculate sentence checksum, given the input sentence string.
+  function checksumGet(sentence)
+  var sum = 0, char;
+  {
+    foreach(char in sentence)
+      sum ^= char#asByte();
+    
+    return sum#asByte();
+  }
+  
+  // Helper method - string send over the channel
+  function strSend(chnl, str)
+  var buff = EsStr::toByteString("$" + str);
+  {
+    return chnl.bytesPut( 
+      buff,
+      chnl.txTimeEstimateGet(
+        buff#countGet()
+      )
+    ) == buff#countGet();  
+  }
+  
+  // Send query sentence
+  function querySend(chnl, talkerId, listenerId, sentenceId, withChecksum, withCrLf)
+  var cs, str;
+  {
+    str = talkerId#asString() + listenerId#asString() + "Q," + sentenceId#asString();
+
+    if( withChecksum )
+    {
+      cs = checksumGet(str);
+      str += EsStr::format("*%02X", cs);
+    }
+    
+    if( withCrLf )
+    {
+      str += "\r\n";
+    }
+    
+    return strSend(chnl, str);
+  }
+  
+  // Send proprietary sentence
+  function proprietarySend(chnl, manufacturerId, manufacturerData, data, withChecksum, withCrLf)
+  var cs, str;
+  {
+    str = "P" + manufacturerId#asString() + manufacturerData#asString();
+    
+    if( !data#isEmpty() )
+    {
+      str += EsStr::fromArray(
+        data, 
+        ",", 
+        ",", 
+        ""
+      );
+    }
+    
+    if( withChecksum )
+    {
+      cs = checksumGet(str);
+      str += EsStr::format("*%02X", cs);
+    }
+    
+    if( withCrLf )
+    {
+      str += "\r\n";
+    }
+    
+    return strSend(chnl, str);
+  }
+  
+  // Parse sentence(s) from input string
+  function parseString(input)
+  var rngSentence, 
+    rngID1, rngID2, 
+    rngData,
+    rngChsum,
+    cs, csReceived, csOk,
+    endPos, data;
+  {
+    if( !input#isString() )
+      throw "Wrong parser input type. String expected.";
+  
+    if( m_handler#isEmpty() || input#countGet() < 8 )
+      return;
+  
+    m_re$text = input;
+    
+    while( m_re$matches )
+    {
+      csOk = true;
+      rngSentence = m_re.matchRangeGet(0); //< Entire sentence match range
+      rngData = m_re.matchRangeGet(7);
+      rngChsum = m_re.matchRangeGet(8);
+      
+      // Check if sentence checksum is OK
+      if( rngChsum )
+      {
+        cs = input#sliceGet(rngChsum[0], rngChsum[1]);
+        csReceived = (EsStr::hexToBinNibble(cs[0]) << 4) + 
+          EsStr::hexToBinNibble(cs[1]);
+        
+        endPos = rngSentence[1]-1;
+        if( '\n' == input[endPos] )
+          --endPos;
+        if( '\r' == input[endPos] )
+          --endPos;
+        endPos -= 2;  
+
+        cs = checksumGet(
+          input#sliceGet(rngSentence[0]+1, endPos)
+        );
+        
+//        EsScriptDebug::log("inCS = %d; calcCS '%s' = %d", csReceived, input#sliceGet(rngSentence[0]+1, endPos), cs);
+        csOk = cs == csReceived;
+      }
+      
+      if( csOk )
+      {
+        // Tokenize data, if any
+        if( rngData )
+        {
+          m_tok$text = input#sliceGet(rngData[0], rngData[1]);
+          
+//          EsScriptDebug::log( input#sliceGet(rngData[0], rngData[1]) );
+          
+          data = [];
+          while( m_tok$moreTokens )
+            data += m_tok$nextToken;
+        }
+        else
+          data = null;
+
+        rngID1 = m_re.matchRangeGet(3);   //< Match 3..4 is common sentence
+        if( rngID1 )
+        {
+          rngID2 = m_re.matchRangeGet(4);
+          
+          m_handler.onNmeaTalkerSentence(          
+            input#sliceGet(rngID1[0], rngID1[1]),
+            input#sliceGet(rngID2[0], rngID2[1]),
+            data
+          );
+          
+          goto nextMatch;
+        }
+
+        rngID1 = m_re.matchRangeGet(5);   //< Match 5..6 is proprietary sentence
+        if( rngID1 )
+        {
+          rngID2 = m_re.matchRangeGet(6);
+          
+          m_handler.onNmeaProprietarySentence(          
+            input#sliceGet(rngID1[0], rngID1[1]),
+            input#sliceGet(rngID2[0], rngID2[1]),
+            data
+          );
+          
+          goto nextMatch;
+        }
+        
+        rngID1 = m_re.matchRangeGet(1);   //< Match 1..2 is query sentence
+        if( rngID1 )
+        {
+          rngID2 = m_re.matchRangeGet(2);
+          
+          m_handler.onNmeaQuerySentence(          
+            input#sliceGet(rngID1[0], rngID1[1]),
+            input#sliceGet(rngID2[0], rngID2[1]),
+            data
+          );
+        }
+      }
+      
+    label nextMatch:      
+      m_re$offset = rngSentence[1];
+    }
+    
+    return m_re$offset;
+  }
+  
+  // Parse sentence(s) from input byte buffer
+  function parseBinBuffer(bb)
+  {
+    if( EsVariantType$$VAR_BIN_BUFFER != bb#typeGet() )
+      throw "Wrong parser input type. Byte buffer is expected";
+      
+    return parseString(
+      EsStr::fromByteString(bb, EsStrByteEncoding$$ASCII)
+    );
+  }
+  
+  // Parse sentence(s) from input string|string collection|byte buffer)
+  function parse(input)
+  var item;
+  {    
+    if( input#isCollection() )
+    {
+      foreach(item in input)
+      {
+        if( EsVariantType$$VAR_BIN_BUFFER == item#typeGet() )
+          parseBinBuffer( item );
+        else
+          parseString( item#asString() );
+      }
+    }
+    else if( EsVariantType$$VAR_BIN_BUFFER == input#typeGet() )
+      parseBinBuffer( input );
+    else
+      parseString( input#asString() );  
+  }
+  
+  // Read sentence(s) from the IO channel, and parse them
+  function sentencesReceive(chnl)
+  var tmp, 
+    chEstimate = chnl#isEmpty() ? 1 : chnl.txTimeEstimateGet(1),
+    parseEnd;
+  {
+    if( m_buff#find(B'$')#isEmpty() )
+    {
+      // Try to read $ from channel, given N retries, and chEstimate ms per each try
+      if( EsByteReadStatus$$Success == 
+          EsCommUtils::specificByteReceive(
+            chnl, 
+            B'$', 
+            256, 
+            chEstimate
+          ) 
+      )
+      {
+        m_buff += B'$';
+//        EsScriptDebug::log("Sentence start synchronized");
+      }
+      else
+      {
+//        EsScriptDebug::log("Sentence start not synchronized");      
+        return;
+      }
+    }
+    
+    tmp = chnl.bytesGet(128, 128*chEstimate);
+    if( !tmp#isEmpty() )
+    {
+      m_buff += tmp;
+      parseEnd = parseBinBuffer(m_buff);
+      if( !parseEnd#isEmpty() ) //< Exclude parsed sequence part from the buffer
+        m_buff = m_buff#sliceGet(parseEnd, m_buff#countGet());
+      else //< Nothing was parsed - reset the buffer
+        receptionBufferReset();
+    }
+  }
+
+  new()
+  {
+    m_re = new EsRegEx(
+      "\\$(?:(?:([A-Z]{2})([A-Z]{2})Q)|(?:([A-Z]{2})([A-Z]{3}))|(?:P([A-Z]{3})([^\\*,\\r\\n]+)?)),?([^\\*\\r\\n\\$]+)?(?:\\*([0-9A-F]{2}))?\\r?\\n",
+      EsRegExCompileFlag$$DEFAULT
+    );
+    
+    m_tok = new EsStringTokenizer();
+    m_tok$separators = ",";
+    m_tok$skipMultipleSeparators = false;
+    
+    receptionBufferReset();
+  }
+  
+  // Properties
+  //
+  
+  // NMEA event handler
+  property handler;
+  read: { return m_handler; }
+  write: 
+  { 
+    if( __value )
+      // Assign weak reference to the handler variable, to avoid circular referencing
+      m_handler = __value$weakReference;
+    else
+      m_handler = null;
+  }
+}

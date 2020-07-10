@@ -1,0 +1,50 @@
+// Radex AQ Persistent data CRC testing 
+//
+##require("math.ess");
+##require("math/EsSpline.ess");
+##require("devices/radexAq.ess");
+
+function crc8update(crc, data)
+var idx = 0;
+{
+  crc ^= data#asByte();
+  while(idx < 8)
+  {
+    if(crc & 0x80) 
+      crc = ((crc << 1) & 0xFF) ^ 0x31;
+    else
+      crc = ((crc << 1) & 0xFF);
+
+    ++idx;
+  }
+    
+  return crc#asByte();
+}
+
+//const c_data = "203BC4AD8C000000812000004B157C424C91C34125CE3D42190023";
+const c_data = "E00FC6AD8C00000081200000BDB17A4219DBC341A40D3E4219007C";
+
+var databuff = EsStr::hexToBin(c_data);
+var radexAqRec = new RADEX_AQ_PersistentData();
+var idx, crc = new EsCRC8(databuff, RADEX_AQ_Defs$$CrcPersistentDataDef, 0, databuff#countGet()-1);
+
+radexAqRec$buffer = databuff;
+
+EsScriptDebug::log(
+  "baseCRC: %02X, CRC: %02X, crcOK: %d",
+  crc$value,
+  radexAqRec$crc,
+  radexAqRec$isCrcOk
+);
+
+for(idx = 0; idx < 256; ++idx)
+{
+  crc.reset(idx);
+  crc.update(databuff, 0, databuff#countGet()-2);
+
+  EsScriptDebug::log(
+    "CRC8 of databuff-1 with initial val %02X = %02X",
+    idx,
+    crc$value
+  );
+}

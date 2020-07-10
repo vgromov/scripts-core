@@ -1,0 +1,420 @@
+// RD3110 AKA OBSIDIAN BLE testing 
+//
+##require("../devices/obsidian.ess");
+
+//номер для команды 
+//для команд 1..3 - стартовый номер измерения МЭД/Дозы/бета =0..499;
+//для команд 4..6 =0 (не используется) ;
+//для команды 7 = 2; 
+//для команды 8 = 1;
+
+enum BleObsidianCmdType 
+{
+  DERstartSet           = 71;
+  DoseStartSet          = 72;
+  BetaStartSet          = 73;
+  DERreadNext           = 129;
+  DoseReadNext          = 130;
+  BetaReadNext          = 131;
+  SpectrumRead          = 32;
+  SpectrumClear         = 33;
+}
+
+enum BleObsidianTarget
+{
+  DER                   = 0;
+  Dose                  = 1;
+  Beta                  = 2;
+  Spectrum              = 3;
+}
+
+// Initialize BLE support
+EsBluetoothLE::initialize();
+
+if( !EsBluetoothLE::initialized() )
+  throw "Could not initialize BLE support on PC";
+
+// Get current radio modules on host PC
+//
+var radios = EsBluetoothLE::radiosGet();
+
+// Use the first enabled radio for device enumeration
+var devenum = new EsBluetoothLEdeviceEnumerator( radios[0] );
+devenum.enumerate(
+  true, //< Perform Device inquiry?
+  1000  //< Device inquiry time out in ms
+);
+
+// List found devices
+function bleDevicesList(devs)
+var dev;
+{
+  foreach(dev in devs)
+  {
+    EsScriptDebug::log(
+      "Found device: id=%s, address=%s, name=%s, connected=%d",
+      dev$id,
+      dev$address,
+      dev$name,
+      dev$connected
+    );
+  }
+}
+
+// Get OBSIDIAN device from list, in any. 
+// Return null if not found
+//
+function bleOBSIDIANget(devs)
+var dev, regex = new EsRegEx(
+  "Obsidian\\s[0-9]{4}",
+  EsRegExCompileFlag$$DEFAULT
+);
+{
+  foreach(dev in devs)
+  {
+    regex$text = dev$name;
+    if( regex$matches )
+      return dev;
+  }
+}
+
+const c_simpleRetries = 3;
+const c_notificationRetries = 50; //< 5s max
+const c_svc = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+const c_chxCtl = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+const c_chxIn = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
+
+object BleObsidianCtl
+{
+  esU16 f_type;
+  esU16 f_data;
+}
+
+function bleChxOpResultCheck(chx, op, result)
+{
+  if( result != EsBluetoothLEresult$$Success )
+  {
+    EsScriptDebug::log(
+      "Characteristic %s:'%s' %s returned %s",
+      chx$uuid,
+      chx$name,
+      op,
+      EsBluetoothLEresult.valueLabelGet(result)
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function bleChxSubscribe(chx, on)
+{
+  return bleChxOpResultCheck(
+    chx,
+    EsStr::format(
+      "subscribe(%s)",
+      on
+    ),
+    chx.subscribe( on )
+  );
+}
+
+// Characteristic write with retries
+function chxWrite(chx, retries)
+var bleResult;
+{
+  do
+  {
+    bleResult = chx.write();
+    if(
+      !bleChxOpResultCheck(
+        chx,
+        "write",
+        bleResult
+      )
+    )
+      --retries;
+    else
+      return true;
+
+  } while( 0 < retries );
+
+  return false;
+}
+
+// Simple characteristic reading with retries
+function bleChxNotificationRead(chxIn, retries)
+var val;
+{
+  do
+  {
+    if(
+      chxIn$value#isEmpty() ||
+      0 == chxIn$value#countGet()
+    )
+    {
+      EsThreadWorker::sleep(100);
+      --retries;
+    }
+    else
+    {
+      val = chxIn$value;
+      chxIn$value = B"";
+      break;
+    }
+
+  } while( 0 <= retries );
+
+  if( val#isEmpty() )
+    throw "Could not acquire data on notification, retries expired";
+
+  return val;
+}
+
+function bleCtlDataWrite(chxCtl, chxIn, ctlData)
+{
+  chxIn$value = B""; //< Reset value, to be able later checking incoming data
+  chxCtl$value = ctlData$buffer;
+  if( 
+    !chxWrite(
+      chxCtl,
+      c_simpleRetries
+    )
+  )
+    throw "Could not write Data Download Control block";
+}
+
+function bleCtlDataRequestNext(srcId, chxCtl, chxIn, ctlData)
+{
+  switch( srcId )
+  {
+  case BleObsidianTarget$$DER:
+    ctlData.f_type = BleObsidianCmdType$$DERreadNext;
+  case BleObsidianTarget$$Dose:
+    ctlData.f_type = BleObsidianCmdType$$DoseReadNext;
+  case BleObsidianTarget$$Beta:
+    ctlData.f_type = BleObsidianCmdType$$BetaReadNext;
+  default:
+    return;
+  }
+
+  ctlData.f_data = 0;
+
+  bleCtlDataWrite(
+    chxCtl, 
+    chxIn, 
+    ctlData
+  );
+}
+
+// Download persistent data via BLE
+function bleObsidianDload(dev, srcId)
+var svc = dev.serviceFind(c_svc),
+  chxCtl, chxIn,
+  cnt, idx = 0, ctlData = new BleObsidianCtl(),
+  data = B"", result = [], progress, ts;
+{
+  if( svc#isEmpty() )
+    throw "Could not find persistent data access service";
+
+  chxCtl = svc.characteristicGet(c_chxCtl);
+  chxIn = svc.characteristicGet(c_chxIn);
+
+  if( 
+    !bleChxSubscribe(
+      chxIn, 
+      true
+    )
+  )
+    throw "Could not subscribe to incoming data notification";
+
+  // Initiate specific data reading
+  switch( srcId )
+  {
+  case BleObsidianTarget$$DER:
+    {
+      ctlData.f_type = BleObsidianCmdType$$DERstartSet;
+      ctlData.f_data = 0;
+      cnt = 500;
+    }
+  case BleObsidianTarget$$Dose:
+    {
+      ctlData.f_type = BleObsidianCmdType$$DoseStartSet;
+      ctlData.f_data = 0;
+      cnt = 500;
+    }
+  case BleObsidianTarget$$Beta:
+    {
+      ctlData.f_type = BleObsidianCmdType$$BetaStartSet;
+      ctlData.f_data = 0;
+      cnt = 500;
+    }
+  case BleObsidianTarget$$Spectrum:
+    {
+      ctlData.f_type = BleObsidianCmdType$$SpectrumRead;
+      ctlData.f_data = 0;
+      cnt = 2050 / 60 + ((2050 % 60) ? 1 : 0);
+    }
+  }
+
+  bleCtlDataWrite(
+    chxCtl, 
+    chxIn, 
+    ctlData
+  );
+
+  bleCtlDataRequestNext(
+    srcId,
+    chxCtl,
+    chxIn,
+    ctlData
+  );
+
+  progress = new EsProgressMonitorTask(
+    "__ble_obsidian_dload",
+    EsStr::format(
+      "Downloading '%s' persistent data...",
+      BleObsidianTarget.valueLabelGet( srcId )
+    ),
+    cnt,
+    0
+  );
+
+  progress.attachTo(__scriptHost$progressMonitor);
+
+  ts = EsDateTime::now();
+
+  while(idx < cnt)
+  {
+    if( srcId == BleObsidianTarget$$Spectrum )
+      data += bleChxNotificationRead( 
+        chxIn,
+        c_notificationRetries
+      );
+    else
+      data = bleChxNotificationRead( 
+        chxIn,
+        c_notificationRetries
+      );
+
+    if( srcId in [BleObsidianTarget$$DER .. BleObsidianTarget$$Beta] )
+    {
+      switch( srcId )
+      {
+      case BleObsidianTarget$$DER:
+        result += new OBSIDIAN_DataPersistentDER();
+      case BleObsidianTarget$$Dose:
+        result += new OBSIDIAN_DataPersistentDose();
+      case BleObsidianTarget$$Beta:
+        result += new OBSIDIAN_DataPersistentBeta();
+      }
+
+      result[result#countGet()-1]$buffer = data;
+
+      bleCtlDataRequestNext(
+        srcId,
+        chxCtl,
+        chxIn,
+        ctlData
+      );
+    }
+
+    progress$position = idx;
+    ++idx;
+  }
+
+  if( srcId == BleObsidianTarget$$Spectrum )
+  {
+    result += new OBSIDIAN_Spectrum();
+    result[0]$buffer = data;
+  }
+
+  ts = EsDateTime::now()-ts;
+  EsScriptDebug::log(
+    "%d data records/BLE packets downloaded in %s",
+    idx,
+    ts.asString("%M minutes %S seconds %l milliseconds")
+  );
+
+  bleChxSubscribe(
+    chxIn, 
+    false
+  );
+
+  return result;
+}
+
+// Save downloaded data, if any,
+// to the text file
+//
+function dataSave(data, srcId)
+var path, file, rec, contents = "";
+{
+  if( 
+    data#isEmpty() || 
+    !data#countGet()
+  )
+    return;
+
+  path = EsPath::create(
+    EsPath::stdDocsGet(), 
+    "bleObsidian_" + BleObsidianTarget.valueLabelGet(srcId) + "_" + EsPath::makeSafe(
+      EsDateTime::now()#asString()
+    ),
+    "txt"
+  );
+  file = new EsFile(
+    path.pathGet(EsPathFlag$$Default, ""),
+    EsFileFlag$$Write | EsFileFlag$$Text
+  );
+
+  EsScriptDebug::log(
+    "Writing data to %s",
+    path.pathGet(EsPathFlag$$Default, "")
+  );
+
+  foreach( rec in data )
+    contents += rec$buffer#asString() /*+ ":" + rec#asString()*/ + "\r\n";
+
+  file.open();
+  file.stringWrite( contents );
+  file.close();
+}
+
+// Main code
+//
+var dev, data;
+try
+{
+  bleDevicesList( devenum$devices );
+  dev = bleOBSIDIANget( devenum$devices );
+
+  if( dev#isEmpty() )
+    throw "Could not find Obsidian BLE device";
+
+  dev.discover();
+
+  data = bleObsidianDload(dev, BleObsidianTarget$$DER);
+  dataSave(data, BleObsidianTarget$$DER);
+
+  data = bleObsidianDload(dev, BleObsidianTarget$$Dose);
+  dataSave(data, BleObsidianTarget$$Dose);
+
+  data = bleObsidianDload(dev, BleObsidianTarget$$Beta);
+  dataSave(data, BleObsidianTarget$$Beta);
+
+  data = bleObsidianDload(dev, BleObsidianTarget$$Spectrum);
+  dataSave(data, BleObsidianTarget$$Spectrum);
+}
+catch
+{
+  EsScriptDebug::log(
+    "An exception occured: %s",
+    __exception$reason
+  );
+}
+
+if( dev && dev$connected )
+  dev.disconnect();
+
+//EsBluetoothLE::uninitialize();

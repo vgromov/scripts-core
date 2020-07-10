@@ -1,0 +1,413 @@
+/// IO monitors helper objects
+///
+
+object ECOE_ProtoHdr
+{
+  var m_isRpc, m_isResponse;
+
+  esU8 f_frameType;                                                           ///< Frame type specifier (ES_FT_MASTER|ES_FT_SLAVE)
+  esU8 f_devAddr;                                                             ///< Unique peer device address
+  esU16 f_command;                                                            ///< Command or error code response
+  esU16 f_dataLen;                                                            ///< If no data follow header, just set this field to 0
+  esU16 f_packetNum;                                                          ///< Server marks its packet's sequence  number by this field
+                                                                              ///  Peer should respond with packet with the same sequence number
+  esU16 f_reserved;                                                           ///< Reserved space, normally set to all 0s
+  esU16 f_crc;                                                                ///< 2 byte CRC as of RFC1070
+
+  function frameTypeAsString()
+  {
+    return (0x7B == f_frameType) ? 
+        "Master->Slave" :
+        ((0x7A == f_frameType) ?
+          "Slave->Master" :
+          "Unknown"
+        );
+  }
+
+  function commandAsString()
+  var pfx, isError = false, tmp = f_command#asULong();
+  {
+    m_isRpc = false;
+    m_isResponse = false;
+    if( tmp & 0x8000 )
+    {
+      m_isResponse = true;
+      if( tmp >= 0xFF00 )
+      {
+        pfx = "Error";
+        tmp -= 0xFF00;
+        isError = true;
+      }
+      else
+      {
+        pfx = "Response";
+        tmp &= ~0x8000;
+      }
+    }
+    else
+      pfx = "Request";
+
+    if( isError )
+    {
+      switch( tmp )
+      {
+      case 0:
+        return pfx + "[Data Size mismatch]";
+      case 1:
+        return pfx + "[Data Size misalign]";
+      case 2:
+        return pfx + "[CRC error]";
+      case 3:
+        return pfx + "[Unknown CMD]";
+      case 4:
+        return pfx + "[Data too big]";
+      case 5:
+        return pfx + "[Data Size unexpected]";
+      case 6:
+        return pfx + "[Baud Rate unsupported]";
+      case 7:
+        return pfx + "[Address out of range]";
+      case 8:
+        return pfx + "[Device not ready]";
+      }
+    }
+    else
+    {
+      switch( tmp )
+      {
+      case 0:
+        return pfx + "[Ping]";
+      case 1:
+        return pfx + "[Set Addess]";
+      case 3:
+        return pfx + "[Set Baud Rate]";
+      case 32:
+        {
+          m_isRpc = true;
+          return pfx + "[Execute RPC]";
+        }
+      }
+    }
+
+    return pfx + "[!!!Unknown!!!]";
+  }
+
+  function asString()
+  {
+    return " [" + $size + "]\n FrameType: " + EsStr::format(
+      "0x%02X (%s)", 
+      f_frameType, 
+      frameTypeAsString()
+    ) + "\n" +
+    " DevAddr: " + EsStr::format(
+      "0x%02X",
+      f_devAddr
+    ) + "\n" +
+    " Cmd: " + EsStr::format(
+      "0x%04X (%s)",
+      f_command,
+      commandAsString()
+    ) + "\n" +
+    " Data Len: " + f_dataLen#asString() + "\n" +
+    " Packet Num: " + f_packetNum#asString() + "\n" +
+    " Reserved: " + f_reserved#asString() + "\n" +
+    " CRC: " + EsStr::format(
+      "0x%04X",
+      f_crc
+    );
+  }
+}
+
+object ECOE_RPC_Frame
+{
+  var 
+    m_customRpids,
+    m_isResponse,
+    m_totalLen;
+
+  esU16 f_id;
+  esU16 f_sigOrStat;
+  esU8  f_stack[ (m_totalLen#isEmpty() || m_totalLen < 6)? 0 : m_totalLen - 6 ];
+  esU16 f_crc;
+
+  function customRpidsSet(customRpids)
+  var value;
+  {
+    m_customRpids = new EsAssocContainer(__metaclass);
+    if( !customRpids#isEmpty() )
+    {
+      foreach( value in customRpids )
+      {
+        m_customRpids.newValueSet(
+          value,
+          customRpids.valueLabelGet(value)
+        );
+      }
+    }
+  }
+
+  function rpidAsString()
+  var id = f_id#asULong();
+  {
+    if( id in EsRpcStdId )
+      return "Standard[" + id + " (" + EsRpcStdId.valueLabelGet(id) + ")]";
+    else
+    {
+      if( m_customRpids.keyExists(id) )
+        return "Custom[" + id + " (" + m_customRpids.valueGet(id) + ")]";
+      else
+        return "Custom[" + id + "]";
+    }
+  }
+
+  function statusAsString()
+  {
+    return f_sigOrStat#asString(); //< TODO use EsRpcStatus reflected enumeration in latest versions instead
+  }
+
+  function signatureAsString()
+  {
+    switch( f_sigOrStat )
+    {
+    case 0:
+      return "None";
+    case 1:
+      return "VOID_Call";
+    case 2:
+      return "esU8_Call";
+    case 3:
+      return "esU16_Call";
+    case 4:
+      return "esU32_Call";
+    case 5:
+      return "esU64_Call";
+    case 6:
+      return "esI8_Call";
+    case 7:
+      return "esI16_Call";
+    case 8:
+      return "esI32_Call";
+    case 9:
+      return "esI64_Call";
+    case 10:
+      return "esBL_Call";
+    case 11:
+      return "esDT_Call";
+    case 12:
+      return "esBA_Call";
+    case 13:
+      return "esF_Call";
+    case 14:
+      return "VOID_Call_esBA";
+    case 15:
+      return "VOID_Call_esU16";
+    case 16:
+      return "VOID_Call_esF";
+    case 17:
+      return "esBL_Call_esDT";
+    case 18:
+      return "esBA_Call_esU16";
+    case 19:
+      return "VOID_Call_esU8";
+    case 20:
+      return "VOID_Call_esU32";
+    case 21:
+      return "VOID_Call_esBL";
+    case 22:
+      return "VOID_Call_esU8_esF";
+    case 23:
+      return "esF_Call_esU8";
+    case 24:
+      return "esU16_Call_esBA";
+    case 25:
+      return "esU16_Call_esBA_esBL";
+    case 26:
+      return "esBA_Call_esBA";
+    case 27:
+      return "VOID_Call_esU8_esBA";
+    case 28:
+      return "esBA_Call_esU32";
+    case 29:
+      return "esBA_Call_esU32_esU32";
+    case 30:
+      return "VOID_Call_esU32_esBA";
+    case 31:
+      return "esBA_Call_esU8";
+    case 32:
+      return "VOID_Call_esU8_esU8_esU16";
+    case 33:
+      return "VOID_Call_esU32_esU32_esBA";
+    case 34:
+      return "VOID_Call_esU32_esU32_esU32_esBA";
+    case 35:
+      return "esU32_Call_esU32_esBA";
+    }
+    
+    return "Unknown";
+  }
+
+  function stackAsString()
+  {
+    if(m_totalLen <= 6)
+      return "NULL";
+    else
+      return "[" + f_stack$buffer#countGet() + "] " + f_stack$buffer#asString();
+  }
+
+  function asString()
+  {
+    return " RPID: " + rpidAsString() + "\n" +
+      ( m_isResponse ? " STAT: " + statusAsString() : " SIG: " + signatureAsString() ) + "\n" +
+      " STACK: " + stackAsString() + "\n" +
+      " CRC: " + EsStr::format("0x%04X", f_crc);
+  }
+}
+
+/// ECO-E Protocol-level IO monitor helper object
+object ProtoIoMonitor
+{
+  var m_hdr, 
+    m_rpcFrame, 
+    m_customRpids;
+
+  function hdrToString(frameData)
+  {
+    if( m_hdr#isEmpty() )
+      m_hdr = new ECOE_ProtoHdr();
+
+    m_hdr$buffer = frameData;
+    return m_hdr#asString();
+  }
+
+  function dataToString(frameData)
+  var data = EsVar::sliceGet(
+    frameData, 
+    m_hdr$size, 
+    frameData#countGet()
+  );
+  {
+    if( 0 < m_hdr.f_dataLen && m_hdr.m_isRpc)
+    {
+      if( m_rpcFrame#isEmpty() )
+        m_rpcFrame = new ECOE_RPC_Frame();
+
+      m_rpcFrame.m_isResponse = m_hdr.m_isResponse;
+      m_rpcFrame.m_totalLen = data#countGet();
+      m_rpcFrame$buffer = data;
+      m_rpcFrame.customRpidsSet( m_customRpids ); //< Work-around to bug - complex vars reset when assigning buffer
+
+      return " [" + data#countGet() + "]\n" + m_rpcFrame#asString();
+    }
+
+    return "Data Parsing Dropped";
+  }
+
+  function protocolFrameSent(id, frameData)
+  {
+    EsScriptDebug::log("PMON: >>> [%d]'%s' on %s", frameData#countGet(), frameData, id);
+    EsScriptDebug::log("HDR:\n%s", hdrToString(frameData));
+    if(0 < m_hdr.f_dataLen)
+      EsScriptDebug::log("RPC DATA:\n%s", dataToString(frameData));
+    EsScriptDebug::log("---------------------------------------");
+  }
+
+  function protocolFrameSendingFailed(id, error)
+  {
+    EsScriptDebug::log("PMON: sending failed on '%s', %s", id, error);
+  }
+
+  function protocolFrameReceived(id, frameData)
+  {
+    EsScriptDebug::log("PMON: <<< [%d]'%s' on %s", frameData#countGet(), frameData, id);
+    EsScriptDebug::log("HDR:\n%s", hdrToString(frameData));
+    if(0 < m_hdr.f_dataLen)
+      EsScriptDebug::log("DATA:\n%s", dataToString(frameData));
+    EsScriptDebug::log("---------------------------------------");
+  }
+
+  function protocolFrameReceptionFailed(id, error)
+  {
+    EsScriptDebug::log("PMON: reception failed on '%s', %s", id, error);
+  }
+
+  property customRpids;
+  read: { return m_customRpids; }
+  write: { m_customRpids = __value; }
+}
+
+/// ECO-E channel monitor
+object ChnlIoMonitor
+{
+  var m_isAscii, m_escape;
+  
+  new()
+  {
+    m_isAscii = false;
+    m_escape = false;
+  }
+
+  function channelOpened(id)
+  {
+    EsScriptDebug::log("IOMON: Channel with id='%s' opened", id);
+  }
+  
+  function channelClosed(id)
+  {
+    EsScriptDebug::log("IOMON: Channel with id:'%s' closed", id);
+  }
+  
+  function channelBytesReceived(id, data)
+  {
+    if( m_isAscii )
+    {
+      data = EsStr::fromByteString(data);
+
+      if( m_escape )
+        data = EsStr::toString(
+          data, 
+          EsStrFlag$$EscapeNonAscii 
+        );
+    }
+    
+    EsScriptDebug::log("IOMON: <<< '%s' on '%s'", data, id);
+  }
+  
+  function channelReceptionError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR reading on '%s', %s", id, error);
+  }
+  
+  function channelBytesSent(id, data)
+  {
+    if( m_isAscii )
+    {
+      data = EsStr::fromByteString(data);
+
+      if( m_escape )
+        data = EsStr::toString(
+          data, 
+          EsStrFlag$$EscapeNonAscii 
+        );
+    }
+
+    EsScriptDebug::log("IOMON: >>> '%s' on '%s'", data, id);
+  }
+  
+  function channelSendingError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR writing on '%s', %s", id, error);
+  }
+  
+  function channelError(id, error)
+  {
+    EsScriptDebug::log("IOMON: ERR on '%s', %s", id, error);
+  }
+
+  property isAscii;
+  read: { return m_isAscii; }
+  write: { m_isAscii = __value#asBool(); }
+
+  property escape;
+  read: { return m_escape; }
+  write: { m_escape = __value#asBool(); }
+}

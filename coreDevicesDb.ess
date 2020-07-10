@@ -1,0 +1,637 @@
+// --------------------------- ECO-E device database && its services
+##require("EsDataTypes.ess");
+
+// device kinds
+enum EsDeviceKind
+{
+  Appliance  = 0, "Measurement Appliance";
+  HubLight   = 1, "Reduced-functionality HUB";
+  HubFull    = 3, "Full-functional HUB";
+}
+
+// known device types (code names)
+// labels are string representation of the 
+// device code names. by design, it must be 8 symbols, right-padded with spaces
+enum EsDeviceType
+{
+  BOI1     = 0,       "BOI1    ";
+  ECOL1    = 1,       "ECOL1   ";
+  BOI2L    = 2,       "BOI2L   ";
+  BOI2T    = 3,       "BOI2T   ";
+  ET       = 4,       "ET      ";
+  EGEM1    = 5,       "EGEM1   ";
+  RAD1     = 6,       "RAD1    ";
+  IRA1     = 7,       "IRA1    ";
+  LD1V     = 8,       "LD1V    ";
+  OAA      = 9,       "OAA     ";
+  EL3C     = 10,      "EL3C    ";
+  ECLG1    = 11,      "ECLG1   ";
+  ELM      = 12,      "ELM     ";
+}
+
+// IDs of 3-rd party OCTAVA appliances
+const c_octavaDeviceTypeBase = 32001;
+enum EsOctavaDeviceType
+{
+  P380E    = 32001,   "P380E   ";
+  P3811    = 32002,   "P3811   ";
+  P3812    = 32003,   "P3812   ";
+}
+
+// IDs of TENZOR re-branded appliances && hubs
+const c_tenzorDeviceTypeBase = 40001;
+enum EsTenzorDeviceType
+{
+  TECOL1   = 40001,   "TECOL1  ";
+  TBOI1    = 40002,   "TBOI1   ";
+  TIRA1    = 40003,   "TIRA1   ";  
+}
+
+// IDs of QUARTA appliances && hubs
+const c_quartaDeviceTypeBase = 42001;
+enum EsQuartaDeviceType
+{
+  RADEX1    = 42001,   "RADEX1  ";
+  MKC1100   = 42002,   "MKC1100 ";
+  MR107     = 42003,   "MR107   ";
+  RADEXAQ   = 42004,   "RADEXAQ ";
+  OBSIDIAN  = 42005,   "OBSIDIAN";
+  MR107PLUS = 42006,   "MR107+  ";
+}
+
+// IDs of 'dumb', AKA accessory, or output-only ECO-E devices, like Ekconnect, or Lupin
+const c_ecoeAccDeviceTypeBase = 60000;
+enum EsEcoeAccDeviceType
+{
+  EKONNECT  = 60000;
+  EKONNECT2 = 60001;
+  LUPIN1    = 60002;
+}
+
+enum EsDeviceDatabaseField
+{
+  Kind        = 0, "Device Kind";
+  DescrShort  = 1, "Device Short Description";
+  DescrLong   = 2, "Device Long Description";
+  DataTypes   = 3, "Supported Device Data Types";
+}
+
+// Known device database, indexed by device type
+// [type value, device kind, symbolic name, short description, long description, 
+//    [supported data types: none, if the only member is null, all (supported devices-defined), if empty, otherwise, a collection of types]] 
+//
+const c_deviceDatabase = [
+  [
+    EsDeviceKind$$HubFull,    
+    I"DCU-01",        
+    I"Data Collection Unit DCU-01",                 
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"PHA-01",        
+    I"Lighting meter PHA-01",                       
+    [
+      EsDataType$$Illuminance,
+      EsDataType$$Luminance, 
+      EsDataType$$Flicker
+    ]
+  ],
+  [
+    EsDeviceKind$$HubLight,    
+    I"DCU-02L",       
+    I"Data Collection Unit DCU-02L",                
+    []
+  ],
+  [
+    EsDeviceKind$$HubLight,    
+    I"DCU-02T",       
+    I"Data Collection Unit DCU-02T",                
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"ET-01",         
+    I"Microclimate parameters meter EcoTherma-01",  
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"GEO-01",        
+    I"Geomagnetic Field meter GEO-01",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"RAD-01",        
+    I"Radon Radiometer RAD-01",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"IRA-01",        
+    I"Infrared radiometer IRA-01",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"LD-01-V",       
+    I"Laser Dosimeter LD-01-V",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"OAA",           
+    I"Octava Appliances Adapter OAA",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"EL-03-C",       
+    I"Lighting meter eLight-03-C",
+    [
+      EsDataType$$Illuminance,
+      EsDataType$$Luminance, 
+      EsDataType$$Flicker
+    ]
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"eCLg-01",       
+    I"Microclimate eCoLogger-01",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"eLM",           
+    I"Luxmeter eLight-Mini",
+    [
+      EsDataType$$Illuminance
+    ]
+  ]
+];  
+
+const c_octavaDeviceDatabase = [  
+  [
+    EsDeviceKind$$Appliance,   
+    I"P3-80E",        
+    I"Electrostatic meter P3-80E",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"P3-81-1",       
+    I"Magnetic Induction meter P3-81-1 mT",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"P3-81-2",       
+    I"Magnetic Induction meter P3-81-2 uT",
+    []
+  ]
+];  
+  
+const c_tenzorDeviceDatabase = [    
+  [
+    EsDeviceKind$$Appliance,   
+    I"PHM-01",        
+    I"Photometric appliance PHM-01",
+    [
+      EsDataType$$Illuminance,
+      EsDataType$$Luminance, 
+      EsDataType$$Flicker
+    ]
+  ],
+  [
+    EsDeviceKind$$HubFull,     
+    I"DCU-01-T",      
+    I"Data Collection Unit DCU-01-T",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,   
+    I"IRA-01-T",      
+    I"Infrared radiometer IRA-01-T",
+    []
+  ]
+];    
+  
+const c_quartaDeviceDatabase = [
+  [
+    EsDeviceKind$$Appliance,
+    I"RadexOne",      
+    I"RadexOne Dosimeter",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,
+    I"MKS-1100",      
+    I"MKS-1100 Dosimeter",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,
+    I"MR-107",        
+    I"Radon Radiometer MR-107",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,
+    I"RadexAQ",       
+    I"Air quality monitor RadexAQ",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,
+    I"Obsidian",
+    I"Scintillator Dosimeter Obsidian",
+    []
+  ],
+  [
+    EsDeviceKind$$Appliance,
+    I"MR-107+",
+    I"Radon Radiometer MR-107+",
+    []
+  ]
+];
+
+// Known hubs devices database
+//
+// field indexes of the hub functionality record
+enum EsHubDatabaseField
+{
+  PluginCodeName     = 0, "Plugin internal code name";
+  PluginDescrShort   = 1, "Short plugin description";
+  PluginDescrLong    = 2, "Long plugin description";
+  PluginTypes        = 3, "Data types, supported by plugin";
+  PluginAppliances   = 4, "Appliances supported by plugin";
+}
+
+// known hubs functionality table
+const c_hubsDatabase = [
+  // boi-01 functionality with plugins
+  [EsDeviceType$$BOI1, 
+    [
+      ["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'",
+        [ // plugin data types supported [data type directory name, data type description]
+          ["LUX", "Освещенность"],
+          ["CDM", "Яркость"],
+          ["KEO", "Коэффициент естественной освещенности (КЕО)"]
+        ],
+        [ EsDeviceType$$ECOL1,
+          EsTenzorDeviceType$$TECOL1 ]
+      ],
+      ["RAD", "'РАД'", "Радиометр радона 'РАД'",
+        [
+          ["RAD1DAT", "Радиометрия"]
+        ],
+        [ EsDeviceType$$RAD1 ]
+      ],
+      ["MC1", "'ЭКОТЕРМА'", "Изм. микроклимата 'ЭКОТЕРМА'",
+        [
+          ["TH", "Микроклимат-базовый"],
+          ["THV", "Микроклимат, анемометрия"],
+          ["IDX", "Индексы"]
+        ],
+        [ EsDeviceType$$ET ]
+      ],
+      ["P381X", "'П3-81-Х'", "Измеритель магнитного поля 'П3-81-X'",
+        [
+          ["MGEO", "Геомагнитное поле"],
+          ["MCONST", "Постоянное магнитное поле"],
+          ["M50HZ", "Магнитное поле промышленной частоты"]
+        ],
+        [ EsOctavaDeviceType$$P3811,
+          EsOctavaDeviceType$$P3812 ]
+      ],
+      ["P380E", "'П3-80Е'", "Измеритель электростатического поля 'П3-80Е'",
+        [
+          ["ESTAT", "Электростатика"]
+        ],
+        [ EsOctavaDeviceType$$P380E ]
+      ],
+      ["IRA", "'ИК-И'", "Измеритель ИК излучения 'ИК-И'",
+        [
+          ["IRA", "ИК излучение"]
+        ],
+        [ EsDeviceType$$IRA1 ]
+      ],
+      ["TIRA", "'ИК-И-Т'", "Измеритель ИК излучения 'ИК-И-Т'",
+        [
+          ["TIRA", "ИК излучение"]
+        ],
+        [ EsTenzorDeviceType$$TIRA1 ]
+      ]
+    ]
+  ],
+  // boi-01-t functionality with plugins
+  [EsTenzorDeviceType$$TBOI1, 
+    [
+      ["ECL", "'ЭКОЛАЙТ'", "Люксметр-Яркомер-Пульсметр 'ЭКОЛАЙТ'",
+        [ // plugin data types supported [data type directory name, data type description]
+          ["LUX", "Освещенность"],
+          ["CDM", "Яркость"],
+          ["KEO", "Коэффициент естественной освещенности (КЕО)"]
+        ],
+        [ EsDeviceType$$ECOL1,
+          EsTenzorDeviceType$$TECOL1 ]
+      ],
+      ["RAD", "'РАД'", "Радиометр радона 'РАД'",
+        [
+          ["RAD1DAT", "Радиометрия"]
+        ],
+        [ EsDeviceType$$RAD1 ]
+      ],
+      ["MC1", "'ЭКОТЕРМА'", "Изм. микроклимата 'ЭКОТЕРМА'",
+        [
+          ["TH", "Микроклимат-базовый"],
+          ["THV", "Микроклимат, анемометрия"],
+          ["IDX", "Индексы"]
+        ],
+        [ EsDeviceType$$ET ]
+      ],
+      ["P381X", "'П3-81-Х'", "Измеритель магнитного поля 'П3-81-X'",
+        [
+          ["MGEO", "Геомагнитное поле"],
+          ["MCONST", "Постоянное магнитное поле"],
+          ["M50HZ", "Магнитное поле промышленной частоты"]
+        ],
+        [ EsOctavaDeviceType$$P3811,
+          EsOctavaDeviceType$$P3812 ]
+      ],
+      ["P380E", "'П3-80Е'", "Измеритель электростатического поля 'П3-80Е'",
+        [
+          ["ESTAT", "Электростатика"]
+        ],
+        [ EsOctavaDeviceType$$P380E ]
+      ],
+      ["IRA", "'ИК-И'", "Измеритель ИК излучения 'ИК-И'",
+        [
+          ["IRA", "ИК излучение"]
+        ],
+        [ EsDeviceType$$IRA1 ]
+      ],
+      ["TIRA", "'ИК-И-Т'", "Измеритель ИК излучения 'ИК-И-Т'",
+        [
+          ["TIRA", "ИК излучение"]
+        ],
+        [ EsTenzorDeviceType$$TIRA1 ]
+      ]
+    ]
+  ]
+];
+
+// device type check
+function deviceTypeIsEkosf( type )
+  @help = "Check if 'type' is known Ekosfera device type. Return 'true' if yes, false otherwise";
+{
+  return type in EsDeviceType;
+}  
+
+function deviceTypeIsOctava( type )
+  @help = "Check if 'type' is known Octava device type. Return 'true' if yes, false otherwise";
+{
+  return type in EsOctavaDeviceType;
+}
+
+function deviceTypeIsTenzor( type )
+  @help = "Check if 'type' is known Tenzor device type. Return 'true' if yes, false otherwise";
+{
+  return type in EsTenzorDeviceType;
+}
+
+function deviceTypeIsQuarta( type )
+  @help = "Check if 'type' is known Quarta device type. Return 'true' if yes, false otherwise";
+{
+  return type in EsQuartaDeviceType;
+}
+
+/// Return true if device type is known, false otherwise
+function deviceTypeIsKnown( type )
+{
+  return deviceTypeIsEkosf( type ) ||
+    deviceTypeIsOctava( type ) ||
+    deviceTypeIsTenzor( type ) ||
+    deviceTypeIsQuarta( type );
+}
+
+/// Device descriptions access
+function deviceCodeNameGet( type )
+  @help = "Return code name for the 'type' device type. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return EsDeviceType.valueLabelGet( type );
+  else if( deviceTypeIsOctava( type ) )  
+    return EsOctavaDeviceType.valueLabelGet( type );
+  else if( deviceTypeIsTenzor( type ) )
+    return EsTenzorDeviceType.valueLabelGet( type );
+  else if( deviceTypeIsQuarta( type ) )
+    return EsQuartaDeviceType.valueLabelGet( type );
+}
+
+function deviceDescriptionShortGet( type )
+  @help = "Return short description string for 'type' device type. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrShort];
+  else if( deviceTypeIsOctava( type ) )
+    return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
+  else if( deviceTypeIsTenzor( type ) )
+    return c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
+  else if( deviceTypeIsQuarta( type ) )
+    return c_quartaDeviceDatabase[type-c_quartaDeviceTypeBase][EsDeviceDatabaseField$$DescrShort];
+}
+
+function deviceDescriptionLongGet( type )
+  @help = "Return long description string for 'type' device type. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return c_deviceDatabase[type][EsDeviceDatabaseField$$DescrLong];
+  else if( deviceTypeIsOctava( type ) )
+    return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
+  else if( deviceTypeIsTenzor( type ) )
+    return c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
+  else if( deviceTypeIsQuarta( type ) )
+    return c_quartaDeviceDatabase[type-c_quartaDeviceTypeBase][EsDeviceDatabaseField$$DescrLong];
+}
+
+function deviceDataTypesGet( type )
+{
+  if( deviceTypeIsEkosf( type ) )
+    return c_deviceDatabase[type][EsDeviceDatabaseField$$DataTypes];
+  else if( deviceTypeIsOctava( type ) )
+    return c_octavaDeviceDatabase[type-c_octavaDeviceTypeBase][EsDeviceDatabaseField$$DataTypes];
+  else if( deviceTypeIsTenzor( type ) )
+    return c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$DataTypes];
+  else if( deviceTypeIsQuarta( type ) )
+    return c_quartaDeviceDatabase[type-c_quartaDeviceTypeBase][EsDeviceDatabaseField$$DataTypes];
+}
+
+function deviceDefaultDataTypeGet( type )
+var types = deviceDataTypesGet(type);
+{
+  if( !deviceTypeIsKnown(type) )
+    throw EsStr::format(
+      I"Unknown device type '%s'",
+      type#trace()
+    );
+    
+  if( types#isEmpty() || 0 == types#countGet() )
+    throw EsStr::format(
+      I"No data types defined for device '%s'",
+      deviceDescriptionLongGet(type)
+    );
+    
+  return types[0];
+}
+
+function deviceIsHub( type )
+  @help = "Return true if 'type' device type is either light or full HUB, false otherwise. If device is unknown, empty value is returned";
+  var kind;  
+{
+  if( deviceTypeIsEkosf( type ) )
+  {
+    kind = c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+    return EsDeviceKind$$HubLight == kind ||
+      EsDeviceKind$$HubFull == kind;
+  }
+  else if( deviceTypeIsOctava( type ) || deviceTypeIsQuarta( type ) )
+    return false;
+  else if( deviceTypeIsTenzor( type ) )
+  {
+    kind = c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];
+    return EsDeviceKind$$HubLight == kind ||
+      EsDeviceKind$$HubFull == kind;
+  }
+}
+ 
+function deviceIsHubLight( type )
+  @help = "Return true if 'type' device type is light HUB, false otherwise. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return EsDeviceKind$$HubLight == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+  else if( deviceTypeIsOctava( type ) || deviceTypeIsQuarta( type ) )
+    return false;    
+  else if( deviceTypeIsTenzor( type ) )
+    return EsDeviceKind$$HubLight == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];
+}
+
+function deviceIsHubFull( type )
+  @help = "Return true if 'type' device type is full HUB, false otherwise. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return EsDeviceKind$$HubFull == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+  else if( deviceTypeIsOctava( type ) || deviceTypeIsQuarta( type ) )
+    return false;  
+  else if( deviceTypeIsTenzor( type ) )
+    return EsDeviceKind$$HubFull == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];  
+}
+
+function deviceIsAppliance( type )
+  @help = "Return true if 'type' device type is Appliance, false otherwise. If device is unknown, empty value is returned";
+{
+  if( deviceTypeIsEkosf( type ) )
+    return EsDeviceKind$$Appliance == c_deviceDatabase[type][EsDeviceDatabaseField$$Kind];
+  else if( deviceTypeIsOctava( type ) || deviceTypeIsQuarta( type ) )
+    return true;
+  else if( deviceTypeIsTenzor( type ) )
+    return EsDeviceKind$$Appliance == c_tenzorDeviceDatabase[type-c_tenzorDeviceTypeBase][EsDeviceDatabaseField$$Kind];  
+}
+
+function deviceTypeFromCodeNameGet( codeName )
+  @help = "Return device type value from its code name string. If code name is unknown, empty value is returned";
+  var idx = 0, lbl, 
+  values = EsDeviceType$values, 
+  labels = EsDeviceType$labels;  
+{
+  foreach( lbl in labels )
+  {
+    if( lbl == codeName )
+      return values[idx];
+    
+    ++idx;
+  }
+  // check Octava devices
+  idx = 0;
+  values = EsOctavaDeviceType$values; 
+  labels = EsOctavaDeviceType$labels;  
+  foreach( lbl in labels )
+  {
+    if( lbl == codeName )
+      return values[idx];
+    
+    ++idx;
+  }
+  // check Tenzor devices
+  idx = 0;
+  values = EsTenzorDeviceType$values; 
+  labels = EsTenzorDeviceType$labels;  
+  foreach( lbl in labels )
+  {
+    if( lbl == codeName )
+      return values[idx];
+    
+    ++idx;
+  }
+  // check Quarta devices
+  idx = 0;
+  values = EsQuartaDeviceType$values; 
+  labels = EsQuartaDeviceType$labels;  
+  foreach( lbl in labels )
+  {
+    if( lbl == codeName )
+      return values[idx];
+    
+    ++idx;
+  }
+}
+
+// Return known hub functionality table, given the device type
+// if device is not a known full hub, empty value is returned
+function deviceHubFunctionalityRecordGet( deviceType )
+  var isHub = deviceIsHubFull( deviceType );
+  var hubRecord;
+{
+  if( isHub )
+  {
+    foreach(hubRecord in c_hubsDatabase)
+    {
+      if( deviceType == hubRecord[0] )
+        return hubRecord[1];
+    }
+  }
+}
+
+/// Return hub plugin functionality record by its code name.
+/// If no plugin with specified code is found, empty value is returned.
+///
+function deviceHubPluginFunctionalityRecordGet( deviceType, plgCodeName )
+var frec = deviceHubFunctionalityRecordGet( deviceType ), frecItem;
+{
+  if( !frec#isEmpty() )
+  {
+    foreach(frecItem in frec)
+    {
+      if( plgCodeName == frecItem[0] )
+        return frecItem;
+    }
+  }
+}
+
+/// Get plugin data type record, by data type string, from plugin functionality record.
+/// Return null if data type was not found|unknown.
+function deviceHubPluginDataTypeRecordGet(deviceType, plgCodeName, plgDataType)
+var plgRec = deviceHubPluginFunctionalityRecordGet(deviceType, plgCodeName), plgTypes, plgTypeItem;
+{
+  if( !plgRec#isEmpty() )
+  {
+    plgTypes = plgRec[EsHubDatabaseField$$PluginTypes];
+    foreach(plgTypeItem in plgTypes)
+    {
+      if( plgDataType == plgTypeItem[0] )
+        return plgTypeItem;
+    }
+  }
+}
+// --------------------------- end ECO-E device database && its services

@@ -1,0 +1,196 @@
+##require("EsCalibrationHelpers.ess");
+
+// Calibration profile node base object
+//
+object EsCalibrationProfileNodeBase
+{
+  var m_ref,              //< Reference value
+      m_deviation,        //< Allowed deviation form reference value
+      m_system;           //< System node marker - we may not delete these nodes.
+
+  // Overridables
+  //
+  // nodeObjectTypeCheck( obj )                         : Optional
+  // compare( other )                                   : Optional
+  // valueFmt( val )                                    : Optional
+  // valueMatch( val )                                  : Optional
+  //
+
+  function nullCheck( val, valName )
+  {
+    if( val#isEmpty() )
+      throw EsStr::format(
+        I"Empty value may not be assigned to Calibration Profile Node %s",
+        valName
+      );
+  }
+
+  function nodeObjectTypeCheck( obj ) //< Overridable
+  {
+    if( obj#isEmpty() )
+      return;
+
+    if( !obj#isKindOf( $type ) )
+      throw EsStr::format(
+        I"Incompatible calibration profile node type, must be '%s'",
+        obj$type
+      );
+  }
+
+  // Profile nodes this <--> other comparison
+  function compare( other ) //< Overridable
+  {
+    if( !other#isEmpty() )
+    {
+      nodeObjectTypeCheck(other);
+      
+      if(
+        EsUtils::areEqualFloats(
+          m_ref, 
+          other.m_ref
+        )
+      )
+        return 0;
+      else if(m_ref < other.m_ref)
+        return -1;
+    }
+    
+    return 1;
+  }
+
+  // Profile node reference value basic validation
+  function refValidate(ref)
+  {
+    nullCheck( 
+      ref,
+      I"Reference"
+    );
+
+    if( ref < 0 )
+      throw I"Calibration Profile Node Reference value must be non-negative value";
+  }
+  
+  // Profile node value deviation basic validation
+  function deviationValidate(deviation)
+  {
+    EsNumericCheck::checkRangeFloat(
+      0, 
+      0.9, 
+      deviation, 
+      I"Calibration Profile Node Reference value Deviation"
+    );
+  }
+    
+  function deviationSet(deviation)
+  {
+    deviationValidate(deviation);
+    m_deviation = deviation#asDouble();  
+  }
+
+  new(ref, deviation)
+  {
+    refValidate(ref);
+    m_ref = ref#asDouble();
+    deviationSet(deviation);
+    m_system = false;
+  }
+
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.propertiesWrite( this );
+    stream.valueWrite(
+      "isSystem", 
+      m_system
+    );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    stream.propertiesRead( this );
+    m_system = stream.valueRead(
+      "isSystem", 
+      false
+    );
+  }
+
+  /// Default value formatter
+  function valueFmt(val) //< Overridable
+  {
+    return calibrationValueFmtDefault(val);
+  }
+  
+  function valueMatch(val)
+  {
+    if( val#isEmpty() )
+      return false;
+      
+    return this$refMin <= val &&
+      this$refMax >= val;
+  }
+
+  // Properties
+  //
+
+  // Reference node value
+  property ref;
+  @label = I"Reference";
+  @help = I"Calibration reference value";
+  @persistent;
+  read: { return m_ref; }
+  write: { refValidate(__value); m_ref = __value#asDouble(); }
+  
+  /// reference formatted string
+  property refStr;
+  read: { return valueFmt( m_ref ); }
+  
+  /// reference node deviation ratio, 0..0.9 (0..90%)
+  property deviation;
+  @label = I"Deviation";
+  @help = I"Allowable deviation from the reference value";
+  @persistent;
+  @restriction = [0.01 .. 0.9];
+  read: { return m_deviation; }
+  write: { deviationSet(__value); }
+
+  property deviationPercent;
+  @label = I"Deviation (%)";
+  @help = I"Allowable deviation from the reference value, percent";
+  @restriction = [1 .. 90];
+  read: { return m_deviation*100.; }
+  write: { deviationSet(__value/100.); }
+  
+  /// Reference node deviation ratio, 0..0.9 (0..90%)
+  property deviationStr;
+  read: { 
+    return EsStr::format(
+      "%0.2f %%", 
+      m_deviation*100.
+    ); 
+  }
+  
+  /// Reference node calculated minimum
+  property refMin;
+  read: { return m_ref*(1.-m_deviation); }
+  
+  /// Reference node calculated minimum string
+  property refMinStr;
+  read: { return valueFmt( $refMin ); }
+  
+  /// Reference node calculated maximum
+  property refMax;
+  read: { return m_ref*(1.+m_deviation); }
+  
+  /// Reference node calculated maximum string
+  property refMaxStr;
+  read: { return valueFmt( $refMax ); }
+  
+  /// Return system node flag
+  property isSystem;
+  read: { return m_system#asBool(); }
+
+  property isSystemStr;
+  read: { return m_system ? I"System Node" : ""; }
+}
+//-----------------------------------------------------------------------------

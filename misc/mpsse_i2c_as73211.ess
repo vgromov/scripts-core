@@ -1,0 +1,818 @@
+/// FTxxxx MPSSE script test.
+/// Interfacing AS73211 over the I2C bus.
+///
+
+enum AS73211_OpState {
+  DoNotChange           = 4, "NOP mask - no change to device mode";
+  Configuration         = 2, "Configuration mode";
+  Measurement           = 3, "Measurement mode";
+}
+
+object AS73211_osr
+{
+  esU8 f_osr;
+  if( 0x03 == (f_osr & 0x03) && 0x80 == (f_osr & 0x80) )
+    esU8 f_status;
+
+  function asString()
+  var str = [], status = [];
+  {
+    if( this$stop )
+      str += "stopped";
+    else
+      str += "started";
+
+    if( this$pwrdown )
+      str += "power down";
+
+    if( this$reset )
+      str += "in reset";
+
+    str += "opstate: " + AS73211_OpState.valueLabelGet( this$opState );
+
+    if( AS73211_OpState$$Measurement == this$opState )
+    {
+      if( this$outconvOverflow )
+        status += "outconv time counter overflown";
+      if( this$mresOverflow )
+        status += "at least one reasult overflown";
+      if( this$adcOverflow )
+        status += "at least one ADC channel overflown";
+      if( this$dataOverwritten )
+        status += "data ovewritten before fetched";
+      if( this$newDataReady )
+        status += "new data ready";
+      if( this$msrInProcess )
+        status += "measurement is active";
+      if( this$inStandby )
+        status += "standby";
+      if( this$inPowerDown )
+        status += "power down";
+
+      str += "status: " + EsStr::fromArray(
+        status,
+        ", ",
+        "(",
+        ")"
+      );
+    }
+
+    return EsStr::fromArray(
+      str, 
+      ", ", 
+      "[", 
+      "]"
+    );
+  }
+
+  new()
+  {
+    this$stop = true;
+    this$opState = AS73211_OpState$$Configuration;
+  }
+
+  property stop;
+  read: { return 0x80 != (f_osr & 0x80); }
+  write: { 
+    if(__value)
+      f_osr &= ~0x80;
+    else
+      f_osr |= 0x80;
+  }
+
+  property pwrdown;
+  read: { return 0x40 == (f_osr & 0x40); }
+  write: {
+    if( __value )
+      f_osr |= 0x40;
+    else
+      f_osr &= ~0x40;
+  }
+
+  property reset;
+  read: { return 0x08 == (f_osr & 0x08); }
+  write: {  
+    if( __value )
+      f_osr |= 0x08;
+    else
+      f_osr &= ~0x08;
+  }
+
+  property opState;
+  @restriction = AS73211_OpState;
+  read: { return (f_osr & 0x03); } //< Never read DoNotChangem just actual mode bits
+  write: {
+    if( AS73211_OpState$$DoNotChange != __value )
+      f_osr &= ~0x07; //< Clean opmode bits first 
+
+    if( __value in AS73211_OpState )
+      f_osr |= __value;
+    else
+      throw EsStr::format(
+        "Invalid AS73211 OSR Device OpState requested: %d",
+        __value
+      );
+  }
+
+  // Optional status parsing
+  //
+  property outconvOverflow;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x80 == (this.f_status & 0x80)) : false; }
+
+  property mresOverflow;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x40 == (this.f_status & 0x40)) : false; }
+
+  property adcOverflow;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x20 == (this.f_status & 0x20)) : false; }
+
+  property dataOverwritten;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x10 == (this.f_status & 0x10)) : false; }
+
+  property newDataReady;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x08 == (this.f_status & 0x08)) : false; }
+
+  property msrInProcess;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x04 == (this.f_status & 0x04)) : false; }
+
+  property inStandby;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x02 == (this.f_status & 0x02)) : false; }
+
+  property inPowerDown;
+  read: { return (AS73211_OpState$$Measurement == $opState) ? (0x01 == (this.f_status & 0x01)) : false; }
+}
+
+// AS73211 measurement mode
+enum AS73211_mode {
+  Continuous    = 0, "Continuous";
+  SingleShot    = 1, "Single shot";
+  SynStart      = 2, "Synchronized start";
+  SynStartEnd   = 3, "Synchronized start and end";
+}
+
+// AS73211 configuration registers bank
+object AS73211_cfg
+{
+  esU8 f_creg1;
+  esU8 f_creg2;
+  esU8 f_creg3;
+  esU8 f_break;
+  esU8 f_edges;
+  esU8 f_optreg;
+
+  function asString()
+  var str = [];
+  {
+    str += "gain: " + this$gain#asString();
+    str += "conv clocks: " + this$convclocks#asString();
+    if( this$temperatureEnable )
+      str += "temperature enable";
+    if( this$divisorEnable )
+    {
+      str += "divisor enabled";
+      str += "divisor: " + this$divisor#asString();
+    }
+    else
+      str += "divisor disabled";
+    str += AS73211_mode.valueLabelGet( this$measurementMode );
+    if( this$standby )
+      str += "standby";
+    if(this$pinReadyIsOpenDrain)
+      str += "pinReady is OD";
+    else
+      str += "pinReady is PP";
+    str += "baseClock: " + this$baseClock;
+    str += "break time: " + this$breakTime;
+    str += "stop edges count: " + this$stopEdgesCnt;
+    str += "init IDX: " + (this$initIdx ? "yes" : "no");
+
+    return EsStr::fromArray(
+      str,
+      ", ",
+      "[",
+      "]"
+    );
+  }
+
+  property gain;
+  @lookup = [[1, 11], [2, 10], [4, 9], [8, 8], [16, 7], [32, 6], [64, 5], [128, 4], [256, 3], [512, 2], [1024, 1], [2048, 0]];
+  read: { return (2048 >> (f_creg1 >> 4)); }
+  write: var item; {
+    // First, set default gain to 1
+    f_creg1 &= ~0xF0;
+    f_creg1 |= 11 << 4;
+    
+    // Try to find and assign specific gain
+    foreach( item in @lookup )
+    {
+      if( item[0] == __value )
+      {
+        f_creg1 &= ~0xF0;
+        f_creg1 |= (item[1] << 4);
+        break;
+      }
+    }
+  }
+
+  property convclocks;
+  @lookup = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216];
+  read: var val = (f_creg1 & 0x0F); { 
+    return (0xFF == val) ? 1024 : (1024 << val); 
+  }
+  write: var item, idx = 0; {
+    // First, set to 1024 clocks by default
+    f_creg1 &= ~0x0F;
+    
+    // Try to find and assign specific clock value
+    foreach( item in @lookup )
+    {
+      if( item == __value )
+      {
+        f_creg1 |= idx;
+        break;
+      }
+      ++idx;
+    }
+  }
+
+  property temperatureEnable;
+  read: { return (0x40 == (f_creg2 & 0x40)); }
+  write: { 
+    if( __value ) 
+      f_creg2 |= 0x40;
+    else
+      f_creg2 &= ~0x40; 
+  }
+
+  property divisorEnable;
+  read: { return (0x08 == (f_creg2 & 0x08)); }
+  write: { 
+    if( __value ) 
+      f_creg2 |= 0x08; 
+    else
+      f_creg2 &= ~0x08;
+  }
+
+  property divisor;
+  @lookup = [2, 4, 8, 16, 32, 64, 128, 256];
+  read: { return (2 << (f_creg2 & 0x07)); }
+  write: var item, idx = 0; {
+    // Reset divisor to 2 by default
+    f_creg2 &= ~0x07;
+
+    // Try to find and assign specific divisor value
+    foreach( item in @lookup )
+    {
+      if( item == __value )
+      {
+        f_creg2 |= idx;
+        break;
+      }
+      ++idx;
+    }
+  }
+
+  property measurementMode;
+  @restriction = AS73211_mode;
+  read: { return ((f_creg3 >> 6) & 0x03); }
+  write: {
+    if( __value in AS73211_mode )
+    {
+      f_creg3 &= ~0xC0;
+      f_creg3 |= ((__value & 0x03) << 6);
+    }
+    else
+      throw "Invalid measurementMode value";
+  }
+
+  property standby;
+  read: { return (0x10 == (f_creg3 & 0x10)); }
+  write: { 
+    if( __value ) 
+      f_creg3 |= 0x10;
+    else
+      f_creg3 &= ~0x10;
+  }
+
+  property pinReadyIsOpenDrain;
+  read: { return (0x08 == (f_creg3 & 0x08)); }
+  write: { 
+    if( __value ) 
+      f_creg3 |= 0x08; 
+    else
+      f_creg3 &= ~0x08;
+  }
+
+  property baseClock;
+  @lookup = [["1024 KHz", 1024], ["2048 KHz", 2048], ["4096 KHz", 4096], ["8192 KHz", 8192]];
+  read: { return 1024 << (f_creg3 & 0x03); }
+  write: var idx = 0, item; {
+    // Reset to 1.024 MHz by default
+    f_creg3 &= ~0x03;
+
+    foreach( item in @lookup )
+    {
+      if( __value == item[1] )
+      {
+        f_creg3 |= idx;
+        break;
+      }
+      ++idx;
+    }
+  }
+
+  property breakTime;
+  @help = "Pause time TBREAK between two measurements (except for SingleShot mode): from 0 to 2040 μs, step size 8 μs";
+  @restriction = [0 .. 255];
+  read: { return f_break; }
+  write: { f_break = __value; }
+
+  property stopEdgesCnt;
+  @restriction = [1 .. 255];
+  read: { return f_edges; }
+  write: { f_edges = __value; }
+
+  property initIdx;
+  read: { return (f_optreg & 1); }
+  write: { f_optreg = 0; if( __value ) f_optreg |= 1; }
+}
+
+// AS73211 data registers bank
+object AS73211_data 
+{
+  var m_useTemp,
+    m_useTimeref;
+
+  if( m_useTemp )
+    esU16 f_temp;
+
+  esU16 f_x;
+  esU16 f_y;
+  esU16 f_z;
+
+  if( m_useTimeref )
+    esU32 f_timeref;
+
+  new(useTemp, useTimeref)
+  {
+    m_useTemp = useTemp;
+    m_useTimeref = useTimeref;
+  }
+
+  function asString()
+  var str = [];
+  {
+    if( this$useTemp )
+      str += "T: " + this.f_temp;
+    str += "X: " + f_x;
+    str += "Y: " + f_y;
+    str += "Z: " + f_z;
+    if( this$useTimeref )
+      str += "Timeref: " + this.f_timeref;
+
+    return EsStr::fromArray(
+      str,
+      ", ",
+      "[",
+      "]"
+    );
+  }
+
+  property useTemp;
+  read: { return m_useTemp; }
+
+  property useTimeref;
+  read: { return m_useTimeref; }
+}
+
+object AS73211
+{
+  var m_addr, 
+    m_bus,
+    m_osr,
+    m_cfg,
+    m_data,
+    m_connected;
+
+  function slaveAddrSet(addr)
+  {
+    if( 0x74 != (addr & 0x74) )
+      throw EsStr::format(
+        "Invalid AS73211 I2C slave address 0x%0.2X",
+        addr#asByte()
+      );
+    
+    if( m_addr != addr )
+    {
+      m_addr = addr#asByte();
+      m_connected = false;
+    }
+  }
+
+  new()
+  {
+    m_osr = new AS73211_osr();
+    m_cfg = new AS73211_cfg();
+    slaveAddrSet(0x74);
+  }
+
+  new(addr)
+  {
+    m_osr = new AS73211_osr();
+    m_cfg = new AS73211_cfg();
+    slaveAddrSet(addr);
+  }
+
+  function regRead(reg, len)
+  var buff;
+  {
+    m_bus.write(
+      m_addr,
+      reg#asByte(),
+      EsFtdiMpsseI2cIO$$START_BIT
+    );
+
+    buff = m_bus.read(
+      m_addr,
+      len,
+      EsFtdiMpsseI2cIO$$START_BIT|
+      EsFtdiMpsseI2cIO$$STOP_BIT|
+      EsFtdiMpsseI2cIO$$NACK_LAST_BYTE
+    );
+
+    return buff;
+  }
+
+  function regWrite(reg, data)
+  var buff = data#asBinBuffer();
+  {
+    buff#prepend(
+      reg#asByte()
+    );
+
+    return buff#countGet() == m_bus.write(
+      m_addr,
+      buff,
+      EsFtdiMpsseI2cIO$$START_BIT|
+      EsFtdiMpsseI2cIO$$STOP_BIT|
+      EsFtdiMpsseI2cIO$$BREAK_ON_NACK
+    );
+  }
+
+  function osrUpdate()
+  {
+    m_osr$buffer = regRead(0, m_osr$size);
+    EsScriptDebug::log("osrUpdate(): OSR<< %s", m_osr$buffer);
+  }
+
+  function configUpdate()
+  {
+    // Try reading all applicable registers
+    m_cfg$buffer = regRead(
+      6, 
+      m_cfg$size
+    );
+  }
+
+  function softReset(powerDown)
+  var tmp = m_osr.clone();
+  {
+    tmp$pwrdown = powerDown;
+    tmp$reset = true;
+
+    if( regWrite(0, tmp.f_osr$buffer) )
+    {
+      EsThreadWorker::sleep(200); //< Wait for some time
+      m_osr$opState = AS73211_OpState$$Configuration;
+      osrUpdate();
+
+      return true;
+    }
+
+    return false;
+  }
+
+  function stop(usePwrDown)
+  var tmp;
+  {
+    tmp = m_osr.clone();
+    tmp$stop = true;
+    tmp$pwrdown = usePwrDown;
+    tmp$opState = AS73211_OpState$$Configuration;
+
+    EsScriptDebug::log("OSR>> %s", tmp.f_osr$buffer);
+    if( 
+      regWrite(
+        0, 
+        tmp.f_osr$buffer
+      )
+    )
+    {
+      m_osr$opState = AS73211_OpState$$Configuration;
+      return true;
+    }
+  }
+
+  function start(usePwrDown)
+  var tmp;
+  {
+    tmp = m_osr.clone();
+    tmp$stop = true;
+    tmp$pwrdown = usePwrDown;
+    tmp$opState = AS73211_OpState$$Measurement;
+
+    EsScriptDebug::log("OSR>> %s", tmp.f_osr$buffer);
+    if(
+      regWrite(
+        0, 
+        tmp.f_osr$buffer
+      )
+    )
+    {
+      osrUpdate();
+      tmp = m_osr.clone();
+      tmp$stop = false;
+      tmp$opState = AS73211_OpState$$DoNotChange;
+      
+      EsScriptDebug::log("OSR>> %s", tmp.f_osr$buffer);
+      if( 
+        regWrite(
+          0, 
+          tmp.f_osr$buffer
+        )
+      )
+        m_osr$stop = false;
+
+      return true;
+    }
+
+    return false;
+  }
+
+  function restart()
+  var tmp;
+  {
+    if( AS73211_OpState$$Measurement != m_osr$opState )
+      return;
+
+    tmp = m_osr.clone();
+    tmp$stop = false;
+    tmp$opState = AS73211_OpState$$DoNotChange;
+    EsScriptDebug::log("OSR>> %s", tmp.f_osr$buffer);
+
+    return regWrite(
+      0, 
+      tmp.f_osr$buffer
+    );
+  }
+
+  function connect()
+  {
+    if( m_connected )
+      return;
+    
+    // If we're re-connecting, or connection for the first time, start with device soft-reset
+    m_connected = softReset(false);
+    if( !m_connected )
+      throw EsStr::format(
+        "Error resetting AS73211 at 0x%0.2X, connection failed",
+        m_addr
+      );
+    
+    configUpdate();
+  }
+
+  function dataRead()
+  {
+    if( !m_connected )
+      return;
+    
+    m_data = new AS73211_data(
+      m_cfg$temperatureEnable,
+      AS73211_mode$$SynStartEnd == m_cfg$measurementMode
+    );
+    
+    EsScriptDebug::log("dataRead(): Reading data of size %d", m_data$size);
+    m_data$buffer = regRead(
+      m_cfg$temperatureEnable ? 
+        1 : 
+        2, 
+      m_data$size
+    );
+  }
+
+  property addr;
+  read: { return m_addr#asByte(); }
+  write: { slaveAddrSet(__value); }
+
+  property bus;
+  read: { return m_bus; }
+  write: { 
+    if( !__value#isEmpty() && !__value#isKindOf("EsFtdiDeviceMpsseI2c") )
+      throw "Could not assign an invalid bus type";
+
+    m_bus = __value;
+    m_connected = false;
+  }
+
+  property connected;
+  read: { return m_connected; }
+
+  property osr;
+  read: { return m_osr.clone(); }
+
+  property configuration;
+  read: { return m_cfg.clone(); }
+  write: var tmp; {
+    if( !__value#isKindOf("AS73211_cfg") )
+      throw "Invalid configuration object type";
+
+    if( !m_connected || AS73211_OpState$$Configuration != m_osr$opState )
+      return;
+    
+    tmp = __value.clone();
+    if( regWrite(6, tmp$buffer) )
+      // Re-read configuration from chip
+      configUpdate();
+  }
+
+  property apiGeneration;
+  read: { 
+    if( m_connected ) 
+      return regRead(2, 1)#asByte();
+    
+    return null;
+  }
+
+  property data;
+  read: { return m_data; }
+}
+
+// ------------------------------------------------------------------------------
+
+// Enumerate available MPSSE devices
+var devInfos = EsFtdiDriver::enumerate(
+      true,   //< Include busy devices
+      true    //< Include only MPSSE-capable devices
+    );
+
+if( !devInfos#countGet() )
+  throw "Could not find any MPSSE-capable devices";
+
+// Take the first found device and open it  
+var dev = EsFtdiDriver::deviceCreate(
+  EsFtdiDeviceKind$$MPSSE_I2C,
+  devInfos[0]
+);
+  
+if( !dev )
+  throw EsStr::format(
+    "Could not create MPSSE device of type %s for %s",
+    EsFtdiDeviceKind$$MPSSE_I2C$$label,
+    devInfos[0]
+  );
+
+if( !dev.open() )
+  throw EsStr::format(
+    "Could not open MPSSE device %s",
+    devInfos[0]
+  );
+
+// Set OS systicks period to 1 ms
+var systick = EsUtilities::systickChange(
+  1
+);
+
+const c_as73211_addr_mask = 0x77; //< AS73211 base address, two lower bits are configurable
+
+dev$clockRate = EsFtdiMpsseI2cClock$$STANDARD;
+dev.configApply();
+
+// Lookup devices on I2C bus
+var addr, addrs = [], str, tmp, as73211;
+
+for(addr = 0; addr < 128; ++addr)
+{
+  // Ping devices for read
+  if( 
+    dev.ping(
+      addr,
+      false
+    )
+  )
+    addrs += addr;
+}
+
+try
+{
+  if( addrs#countGet() )
+  {
+    str = [];
+    foreach( addr in addrs )
+      str += EsStr::format("0x%0.2X", addr);
+
+    EsScriptDebug::log(
+      "Found I2C devices on bus: %s",
+      EsStr::fromArray(
+        str,
+        ", ",
+        "[",
+        "]"
+      )
+    );
+
+    // Select the first compatible device address
+    foreach( addr in addrs )
+    {
+      if( 0x74 == (0x74 & addr) )
+      {
+        EsScriptDebug::log(
+          "Selected AS73211 device with address: 0x%0.2X",
+          addr
+        );
+        break;
+      }
+    }
+
+    if( 0x74 != (0x74 & addr) )
+      throw "AS73211 device is not found on bus, aborting";
+
+    as73211 = new AS73211(addr);
+    as73211$bus = dev;
+    as73211.connect();
+
+    EsScriptDebug::log(
+      "OSR: %s(%s)\nCFG: %s(%s)\nAPI: 0x%0.2X", 
+      as73211$osr,
+      as73211$osr$buffer,
+      as73211$configuration,
+      as73211$configuration$buffer,
+      as73211$apiGeneration
+    );
+
+    EsScriptDebug::log(
+      "Setting up initial configuration..."
+    );
+
+    tmp = as73211$configuration;
+    tmp$standby = false;
+    tmp$temperatureEnable = true;
+    tmp$gain = 1024;
+    tmp$convclocks = 65536;
+    tmp$baseClock = 1024;
+    tmp$breakTime = 255;
+    tmp$measurementMode = AS73211_mode$$Continuous; // AS73211_mode$$SingleShot;
+    tmp$pinReadyIsOpenDrain = false;
+    as73211$configuration = tmp;
+
+    EsScriptDebug::log(
+      "OSR: %s(%s)\nCFG: %s(%s)\nAPI: 0x%0.2X", 
+      as73211$osr,
+      as73211$osr$buffer,
+      as73211$configuration,
+      as73211$configuration$buffer,
+      as73211$apiGeneration
+    );
+
+    EsScriptDebug::log(
+      "Starting measurements loop..."
+    );
+
+    as73211.start(false); //< start without powerdown
+    
+    while( !__scriptHost$aborting )
+    {
+      EsThreadWorker::sleep(1000);
+      
+      as73211.osrUpdate();
+   //   if( !as73211$osr$newDataReady )
+   //     continue;
+
+      as73211.dataRead();
+      EsScriptDebug::log(
+        "OSR: %s; CFG: %s", 
+        as73211$osr,
+        as73211$configuration
+      );
+      EsScriptDebug::log(
+        "Data: %s", 
+        as73211$data
+      );
+
+ //     as73211.restart(); //< Restart
+    }
+
+    as73211.stop(true); //< Stop and power down
+  }
+  else
+    throw "I2C devices not found";
+}
+catch
+{
+  EsScriptDebug::log( "Error: %s", __exception$reason );
+}
+
+as73211#setToNull();
+dev.close();
+
+// Restore OS systicks
+EsUtilities::systickRestore( systick );

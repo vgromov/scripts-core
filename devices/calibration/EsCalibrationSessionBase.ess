@@ -1,0 +1,853 @@
+// Base calibration session functionality
+//
+
+const ES_EVTC_SESSREQ                   = "session_request";
+const ES_EVTC_SESSRSP                   = "session_response";
+
+// Session response event IDs
+// ES_EVTC_SESSRSP
+//
+enum EsEvtSessRsp
+{
+  RawDataCleared                        = 0;    //< Payload: [uuid, devId, <dataType or null, if data for all types were reset for devId>, <idx or null, all data were reset for devId and dataType>]
+  RawDataUpdated                        = 1;    //< Payload: [uuid, devId, dataType, idx]
+  CalibratedDataCleared                 = 2;    //< Payload: [uuid, devId, <dataType or null, if data for all types were reset for devId>, <idx or null, all data were reset for devId and dataType>]
+  CalibratedDataUpdated                 = 3;    //< Payload: [uuid, devId, dataType, idx]
+  SettingsUpdated                       = 4;    //< Settings were updated for device data record. Payload: [uuid, devId]
+  DevTypeChanged                        = 5;    //< Payload: [uuid, devType]
+  DeviceAttached                        = 6;    //< Device attached to session. Payload - [uuid, devId]
+  DeviceDetached                        = 7;    //< Device detached from session. Payload - [uuid, devId]
+  SessDataNodesInitialized              = 8;    //< Session calibration nodes initialized for device. Payload - [uuid, devId]
+  SessDataNodesSynchronized             = 9;    //< Session calibration nodes synchronized with calibration profile. Payload - [uuid, devId]
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
+/// Calibration Session modes
+///
+enum EsCalibrationSessionMode
+{
+  None                                  = 0, "None";
+  Verification                          = 1, "Verification";
+  Calibration                           = 2, "Calibration";
+  Complete                              = 3, "Complete";
+}
+//-----------------------------------------------------------------------------
+
+function calibrationSessionPathGet(folder, devType, ts)
+var spath = EsPath::createFromPath(folder);
+{
+  spath$fileName = EsPath::makeSafe(
+    deviceDescriptionShortGet(devType) + "_" + ts#asString(),
+    ". ;-", "_"
+  );
+  spath$fileExt = "session";
+
+  return spath;
+}
+//-----------------------------------------------------------------------------
+
+##require("EsCalibrationSessionNodeBase.ess");
+##require("EsCalibrationSessionDataBase.ess");
+
+/// Calibration session base object
+///
+object EsCalibrationSessionBase
+{
+  var 
+    m_uuid,                     //< Unique session ID
+    m_devType,                  //< Session device type
+    m_created,                  //< Session creation timestamp 
+    m_mode,                     //< Current session mode: verification|calibration|complete. Set to complete on session completion.
+    m_complete,                 //< Completed variable holds completion timestamp, set automatically on session completion.
+    m_profiles,                 //< Session - specific calibration profile(s) - should be associatove container object, profiles indexed by profile types
+    m_data;                     //< Calibration data container, indexed by device ID
+
+  /// Overridables:
+  ///
+  /// calibrationDeviceDataCreate(fwId, settings)     : Mandatory
+  /// 
+
+  /// Ensure data container is created
+  function ensureDataContainerCreated()
+  {
+    if( m_data#isEmpty() )
+      m_data = new EsAssocContainer(__metaclass);
+  }  
+
+  /// Overridable device data container node creator
+  /// Create an instance of EsCalibrationSessionDataBase by default
+  ///
+  function calibrationDeviceDataCreate(fwId, settings)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionBase::calibrationDeviceDataCreate(fwId, settings)",
+      fwId#trace(),
+      settings#trace()
+    );
+  
+    return new EsCalibrationSessionDataBase(
+        this,
+        fwId,
+        settings
+      );
+  }
+
+  /// Attach new device object to calibration session
+  function deviceAttach(fwId, settings)
+  var idStr = fwId$fwIdStringEssential;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionBase::deviceAttach(%s, %s)",
+      fwId#trace(),
+      settings#trace()
+    );
+  
+    if( m_devType != fwId$devType )
+      throw EsStr::format(
+        I"Could not attach Device %s to calibration session.\nDevice type is unsupported.\nExpected %s, got %s.",
+        idStr,
+        deviceDescriptionShortGet(m_devType),
+        deviceDescriptionShortGet(fwId$devType)
+      );
+  
+    ensureDataContainerCreated();
+    if( 
+      m_data.keyExists(
+        idStr
+      )
+    )
+      throw EsStr::format(
+        I"Device %s is already attached to calibration session",
+        idStr
+      );
+
+    m_data.newValueSet(
+      idStr,
+      calibrationDeviceDataCreate(
+        fwId,
+        settings
+      )
+    );
+    
+    // Post device attached response event
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$DeviceAttached,
+      [
+        this$uuid,
+        idStr
+      ]
+    );
+  }
+  
+  /// Update an existing device data record with current settings
+  function deviceSettingsUpdate(idStr, settings)
+  var data;
+  {
+    ensureDataContainerCreated();
+    if( 
+      !m_data.keyExists(
+        idStr
+      )
+    )
+      throw EsStr::format(
+        I"Device %s is not attached to calibration session",
+        idStr
+      );
+
+    data = m_data.valueGet( idStr );
+    data$settingsCurrent = settings;
+    
+    // Post update response event  
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$SettingsUpdated,
+      [
+        this$uuid,
+        idStr
+      ]
+    );
+  }
+  
+  /// Detach device from session
+  function deviceDetach(idStr)
+  {
+    ensureDataContainerCreated();
+    if( m_data.keyExists(idStr) )
+    {
+      m_data.valueDelete(idStr);
+      
+      // Post detached response event
+      __scriptHost.eventPost(
+        ES_EVTC_SESSRSP,
+        EsEvtSessRsp$$DeviceDetached,
+        [
+          this$uuid,
+          idStr
+        ]
+      );
+    }
+  }
+  
+  /// Find device calibration data node by devId. Return null if not found
+  function deviceDataFind(idStr)
+  {
+    ensureDataContainerCreated();
+    
+    return m_data.valueGetDef(
+      idStr,
+      null
+    );
+  }
+  
+  // Return true if there is a device data record for idStr
+  function deviceDataExists(idStr)
+  {
+    ensureDataContainerCreated();
+    
+    return m_data.keyExists( idStr );
+  }
+  
+  /// Get count of currently attached session devices
+  function devicesCountGet()
+  {
+    ensureDataContainerCreated();
+    
+    return m_data$count;
+  }
+  
+  function deviceIdsGet()
+  {
+    ensureDataContainerCreated();
+
+    return m_data$keys;
+  }
+
+  function checkCalibrationProfilesForDeviceTypeInitialized(profilesGlobal)
+  var uuidOld, profile, profileType, 
+    supportedProfileTypes = calibrationProfileTypesGet(m_devType),
+    globalProfileTypes = profilesGlobal$keys, 
+    stream;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionBase::checkCalibrationProfilesForDeviceTypeInitialized(profilesGlobal=%s), supportedProfileTypes=%s",
+      profilesGlobal#trace(),
+      supportedProfileTypes#trace()
+    );
+  
+    // Load default profiles for device type, if paths were configured
+    // Default profile paths are indexed by profile type
+    //
+    foreach( profileType in supportedProfileTypes )
+    {
+      if( !(profileType in globalProfileTypes) )
+      {
+        EsScriptDebug::log(
+          "global profile of type %s not found, appending a new one",
+          profileType
+        );
+      
+        profile = __metaclass.objectCreate(
+            profileType,
+            "Default " + profileType
+          );
+
+        profilesGlobal.newValueSet(
+          profileType,
+          profile
+        );
+
+        // Post global profile added event
+        __scriptHost.eventPost(        
+          ES_EVTC_PROFILERSP,
+          EsEvtProfileRsp$$SessionProfileAdded,
+          [
+            profile$uuid,
+            this$uuid
+          ]
+        );
+      }
+      else
+      {
+        EsScriptDebug::log(
+          "global profile of type %s found, cloning from it",
+          profileType
+        );
+
+        profile = profilesGlobal.valueGet(profileType);
+      }
+
+      EsScriptDebug::log( profile#trace() );
+      
+      profile = profile.clone();
+
+      EsScriptDebug::log( profile#trace() );
+
+      m_profiles.newValueSet(
+        profileType,
+        profile
+      );
+    }
+  }
+  
+  // Get an existing profile for data type
+  // Return null if there is none
+  //
+  function profileGetByDataType(dataType)
+  var profileItem;
+  {
+    foreach(profileItem in m_profiles)
+    {
+      if( profileItem[1].dataTypeIsSupported(dataType) )
+        return profileItem[1];
+    }
+  }
+
+  // Parametrized constructor
+  // profilesGlobal is container, storing default common calibration profiles indexed by data types
+  // The container (EsAssocContainer) structure is as follows:
+  // [<calibration profile type>=><calibration profile instance>]
+  //
+  new(devType, mode, profilesGlobal)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionBase::new(devType=%s, mode=%s, profilesGlobal=%s)",
+      devType#trace(), 
+      mode#trace(), 
+      profilesGlobal#trace()
+    );
+  
+    m_uuid = EsUUID::generate();
+    m_devType = devType;
+    m_created = EsDateTime::now();
+    
+    if( mode in EsCalibrationSessionMode )
+      m_mode = mode;
+    else      
+      m_mode = EsCalibrationSessionMode$$None;
+
+    m_profiles = new EsAssocContainer(__metaclass);
+  }
+    
+  /// Custom stream writer
+  function streamWrite(stream)
+  {
+    stream.valueWrite(
+      "uid",
+      m_uuid
+    );
+
+    stream.valueWrite(
+      "devType",
+      m_devType
+    );
+
+    stream.valueWrite(
+      "created", 
+      m_created
+    );
+    stream.valueWrite(
+      "mode", 
+      m_mode
+    );
+    stream.valueWrite(
+      "completed", 
+      m_complete
+    );
+    stream.valueWrite(
+      "profiles",
+      m_profiles
+    );
+    stream.valueWrite(
+      "data", 
+      m_data
+    );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  var dataItem, tmp;
+  {
+    m_uuid = stream.valueRead(
+      "uid", 
+      null
+    );
+    if( m_uuid#isEmpty() )
+      m_uuid = EsUUID::generate();
+  
+    m_devType = stream.valueRead(
+      "devType",
+      EsDeviceType$$EL3C
+    );
+
+    m_created = stream.valueRead(
+      "created", 
+      EsDateTime::now()
+    );
+    m_mode = stream.valueRead(
+      "mode", 
+      EsCalibrationSessionMode$$Verification
+    );
+    m_complete = stream.valueRead(
+      "completed", 
+      null
+    );
+    
+    m_profiles = new EsAssocContainer(__metaclass);
+    stream.valueReadObject(
+      "profiles",
+      m_profiles
+    );
+    
+    m_data = stream.valueRead(
+      "data", 
+      new EsAssocContainer(__metaclass)
+    );
+
+    // Create Weak Link in loaded data items to this session
+    foreach(dataItem in m_data)
+      dataItem[1].m_session = this$weakReference;
+  } 
+  
+  /// Calibration sessions file manipulation
+  ///
+  function sessionPathGet(folder)
+  {
+    return calibrationSessionPathGet(
+      folder,
+      m_devType,
+      m_created
+    ).pathGet(
+      EsPathFlag$$Default, 
+      ""
+    );
+  }
+
+  function save( folder )
+  var path = sessionPathGet(folder),
+    stream = new EsStreamXml(
+      EsStreamFlag$$Write |
+      EsStreamFlag$$File,
+      path
+    );
+  {
+    stream$factory = __metaclass;
+    stream.objectWrite(this);
+    stream.save( path );
+  }
+
+  function complete(pathActive, pathComplete)
+  var spath;
+  {
+    if( $isComplete )
+      return;
+
+    m_complete = EsDateTime::now();
+    m_mode = EsCalibrationSessionMode$$Complete;
+    
+    spath = sessionPathGet( pathActive );
+    save(pathComplete);
+   
+    // find and remove active session file
+    if( EsPath::fileExists(spath, "") )
+      EsPath::fileRemove(spath);
+  }
+
+  /// Properties
+  ///  
+  property uuid;
+  read: { return m_uuid.asString(true); }
+
+  property devType;
+  read: { return m_devType; }
+  
+  property devTypeStr;
+  read: { return deviceDescriptionShortGet(m_devType); }
+  
+  property supportedDataTypes;
+  read: { return deviceDataTypesGet(m_devType); }
+  
+  property supportedDataTypeNames;
+  read: { return dataTypeNamesGet( $supportedDataTypes ); }
+  
+  /// Sessions creation time
+  property created;
+  read: { return m_created; }
+  
+  /// Is Session comlpete
+  property isComplete;
+  read: { return !m_complete#isEmpty() && EsCalibrationSessionMode$$Complete == m_mode; }
+
+  property isVerifying;
+  read: { return EsCalibrationSessionMode$$Verification == m_mode; }
+  
+  property isCalibrating;
+  read: { return EsCalibrationSessionMode$$Calibration == m_mode; }
+  
+  /// Session working mode
+  property mode;
+  read: { return m_mode; }
+  write: { 
+    if( !(__value in EsCalibrationSessionMode) )
+      throw "Invalid Calibration Session mode value";
+    m_mode = __value; 
+  }
+  
+  /// Session completion timestamp
+  property completed;
+  read: { return m_complete; }
+
+  /// Completion string representation
+  property completedStr;
+  read: { 
+    if( m_complete#isEmpty() )
+      return "Not complete";
+    else
+      return m_complete#asString(); 
+  }
+  
+  // session - specific calibration profile(s) access
+  property profiles;
+  read: { return m_profiles; }
+
+  property profilesCount;
+  read: { return m_profiles.countGet(); }
+  
+  property devicesCount;
+  read: { return devicesCountGet(); }
+  
+  property deviceIds;
+  read: { return deviceIdsGet(); }
+
+  /// Get session imformation string
+  property sessionInfoStr;
+  read: { 
+    return EsStr::format(
+      I"Session: %s, Created: %s, Completion: %s", 
+      deviceDescriptionShortGet(m_devType), 
+      m_created#asString(),
+      $completedStr
+    ); 
+  }
+}
+//-----------------------------------------------------------------------------
+
+function calibrationSessionLoad(sessionType, path)
+var stream, session;
+{
+  if( 
+    !__metaclass.isKindOf(
+      sessionType,
+      "EsCalibrationSessionBase"
+    ) 
+  )
+    throw EsStr::format(
+      I"Could not load a '%s' object of non-session type as session from '%s'",
+      sessionType,
+      path
+    );
+
+  if( EsPath::fileExists(path, "") )
+  {
+    session = __metaclass.objectCreate(sessionType);
+    stream = new EsStreamXml(
+      EsStreamFlag$$Read |
+      EsStreamFlag$$File |
+      EsStreamFlag$$NonStrictProperties,
+      path
+    );
+    
+    stream$factory = __metaclass;
+    if( stream.firstRootObjectLocate() )
+      stream.objectRead(session);
+  }
+  
+  return session;
+}
+//-----------------------------------------------------------------------------
+
+// Session file enumeration helper object
+//
+object SessionsEnumerator
+{
+  var m_helper, 
+      m_devTypeStr,
+      m_sessionFiles;
+ 
+  new(devTypeStr)
+  {
+    if( !devTypeStr#isEmpty() )
+      m_devTypeStr = EsPath::makeSafe(
+        devTypeStr,
+        ". ;-", "_"
+      );
+    else
+      m_devTypeStr = "";
+    
+    m_helper = new EsPathEnumeratorHelper(this);
+    m_sessionFiles = [];
+  }
+
+  function search(path)
+  {
+    m_sessionFiles = [];
+    m_helper.enumerate(
+      path, 
+      m_devTypeStr + "*.session", 
+      EsPathEnumeratorFlag$$Default
+    );
+  }
+
+  function onObject(curPath, name, isDir)
+  {
+    if( !isDir )
+      m_sessionFiles += curPath+name;
+      
+    return true;
+  }
+
+  property sessions;
+  read: { return m_sessionFiles; }
+}
+//-----------------------------------------------------------------------------
+
+function activeCalibrationSessionFilesGet(pathActive, devTypeStr)
+var enumerator = new SessionsEnumerator( devTypeStr );
+{
+  EsScriptDebug::log(
+    "activeCalibrationSessionFilesGet(pathActive=%s, devTypeStr=%s)",
+    pathActive#trace(),
+    devTypeStr#trace()
+  );
+
+  enumerator.search(pathActive);
+  
+  EsScriptDebug::log(
+    "found: %s",
+    enumerator$sessions#trace()
+  );
+  
+  return enumerator$sessions;
+}
+//-----------------------------------------------------------------------------
+
+function activeCalibrationSessionFilesGet(pathActive)
+{
+  EsScriptDebug::log(
+    "activeCalibrationSessionFilesGet(pathActive=%s)",
+    pathActive#trace()
+  );
+
+  return activeCalibrationSessionFilesGet(pathActive, null);
+}
+//-----------------------------------------------------------------------------
+
+function allCalibrationSessionsComplete(sessionType, pathActive, pathComplete, devTypeStr)
+var sessionFiles = activeCalibrationSessionFilesGet(
+    pathActive, 
+    devTypeStr
+  ), 
+  sessionFile, session;
+{
+  EsScriptDebug::log(
+    "allCalibrationSessionsComplete(sessionType=%s, pathActive=%s, pathComplete=%s, devTypeStr=%s)",
+    sessionType#trace(), 
+    pathActive#trace(), 
+    pathComplete#trace(), 
+    devTypeStr#trace()
+  );
+  
+  // Make sure folder exists
+  EsPath::pathCreate(
+    pathComplete,
+    ""
+  );
+
+  foreach(sessionFile in sessionFiles)
+  {
+    EsScriptDebug::log(
+      "completing %s",
+      sessionFile#trace()
+    );
+
+    session = calibrationSessionLoad(
+      sessionType,
+      sessionFile
+    );
+
+    session.complete(
+      pathActive, 
+      pathComplete
+    );
+  }
+}
+//-----------------------------------------------------------------------------
+
+function allCalibrationSessionsComplete(sessionType, pathActive, pathComplete)
+{
+  EsScriptDebug::log(
+    "allCalibrationSessionsComplete(sessionType=%s, pathActive=%s, pathComplete=%s)",
+    sessionType#trace(), 
+    pathActive#trace(), 
+    pathComplete#trace()
+  );
+  
+  allCalibrationSessionsComplete(
+    sessionType, 
+    pathActive, 
+    pathComplete, 
+    null
+  );
+}
+//-----------------------------------------------------------------------------
+
+function allCalibrationSessionsComplete(pathActive, pathComplete)
+var sessionType, types = calibrationSupportedSessionTypesGet();
+{
+  EsScriptDebug::log(
+    "allCalibrationSessionsComplete(pathActive=%s, pathComplete=%s)",
+    pathActive#trace(), 
+    pathComplete#trace()
+  );
+
+  foreach( sessionType in types )
+    allCalibrationSessionsComplete(
+      sessionType,
+      pathActive,
+      pathComplete
+    );
+}
+//-----------------------------------------------------------------------------
+
+function allCalibrationSessionsDelete(pathActive, devTypeStr)
+var sessionFiles = activeCalibrationSessionFilesGet(
+    pathActive, 
+    devTypeStr
+  ), 
+  sessionFile;
+{
+  EsScriptDebug::log(
+    "allCalibrationSessionsDelete(pathActive=%s, devTypeStr=%s)",
+    pathActive#trace(), 
+    devTypeStr#trace()
+  );
+
+  foreach(sessionFile in sessionFiles)
+  {
+    EsScriptDebug::log(
+      "removing %s",
+      sessionFile#trace()
+    );
+    EsPath::fileRemove(sessionFile);
+  }
+}
+//-----------------------------------------------------------------------------
+
+function allCalibrationSessionsDelete(pathActive)
+{
+  EsScriptDebug::log(
+    "allCalibrationSessionsDelete(pathActive=%s)",
+    pathActive#trace()
+  );
+
+  allCalibrationSessionsDelete(
+    pathActive, 
+    null
+  );
+}
+//-----------------------------------------------------------------------------
+
+function activeCalibrationSessionCreate(sessionType, folderActive, devType, globalProfiles, newMode)
+var sessionFiles, session;
+{
+  EsScriptDebug::log(
+    "activeCalibrationSessionCreate(sessionType=%s, folderActive=%s, devType=%s, globalProfiles=%s, newMode=%s)",
+    sessionType#trace(), 
+    folderActive#trace(), 
+    devType#trace(), 
+    globalProfiles#trace(), 
+    newMode#trace()
+  );
+
+  // Create new session in specific mode newMode
+  EsScriptDebug::log(
+    "Creating a new session %s",
+    sessionType#trace()
+  );
+  
+  session = __metaclass.objectCreate(
+    sessionType,
+    devType,
+    newMode,
+    globalProfiles
+  );
+
+  EsScriptDebug::log(
+    "Saving new session for the first time to %s",
+    folderActive#trace()
+  );
+  
+  // Ensure path exists
+  EsPath::pathCreate(
+    folderActive,
+    ""
+  );
+  
+  session.save(
+    folderActive
+  );
+  
+  return session;
+}
+//-----------------------------------------------------------------------------
+
+function activeCalibrationSessionLoadOrCreate(sessionType, folderActive, devType, globalProfiles, newMode)
+var devTypeStr = deviceDescriptionShortGet(devType),
+  sessionFiles, session;
+{
+  EsScriptDebug::log(
+    "activeCalibrationSessionLoadOrCreate(sessionType=%s, folderActive=%s, devType=%s, globalProfiles=%s, newMode=%s)",
+    sessionType#trace(), 
+    folderActive#trace(), 
+    devTypeStr#trace(), 
+    globalProfiles#trace(), 
+    newMode#trace()
+  );
+
+  sessionFiles = activeCalibrationSessionFilesGet(
+    folderActive, 
+    devTypeStr
+  );
+
+  if( sessionFiles#countGet() )
+  {
+    // try to find the first existing active session file for devType
+    session = calibrationSessionLoad(
+      sessionType,
+      sessionFiles[0]
+    );
+
+    if( !session#isEmpty() )
+    {
+      if( session$devType != devType )
+        throw EsStr::format(
+          I"Session %s device type '%s' incompatible with requested device type '%s'",
+          sessionFiles[0],
+          session$devTypeStr,
+          devTypeStr
+        );
+        
+      return session;
+    }
+  }
+  
+  return activeCalibrationSessionCreate(
+    sessionType, 
+    folderActive, 
+    devType, 
+    globalProfiles, 
+    newMode
+  );
+}
+//-----------------------------------------------------------------------------

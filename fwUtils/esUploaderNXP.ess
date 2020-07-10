@@ -1,0 +1,129 @@
+// @file: esNxpUploaderBase.ess
+// NXP-specific extension of FW uploader object
+//
+##require("esUploaderBase.ess");
+##require("esMcuProgrammerNXP.ess");
+
+object EsUploaderNXP extends EsUploaderBase
+{
+	function enterBootWithShutdown(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel;
+	{
+		progressTask.pulse("Shutting down device...");
+    rpcMaster.activate();
+		configurePowerOff(chnl);
+		rpcMaster.VOID_Call(EsRpcStdId$$SHUTDOWN);
+		EsThreadWorker::sleep(2000);
+		configurePowerOn(chnl);
+    rpcMaster.deactivate();
+	}
+	
+	function enterBootWithWarmBoot(progressTask, rpcMaster)
+  var chnl = rpcMaster$channel,
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
+	{
+    rpcMaster.activate();
+    rpcMaster.VOID_Call_esU32(EsRpcStdId$$ENTER_BOOT, 4000 + 1000*((m_moniker$binaryByteSize * 30) / m_preferredUploadBaud));
+		rpcMaster.deactivate();
+
+		progressTask.pulse("Performing Warm Boot...");
+		EsThreadWorker::sleep(1500);
+    
+		if( !usesRS232 )
+			devicePowerOnInBootMode(chnl);
+	}
+	
+	function enterBootWithNaturalPowerOff(progressTask, rpcMaster)
+	var tmo = 40, chnl = rpcMaster$channel;
+	{
+    chnl.open();
+		configurePowerOff(chnl);		
+		progressTask.initialize("Waiting for device to power down...", tmo, tmo);
+			
+		// wait for 40 seconds - standard poweroff timeout
+		while( tmo-- )
+		{
+			EsThreadWorker::sleep(1000);
+			progressTask$position = tmo;
+		}
+			
+		configurePowerOn(chnl);
+    chnl.close();
+	}
+	
+  /// Base class overrides
+  ///
+  function programmerCreate()
+	{
+		return new EsMcuprogNxp(
+			EsMcuprogNxpFirmwareFlag$$WIPE|
+			EsMcuprogNxpFirmwareFlag$$NO_ECHO|
+			EsMcuprogNxpFirmwareFlag$$VERIFY, 
+			50, // maximum retries for uploader operations
+			m_moniker
+		);
+  }
+  
+  // Configure and ebnter boot mode, before programming device with ISP
+	function configureForBoot(programmer, rpcMaster, supportedRpcs)
+	var chnl = rpcMaster$channel, 
+		supportsPowerCtl = chnl.hasMethod("devicePowerSet", 1),
+		progressTask = new EsProgressMonitorTask("configureForBoot"),
+    usesRS232 = chnl.hasProperty("useRS232") && chnl$useRS232;
+	{
+		progressTask.attachTo(programmer$topTask);
+		
+		if( supportsPowerCtl && 
+				!usesRS232 &&
+				(EsRpcStdId$$SHUTDOWN in supportedRpcs) )
+		{
+			try
+			{
+        //EsScriptDebug::log("Trying to enter boot with shutdown");
+        
+        chnlPrepareForDefaultNormalComm(chnl);       
+				enterBootWithShutdown(progressTask, rpcMaster);
+        chnlPrepareForBootloader(chnl);
+        
+				if( programmer.checkIfInBoot(chnl) )
+          return true;
+			}
+			catch
+			{
+        //EsScriptDebug::log("Fail");
+        rpcMaster.deactivate();
+      }
+		}
+	
+		if( EsRpcStdId$$ENTER_BOOT in supportedRpcs )
+		{
+			try
+			{
+        //EsScriptDebug::log("Trying to warm-boot");
+        
+        chnlPrepareForDefaultNormalComm(chnl);
+				enterBootWithWarmBoot(progressTask, rpcMaster);
+        chnlPrepareForBootloader(chnl);
+        
+        if( programmer.checkIfInBoot(chnl) )
+          return true;
+			}
+			catch
+			{
+        //EsScriptDebug::log("Fail");      
+        rpcMaster.deactivate();
+      }
+		}
+		
+		if( supportsPowerCtl && !usesRS232 )
+		{
+      //EsScriptDebug::log("Trying to enter boot with natural power-off");
+			enterBootWithNaturalPowerOff(progressTask, rpcMaster);
+      chnlPrepareForBootloader(chnl);
+        
+			return programmer.checkIfInBoot(chnl);
+		}
+		
+		return false;
+	}  
+}

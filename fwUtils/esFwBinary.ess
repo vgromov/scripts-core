@@ -1,0 +1,330 @@
+// Firmware binary loader, optional user application CRC patcher
+//
+##require("esFwUserAppHeader.ess");
+
+// bitmask to define the maximum size of the FW to download.
+// Intel hex processor will check any new segment address record (03) or extended linear
+// address record (04) to see if the addressed 64 kByte data block still falls
+// in the maximum flash size, and will throw if any hex data are larger than this size.
+//
+const c_flashSizeMask = 0xFFC00000; // 22 bits = 4 MB
+
+object EsFwBinary
+{
+  var m_startAddr, 
+    m_offs,
+    m_fw;
+
+  // misc checks
+  function emptyCheck()
+  {
+    if( m_fw#isEmpty() )
+      throw "Firmware image is empty";
+  }
+  
+  function fwOffsAndSizeCheck(offs, size)
+  var thisSize = m_fw#countGet();
+  {
+    if( thisSize <= offs )
+      throw EsStr::format("The specified data offset '%d' is too big for firmware image size '%d'",
+        offs, thisSize);
+    
+    if( thisSize < offs+size )
+      throw EsStr::format("The data chunk with size '%d' and offset '%d' does not fit firmware image size '%d'",
+        size, offs, thisSize);
+  }
+
+  function hexSet(hex)
+  var buffLenEstimate = hex#countGet()/2,
+    buffLen = 0, realAddr = 0, binOffsDefined = false,
+    tokenizer = new EsStringTokenizer(hex, "\r\n :"),
+    rec, pos, recAddr, recType, recLen,
+    nib, hexVal, idx, allLines, pmTask, notifyCounter = 0, notifyThreshold;
+  {
+    if( !tokenizer$moreTokens )
+      throw "Firmware hex image is too small or empty";
+    allLines = tokenizer$remainingTokens;
+    if( allLines > 0 )
+    {
+      notifyThreshold = EsMath::log10(allLines);
+      notifyThreshold = EsMath::round(notifyThreshold)-2;
+      if( notifyThreshold < 2 )
+        notifyThreshold = 1;
+
+      notifyThreshold = EsMath::pow10(notifyThreshold);
+      //EsScriptDebug::log("allLInes is: %d notifyThreshold is: %d", allLines, notifyThreshold);
+    }
+    
+    pmTask = new EsProgressMonitorTask("hex2bin", "Converting hex to binary...", allLines, 0);
+    pmTask.attachTo(__scriptHost$progressMonitor);
+    
+    // try to predict binary size to minimize buffer re-allocations
+    if( buffLenEstimate % 4 )
+      buffLenEstimate = ((buffLenEstimate + 3)/4) * 4;
+    m_fw = EsVar::as(EsVariantType$$VAR_BIN_BUFFER, buffLenEstimate);
+    //EsScriptDebug::log( "m_fw esimate is set to: %d", buffLenEstimate );
+    
+    while( tokenizer$moreTokens )
+    {
+      if( notifyCounter++ > notifyThreshold )
+      {
+        notifyCounter = 0;
+        pmTask$position = allLines-tokenizer$remainingTokens;
+      }
+    
+      rec = tokenizer$nextToken;
+      // skip empty tokens
+      if( 0 == rec#countGet() )
+        continue;
+      
+      pos = 0;
+      // record length
+      recLen = EsStr::hexToBinNibble(rec[pos++]) << 4;
+      recLen += EsStr::hexToBinNibble(rec[pos++]);
+      // record address
+      recAddr = EsStr::hexToBinNibble(rec[pos++]) << 4;
+      recAddr += EsStr::hexToBinNibble(rec[pos++]);
+      recAddr <<= 4;
+      recAddr += EsStr::hexToBinNibble(rec[pos++]);
+      recAddr <<= 4;
+      recAddr += EsStr::hexToBinNibble(rec[pos++]);
+      realAddr = realAddr - (realAddr & 0xFFFF) + recAddr;
+      recType = EsStr::hexToBinNibble(rec[pos++]) << 4;
+      recType += EsStr::hexToBinNibble(rec[pos++]);
+
+      // handle record types
+      if(0x00 == recType) // 00 - Data record
+      {
+        // Binary Offset is defined as soon as first data record read
+        binOffsDefined = true;
+        // We need to know, what the highest address is,
+        // how many bytes / sectors we must flash
+        buffLen = realAddr + recLen - m_offs;
+        if(buffLen > m_fw#countGet())
+        {
+          m_fw#countSet( buffLen );
+          //EsScriptDebug::log( "m_fw extended to: %d", buffLen );          
+        }
+        for(idx = 0; idx < recLen; ++idx)
+        {
+          hexVal = EsStr::hexToBinNibble(rec[pos++]) << 4;
+          hexVal += EsStr::hexToBinNibble(rec[pos++]);
+          m_fw[realAddr + idx - m_offs] = hexVal;
+        }
+      }  
+      else if(0x02 == recType)     // 02 - Extended segment address record
+      {
+        for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+        {
+          realAddr <<= 4;
+          if(idx == 0)
+            realAddr = EsStr::hexToBinNibble(rec[pos++]);
+          else
+            realAddr += EsStr::hexToBinNibble(rec[pos++]);
+        }
+        realAddr <<= 4;
+      }
+      else if(0x03 == recType)     // 03 - Start segment address record
+      {
+        for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+        {
+          realAddr <<= 4;
+          if(idx == 0)
+            realAddr = EsStr::hexToBinNibble(rec[pos++]);
+          else
+            realAddr += EsStr::hexToBinNibble(rec[pos++]);
+        }
+        realAddr <<= 8;
+      }
+      else if(0x04 == recType)     // 04 - Extended linear address record
+      {
+        for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+        {
+          realAddr <<= 4;
+          if(idx == 0)
+            realAddr = EsStr::hexToBinNibble(rec[pos++]);
+          else
+            realAddr += EsStr::hexToBinNibble(rec[pos++]);
+        }
+        realAddr <<= 16;
+        if( !binOffsDefined )
+          // set startaddress of BinaryContent
+          // use of c_flashSizeMask to allow a memory range, not taking the first
+          // [04] record as actual start-address.
+          m_offs = realAddr & c_flashSizeMask;
+        else if((realAddr & c_flashSizeMask) != m_offs)
+            throw EsStr::format(
+              "New Extended Linear Address Record [04] out of memory range\nCurrent Memory starts at: 0x%08X, new Address is: 0x%08X",
+              m_offs, 
+              realAddr
+            );
+      }
+      else if(0x05 == recType)     // 05 - Start linear address record
+      {
+        m_startAddr = 0;
+        for(idx = 0; idx < recLen * 2; ++idx)   // double amount of nibbles
+        {
+          m_startAddr = m_startAddr << 4;
+          if(idx == 0)
+            m_startAddr = EsStr::hexToBinNibble(rec[pos++]);
+          else
+            m_startAddr += EsStr::hexToBinNibble(rec[pos++]);
+        }
+      }
+      else if(0x01 != recType)  // 01 - End of file record
+        // we should not be here
+        throw EsStr::format("Unsupported hex record type encountered: [%d].", recType);      
+
+      // check length for correct alignment, can happen with broken ld-scripts
+      //
+      if(buffLen % 4 != 0)
+      {
+        m_fw#countSet( ((buffLen + 3)/4) * 4 );
+        //EsScriptDebug::log( "m_fw alignment fixed, size set to: %d", buffLen );  
+      }        
+    }
+    
+    if(buffLenEstimate > buffLen) 
+    {
+      m_fw#countSet( buffLen );
+      //EsScriptDebug::log( "final m_fw size truncated from %d to %d", buffLenEstimate, buffLen );
+    }
+    
+    pmTask.end("Convertion complete");
+  }
+
+  // ctor
+  new(hex)
+  {
+    hexSet(hex);
+  }
+  
+  new(start, offs, binary)
+  {
+    m_startAddr = start#asULong(); 
+    m_offs = offs#asULong();
+    m_fw = binary#asBinBuffer();
+  }  
+  
+  function addrAdjust(addr)
+  {
+    return addr-m_offs;
+  }
+  
+  // Not only patch entire firmware binary with proper user application header,
+  // but return [filled-in app header, extracted user application binary] as well
+  //
+  function patchUserAppCrcExtractUserApp(userAppOffs, initialCrc)
+  var buffApp, hdrApp = new EsFwUserAppHeader(),
+    crc = new EsCRC32_IEEE802_3(initialCrc#asULong());
+  {
+    userAppOffs = addrAdjust( userAppOffs#asULong() ); //< Convert to ulong just in case
+
+    EsScriptDebug::log(
+      "Extracting user application header [%d, %d]...", 
+      userAppOffs, 
+      userAppOffs+hdrApp$size
+    );
+    
+    fwOffsAndSizeCheck(
+      userAppOffs, 
+      hdrApp$size
+    );
+    
+    hdrApp$buffer = this$fw#sliceGet(
+      userAppOffs,
+      userAppOffs+hdrApp$size
+    );
+
+    EsScriptDebug::log(
+      "Extracting user application binary [%d, %d]...", 
+      userAppOffs+hdrApp$size, 
+      this$length
+    );
+    fwOffsAndSizeCheck(
+      userAppOffs+hdrApp$size, 
+      this$length-userAppOffs-hdrApp$size
+    );
+    
+    buffApp = m_fw#sliceGet(
+      userAppOffs+hdrApp$size,
+      this$length
+    );
+
+    hdrApp.f_size = hdrApp$size + buffApp#countGet();
+
+    // Update CRC from application
+    crc.update(buffApp);
+
+    // Calculate CRC of all header parts, except crc itself
+    hdrApp.crcUpdate(crc);
+    
+    // Wrtie application header back to m_fw binary
+    EsScriptDebug::log(
+      "Writing updated application header to source firmware binary..."
+    );
+    m_fw#replace(
+      hdrApp$buffer,
+      userAppOffs
+    );
+
+    // return an extracted user application binary and filled-in application header
+    return [
+      hdrApp,
+      buffApp
+    ];
+  }
+
+  function mergeWith( otherFw, otherFwMergeStartAddr )
+  {
+    if( m_offs != otherFw.m_offs )
+      throw "Could not merge firmware objects with different offsets!";
+
+    if( otherFw$length <= addrAdjust( otherFwMergeStartAddr ) )
+      throw "Could not merge other firmware object. Object length is less than requested start address";
+
+    if( this$length > addrAdjust( otherFwMergeStartAddr ) )
+    {
+      EsScriptDebug::log(
+        "Thi length: %d, merge start addr: %d",
+        this$length,
+        addrAdjust( otherFwMergeStartAddr )
+      );
+
+      throw EsStr::format(
+        "Could not merge firmware objects with overlapping regions.\nSRC: OFFS, START, END [0x%08X, 0x%08X, 0x%08X]\nOTHER: OFFS, START, END [0x%08X, 0x%08X, 0x%08X]",
+        m_offs,
+        m_startAddr,
+        m_offs + this$length,
+        otherFw.m_offs,
+        otherFwMergeStartAddr,
+        otherFw.m_offs+otherFw$length
+      );
+    }
+
+    m_fw#countSet(
+      addrAdjust( otherFwMergeStartAddr )
+    );
+
+    m_fw += otherFw.m_fw#sliceGet(  
+      addrAdjust( otherFwMergeStartAddr ),
+      otherFw$length
+    );
+  }
+  
+  property fw;
+  read:
+  {
+    emptyCheck();
+    
+    return m_fw;
+  }
+  
+  property length;
+  read:
+  {
+    emptyCheck();
+    
+    return m_fw#countGet();
+  }
+}

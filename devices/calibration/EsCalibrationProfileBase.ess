@@ -1,0 +1,567 @@
+// Base calibration profile functionality
+//
+
+const ES_EVTC_PROFILERSP                = "profile_response";
+//-----------------------------------------------------------------------------
+
+// ES_EVTC_PROFILERSP
+enum EsEvtProfileRsp
+{
+  NodeAdded                             = 0;    //< Payload: [profile uuid, dataType] NB! do not pass new node index here - because it may be placed anywhere in collection, depending on ref value and sorting algorithm
+  NodeUpdated                           = 1;    //< Payload: [profile uuid, dataType] NB! do not pass node index here - because it may be placed anywhere in collection, depending on ref value and sorting algorithm
+  NodeDeleted                           = 2;    //< Payload: [profile uuid, dataType, idx]
+  NodesCleared                          = 3;    //< Payload: [profile uuid, <dataType or null, if all types were cleared>]
+  SessionProfileAdded                   = 4;    //< Profile created in session and added to profiles collection. Payload: [profile uiid, session uuid]
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+##require("EsCalibrationHelpers.ess");
+##require("EsCalibrationProfileNodeBase.ess");
+
+// Base calibration profile functionality
+//
+object EsCalibrationProfileBase
+{
+  var
+    m_uuid,                     //< Unique profile ID
+    m_suppDevTypes,             //< Device types supported by this calibration profile
+    m_suppDataTypes,            //< Data types supported by this calibration profile
+    m_name,                     //< Calibration profile name
+    m_nodes;                    //< Nodes assoc. container, nodes collection by its dataType
+
+  // Overridables to be implemented in derived object
+  //
+  // canAppendNode(dataType)                                        : Highly recommended
+  // hashGet()                                                      : Highly recommended
+  // profileNodeCreate( dataType, refVal, deviation )               : Mandatory
+  // profileNodeCreateNew( dataType )                               : Mandatory
+  // defaultNodesCreate( dataType )                                 : Optional
+  // isOkGet()                                                      : Mandatory
+  // isComplete( dataType )                                         : Mandatory
+  // completenessCriterionGet( dataType )                           : Mandatory
+  //
+
+  function dataTypeIsSupported(dataType)
+  {
+    return calibrationDataTypeIsSupported(
+      dataType, 
+      m_suppDataTypes
+    );  
+  }
+
+  /// Calculate and return profile hash
+  function hashGet()
+  {
+    // TODO:
+  }
+
+  /// Make sure data type nodes exist
+  function ensureNodesExist(dataType)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationProfileBase::ensureNodesExist(%s)",
+      dataType#trace()
+    );
+  
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+    
+    if( m_nodes#isEmpty() )
+      m_nodes = new EsAssocContainer( __metaclass );
+
+    if( !m_nodes.keyExists(dataType) )
+      m_nodes.newValueSet(
+        dataType,
+        []
+      );
+  }
+
+  // Create profile node given dataType.
+  // Default implementation always return null.
+  //
+  function profileNodeCreate( dataType, refVal, deviation ) //< Overridable
+  {
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+  }
+  
+  // Create new profile node given dataType
+  //
+  function profileNodeCreateNew( dataType )
+  {}
+
+  // Return true, if profile is OK
+  function isOkGet() //< Overridable. Always return false by default
+  {
+    return false;
+  }
+  
+  function isComplete( dataType )
+  {
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+    
+    return false;
+  }
+  
+  function completenessCriterionGet( dataType )
+  {
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+    
+    return "";
+  }
+
+  /// Access nodes collection of specified type
+  function nodesGet(dataType)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationProfileBase::nodesGet(%s)",
+      dataType#trace()
+    );
+    
+    ensureNodesExist(dataType);
+
+    return m_nodes.valueGet(dataType);
+  }   
+ 
+  // Clear profile nodes of specified type. Contents of collection
+  // of specified type is reset to defaults.
+  //
+  function nodesClearSlient(dataType)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationProfileBase::nodesClearSlient(dataType=%s)",
+      dataType#trace()
+    );
+  
+    ensureNodesExist(dataType);
+
+    if( m_nodes.keyExists(dataType) )
+      m_nodes.valueSet(
+        dataType,
+        []
+      );
+  }
+
+  // Internal helper. Create default node collection contents
+  function defaultNodesCreate( dataType ) //< Overridable
+  {
+    EsScriptDebug::log(
+      "EsCalibrationProfileBase::defaultNodesCreate( dataType=%s )",
+      dataType#trace()
+    );
+  
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+
+    nodesClearSlient( dataType );
+  }
+  
+  /// Initialize all node collections to default contents
+  function defaultNodesInit()
+  var dataType;
+  {
+    EsScriptDebug::log("EsCalibrationProfileBase::defaultNodesInit()");
+  
+    foreach( dataType in m_suppDataTypes )
+      defaultNodesCreate( dataType );
+  }
+  
+  /// Clear all node collections to defaults
+  function nodesClearAllSilent()
+  var keys, dataType;
+  {
+    foreach( dataType in m_suppDataTypes )
+      nodesClearSlient( dataType );
+  }
+
+  /// Return count of nodes of specified type in profile
+  function nodesCountGet(dataType)
+  {
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+
+    return nodesGet(dataType)#countGet();
+  }
+  
+  /// Get profile node of specific type at specified index
+  function nodeGet(dataType, idx)
+  {
+    return nodesGet(dataType)[idx];
+  }
+  
+  /// Return true if new node may be added to the dataType's collection
+  function canAppendNode(dataType)
+  {
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+    
+    return true;
+  }
+  
+  /// Add node to profile
+  function nodeAddSilent(dataType, newNode)
+  var nodes;
+  {
+    if( newNode#isEmpty() )
+      throw "Implement profileNodeCreate method for your calibration profile object!";
+
+    nodes = nodesGet(dataType);
+    nodes#appendUnique(newNode);
+    nodes#sortAscending();
+    m_nodes.valueSet(
+      dataType,
+      nodes
+    );
+    
+    return newNode;
+  }
+  
+  function isSystemNode(dataType, idx)
+  var nodes = nodesGet(dataType);
+  {
+    return nodes[idx]$isSystem;
+  }
+  
+  function nodeDeleteSilent(dataType, idx)
+  var nodes;
+  {
+    // Check if node is a system one
+    if( isSystemNode(dataType, idx) )
+      throw I"You may not delete a system node from Calibration Profile";
+      
+    calibrationDataTypeCheck(
+      dataType,
+      m_suppDataTypes,
+      $type
+    );
+
+    nodes = nodesGet(dataType);
+    nodes#itemDelete(idx);
+    m_nodes.valueSet(
+      dataType,
+      nodes      
+    );
+  }
+  
+  function nodeSetSilent(dataType, idx, newNode)
+  var nodes;
+  {
+    if( 
+      isSystemNode(
+        dataType, 
+        idx
+      )
+    )
+    {
+      nodes = nodesGet(dataType);
+      
+      // For system nodes, allow to change deviation only
+      if( 
+        EsUtils::areEqualFloats(
+          nodes[idx]$ref, 
+          newNode$ref
+        )
+      )
+        nodes[idx]$deviation = newNode$deviation;
+      else
+        throw I"Reference value of Calibration Profile System Node may not be changed";
+    }  
+    else
+    {
+      nodeDeleteSilent(
+        dataType, 
+        idx
+      );
+      
+      nodeAddSilent(
+        dataType, 
+        newNode
+      );
+    }
+  }
+  
+  /// Custom stream writer
+  function streamWrite(stream)
+  {    
+    stream.valueWrite(
+      "uid",
+      m_uuid
+    );
+  
+    stream.valueWrite(
+      "name", 
+      m_name
+    );
+
+    stream.valueWrite(
+      "devTypes",
+      m_suppDevTypes
+    );
+
+    stream.valueWrite(
+      "types",
+      m_suppDataTypes
+    );
+    
+    stream.valueWrite(
+      "nodes", 
+      m_nodes
+    );
+  }
+  
+  /// Custom stream reader
+  function streamRead(stream)
+  {
+    m_uuid = stream.valueRead(
+      "uid", 
+      null
+    );
+    if( m_uuid#isEmpty() )
+      m_uuid = EsUUID::generate();
+  
+    m_name = stream.valueRead(
+      "name", 
+      m_uuid.asString(true)
+    );
+
+    m_suppDevTypes = stream.valueRead(
+      "devTypes",
+      []
+    );
+
+    m_suppDataTypes = stream.valueRead(
+      "types",
+      []
+    );
+
+    m_nodes = new EsAssocContainer(__metaclass);
+    stream.valueReadObject(
+      "nodes",
+      m_nodes
+    );
+  }
+  
+  /// Create new profile, all node collections got created with
+  /// default contents, optional profile name is set as specified
+  ///
+  new(devTypes, dataTypes, name)
+  var dataType;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationProfileBase::new(devTypes=%s, dataTypes=%s, name=%s)",
+      devTypes#trace(),
+      dataTypes#trace(),
+      name#trace()
+    );
+  
+    m_uuid = EsUUID::generate();
+  
+    m_suppDevTypes = devTypes#isCollection() ?
+      devTypes :
+      [devTypes];
+
+    m_suppDataTypes = dataTypes#isCollection() ? 
+      dataTypes :
+      [dataTypes];
+
+    m_name = name#isEmpty() ? 
+      m_uuid.asString(true) :
+      name#asString();
+  }
+
+  // Save profile to file at path
+  function save( path )
+  var stream = new EsStreamXml(
+    EsStreamFlag$$Write |
+    EsStreamFlag$$File, 
+    ""
+  );
+  {
+    if( !isOkGet() )
+      throw EsStr::format(
+        "Could not write incomplete profile '%s'. Valid profile should contain at least one node for each data type",
+        m_name
+      );
+      
+    stream$factory = __metaclass;
+    stream.objectWrite(this);  
+    stream.save(path);
+  }
+  
+  // Profile this <--> other comparison
+  function compare( other )
+  var type, idx, cnt, otherCnt, 
+    node, otherNode, cmp;
+  {
+    if( !other#isEmpty() )
+    {
+      if( !other.isKindOf( $type ) )
+        throw "Could not compare Calibration Profile with mismatched data type";
+      
+      foreach( type in m_suppDataTypes )
+      {
+        cnt = nodesCountGet(type);
+        otherCnt = other.nodesCountGet(type);
+        if( cnt < otherCnt )
+          return -1;
+        else if( cnt > otherCnt )
+          return 1;
+        else
+        {
+          for( idx = 0; idx < cnt; ++idx )
+          {
+            node = nodeGet(type, idx);
+            otherNode = other.nodeGet(type, idx);
+            
+            cmp = node.compare(otherNode);
+            if( cmp )
+              return cmp;
+          }
+        }
+      }
+        
+      return 0;
+    }
+    
+    return 1;
+  }
+  
+  // Profile maintenance API with notifications
+  //
+  function nodeAdd(dataType, newNode)
+  {
+    newNode = nodeAddSilent(
+      dataType, 
+      newNode
+    );
+  
+    __scriptHost.eventPost(
+      ES_EVTC_PROFILERSP,
+      EsEvtProfileRsp$$NodeAdded,
+      [
+        m_uuid,
+        dataType
+      ]
+    );
+    
+    return newNode;
+  }
+
+  function nodeSet(dataType, idx, newNode)
+  {
+    nodeSetSilent(
+      dataType, 
+      idx, 
+      newNode
+    );
+  
+    __scriptHost.eventPost(
+      ES_EVTC_PROFILERSP,
+      EsEvtProfileRsp$$NodeUpdated,
+      [
+        m_uuid,
+        dataType
+      ]
+    );
+  }
+
+  function nodeDelete(dataType, idx)
+  {
+    nodeDeleteSilent(
+      dataType,
+      idx
+    );
+    
+    __scriptHost.eventPost(
+      ES_EVTC_PROFILERSP,
+      EsEvtProfileRsp$$NodeDeleted,
+      [
+        m_uuid,
+        dataType,
+        idx
+      ]
+    );
+  }
+ 
+  function nodesClear(dataType)
+  {
+    nodesClearSlient( dataType );
+    defaultNodesCreate( dataType );
+    
+    __scriptHost.eventPost(
+      ES_EVTC_PROFILERSP,
+      EsEvtProfileRsp$$NodesCleared,
+      [
+        m_uuid,
+        dataType
+      ]
+    );
+  }
+
+  function nodesClearAll()
+  var dataType;
+  {
+    foreach( dataType in m_suppDataTypes )
+    {
+      nodesClearSlient( dataType );
+      defaultNodesCreate( dataType );
+    }
+      
+    __scriptHost.eventPost(
+      ES_EVTC_PROFILERSP,
+      EsEvtProfileRsp$$NodesCleared,
+      [
+        m_uuid,
+        null
+      ]
+    );
+  }  
+  
+  // Properties
+  //
+  property uuid;
+  read: { return m_uuid.asString(true); }
+  
+  property supportedDeviceTypes;
+  read: { return m_suppDevTypes; }
+
+  property supportedDataTypes;
+  read: { return m_suppDataTypes; }
+  
+  property supportedDataTypeNames;
+  read: { return dataTypeNamesGet(m_suppDataTypes); }
+  
+  property name;
+  read: { return m_name; }
+  write: { m_name = __value#asString(); }
+  
+  property isOk;
+  read: { return isOkGet(); }
+  
+  property hash;
+  read: { return hashGet(); }
+}
+//-----------------------------------------------------------------------------

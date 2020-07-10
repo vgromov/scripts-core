@@ -1,0 +1,45 @@
+##require("debug.ess");
+
+// Nested dynamic layout test
+//
+
+object Obj_0
+{
+  var v;
+  esU16 f_len;
+  esU8 f_a[ f_len ];
+  esU8 f_b[ v#isEmpty() ? 0 : v#asULong() ];
+}
+
+object Data
+{
+  var v;
+  esU8 f_a[v#isEmpty() ? 0 : v#asULong()];
+}
+
+object Obj_1
+{
+  esU16 f_ttt;
+  if( 0 == f_ttt )
+  {
+    esU16 f_len;
+    Data f_data;
+  }
+  else
+  {
+    esU32 f_mmm;
+  }
+}
+
+var obj1 = new Obj_1();
+var debug = new Debug();
+
+EsScriptDebug::log(
+  debug.objectDump( obj1 )
+);
+
+obj1.f_data.v = 4;
+
+EsScriptDebug::log(
+  debug.objectDump( obj1 )
+);

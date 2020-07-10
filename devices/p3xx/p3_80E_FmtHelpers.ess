@@ -1,0 +1,42 @@
+/// P3_80E data formatting helpers
+///
+
+// P3_80E units
+const c_p3_80_units = ["V/m", "kV/m"];
+
+/// Value formatters
+function P3_80E_ValueFmt(val)
+var fmt;
+{
+	if( val < 0 )
+		val = 0;
+		
+	if( val < 10 )
+		fmt = "%0.2f";
+	else if( val < 100 )
+		fmt = "%0.1f";
+	else
+		fmt = "%0.0f";
+	
+	return EsStr::format(fmt, val);
+}
+
+function P3_80E_strMultiGet( val )
+var result = [], unitIdx = 0;
+{
+	result += P3_80E_ValueFmt( val );
+	if( val > 1000. )
+	{
+		val /= 1000.;
+		unitIdx = 1;
+	}	
+	result += P3_80E_ValueFmt( val );
+	result += c_p3_80_units[unitIdx];
+	
+	return result;
+}
+
+function P3_80E_fromStrMulti( multi )
+{
+	return multi[1] + " " + multi[2];
+}

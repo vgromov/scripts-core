@@ -1,0 +1,395 @@
+// Radex AQ BLE testing 
+//
+##require("../math.ess");
+##require("../math/EsSpline.ess");
+##require("../devices/radexAq.ess");
+
+// Initialize BLE support
+EsBluetoothLE::initialize();
+
+if( !EsBluetoothLE::initialized() )
+  throw "Could not initialize BLE support on PC";
+
+// Get current radio modules on host PC
+//
+var radios = EsBluetoothLE::radiosGet();
+
+// Use the first enabled radio for device enumeration
+var devenum = new EsBluetoothLEdeviceEnumerator( radios[0] );
+devenum.enumerate(
+  true, //< Perform Device inquiry?
+  1000  //< Device inquiry time out in ms
+);
+
+// List found devices
+function bleDevicesList(devs)
+var dev;
+{
+  foreach(dev in devs)
+  {
+    EsScriptDebug::log(
+      "Found device: id=%s, address=%s, name=%s, connected=%d",
+      dev$id,
+      dev$address,
+      dev$name,
+      dev$connected
+    );
+  }
+}
+
+// Get AQ device from list, in any. 
+// Return null if not found
+//
+function bleAQget(devs)
+var dev, regex = new EsRegEx(
+  "AQ\\s[0-9]{5}-[0-9]+",
+  EsRegExCompileFlag$$DEFAULT
+);
+{
+  foreach(dev in devs)
+  {
+    regex$text = dev$name;
+    if( regex$matches )
+      return dev;
+  }
+}
+
+const c_simpleRetries = 3;
+const c_blobRetries = 5;
+const c_svc = "03000000-10AE-4C36-9A27-96BCD4C7F835";
+const c_chxNodeCnt = "03000100-10AE-4C36-9A27-96BCD4C7F835";
+const c_chxNodeIdx = "03000200-10AE-4C36-9A27-96BCD4C7F835";
+const c_chxNodeRec = "03000300-10AE-4C36-9A27-96BCD4C7F835";
+
+object BLOB
+{
+  esU32 f_offs;
+  esU8 f_size;
+  esU8 f_data[ f_size ];
+
+  property isEOD;
+  read: { return 0 == f_size$value; }
+
+  property payloadSize;
+  read: { return f_size$value; }
+
+  property maxPayloadSize;
+  read: { return 20 - f_offs$size - f_size$size; }
+
+  property isLast;
+  read: { return $isEOD || $payloadSize < $maxPayloadSize; }
+
+  property payloadOffs;
+  read: { return f_offs$value; }
+
+  property payload;
+  read: { return f_data$buffer; }
+}
+
+function bleChxOpResultCheck(chx, op, result)
+{
+  if( result != EsBluetoothLEresult$$Success )
+  {
+    EsScriptDebug::log(
+      "Characteristic %s:'%s' %s returned %s",
+      chx$uuid,
+      chx$name,
+      op,
+      EsBluetoothLEresult.valueLabelGet(result)
+    );
+    return false;
+  }
+
+  return true;
+}
+
+// Characteristic write with retries
+function chxWrite(chx, retries)
+var bleResult;
+{
+  do
+  {
+    bleResult = chx.write();
+    if(
+      !bleChxOpResultCheck(
+        chx,
+        "write",
+        bleResult
+      )
+    )
+      --retries;
+    else
+      return true;
+
+  } while( 0 < retries );
+
+  return false;
+}
+
+// BLOB-backed characteristic reading with retries
+function blobBufferedChxRead(chx, retries)
+var retriesCount = retries, blob = new BLOB(), bleResult, buffer, 
+    data = EsVar::as( EsVariantType$$VAR_BIN_BUFFER );
+{
+  do
+  {
+    bleResult = chx.read();
+    if(
+      !bleChxOpResultCheck(
+        chx,
+        "read",
+        bleResult
+      )
+    )
+    {
+      EsScriptDebug::log("Resetting BLOB position...");
+
+      if(
+        !chxWrite(
+          chx,
+          retries
+        )
+      )
+        throw "Could not reset BLOB position";
+      
+      // Reset accumulated data
+      data#countSet(0);
+
+      EsScriptDebug::log("BLOB Position is reset");
+
+      --retriesCount;
+    }
+    else
+    {
+      // Assign and parse BLOB
+      blob$buffer = chx$value;
+      
+      // Accumulate payload data
+      data += blob$payload;
+
+      // Return accumulated data if it's the last BLOB
+      if( blob$isEOD )
+        return data;
+
+      // Reset retries
+      retriesCount = retries;
+    }
+
+  } while( 0 < retriesCount );
+
+  // Return an empty data on expired reads
+  data#countSet(0);
+  return data;
+}
+
+// Simple characteristic reading with retries
+function chxRead(chx, retries)
+var bleResult;
+{
+  do
+  {
+    bleResult = chx.read();
+
+    if( 
+      !bleChxOpResultCheck(
+        chx,
+        "read",
+        bleResult
+      )
+    )
+      --retries;
+    else
+      return chx$value;
+
+  } while( 0 <= retries );
+}
+
+// Download persistent data via BLE
+function bleAQdload(dev)
+var svc = dev.serviceFind(c_svc),
+  chxNodeCnt, chxNodeIdx, chxNodeRec,
+  cnt, idx = 0, radexAqRec = new RADEX_AQ_PersistentData(),
+  data, result = [], progress, ts;
+{
+  if( svc#isEmpty() )
+    throw "Could not find persistent data access service";
+
+  chxNodeCnt = svc.characteristicGet(c_chxNodeCnt);
+  chxNodeIdx = svc.characteristicGet(c_chxNodeIdx);
+  chxNodeRec = svc.characteristicGet(c_chxNodeRec);
+
+  data = chxRead(
+    chxNodeCnt,
+    c_simpleRetries //< Retries
+  );
+
+  if( data#isEmpty() )
+    throw "Could not read saved data count";
+
+  cnt = data#asULong();
+  EsScriptDebug::log(
+    "Device %s has %d persistent records",
+    dev$name,
+    cnt
+  );
+
+  progress = new EsProgressMonitorTask(
+    "__ble_aq_dload",
+    "Downloading persistent data...",
+    cnt,
+    0
+  );
+
+  progress.attachTo(__scriptHost$progressMonitor);
+
+  ts = EsDateTime::now();
+
+  //cnt = 10; //< Restrict dload count, for debugging purposes only
+  //idx = 998;
+
+  chxNodeIdx$value = idx;
+  if( 
+    !chxWrite(
+      chxNodeIdx,
+      c_simpleRetries
+    )
+  )
+    throw "Could not set starting record index";
+
+  while(idx < cnt)
+  {
+    progress$position = idx;
+    EsScriptDebug::log(
+      "Reading record at index %d...",
+      idx
+    );
+
+    data = blobBufferedChxRead(
+      chxNodeRec,
+      c_blobRetries //< Retries on each BLOB read attempt
+    );
+
+    if( data#countGet() == radexAqRec$size )
+    {
+      EsScriptDebug::log(
+        "Record buffer: %s",
+        data
+      );
+
+      radexAqRec$buffer = data;
+      result += radexAqRec.clone();
+
+      EsScriptDebug::log(
+        "Received record %d of %d",
+        result#countGet(),
+        cnt
+      );
+
+      ++idx;
+/*
+      // Check record index auto-increment at device side - for debugging purposes only
+      data = chxRead(
+        chxNodeIdx,
+        c_simpleRetries
+      );
+
+      if(idx != data#asULong())
+        throw EsStr::format(
+          "Record index increment mismatch. Expected %d, got %d",
+          idx,
+          data#asULong()
+        );
+*/
+    }
+    else
+    {
+      EsScriptDebug::log(
+        "Failed to read %s, expected %d bytes, got %d",
+        chxNodeRec$uuid,
+        radexAqRec$size,
+        data#countGet()
+      );
+      
+      break;
+    }
+  }
+
+  ts = EsDateTime::now()-ts;
+  EsScriptDebug::log(
+    "%d data records downloaded in %s",
+    idx,
+    ts.asString("%M minutes %S seconds %l milliseconds")
+  );
+
+  return result;
+}
+
+// Save downloaded data, if any,
+// to the text file
+//
+function dataSave(data)
+var path, file, rec, contents = "";
+{
+  if( 
+    data#isEmpty() || 
+    !data#countGet()
+  )
+    return;
+
+  path = EsPath::create(
+    EsPath::stdDocsGet(), 
+    "bleRadexAQ_" + EsPath::makeSafe(
+      EsDateTime::now()#asString()
+    ),
+    "txt"
+  );
+  file = new EsFile(
+    path.pathGet(EsPathFlag$$Default, ""),
+    EsFileFlag$$Write | EsFileFlag$$Text
+  );
+
+  EsScriptDebug::log(
+    "Writing data to %s",
+    path.pathGet(EsPathFlag$$Default, "")
+  );
+
+  foreach( rec in data )
+    contents += rec$buffer#asString() + ":" + rec#asString() + "\r\n";
+
+  file.open();
+  file.stringWrite( contents );
+  file.close();
+}
+
+// Main code
+//
+var dev, data;
+try
+{
+  bleDevicesList( devenum$devices );
+  dev = bleAQget( devenum$devices );
+
+  if( dev#isEmpty() )
+    throw "Could not find RadexAQ BLE device";
+
+//  if( dev$connected )
+//    dev.disconnect();
+
+  dev.discover();
+
+  data = bleAQdload(dev);
+  
+  dataSave(data);
+}
+catch
+{
+  EsScriptDebug::log(
+    "An exception occured: %s",
+    __exception$reason
+  );
+}
+
+if( dev && dev$connected )
+  dev.disconnect();
+
+//EsBluetoothLE::uninitialize();

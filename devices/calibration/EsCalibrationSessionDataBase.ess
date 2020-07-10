@@ -1,0 +1,546 @@
+/// Calibration session data container node base object
+///
+object EsCalibrationSessionDataBase
+{
+  var 
+    m_session,                  //< Weak reference to owning session
+    m_fwId,                     //< Device FW ID
+    m_settingsBak,              //< Device Settings backup snapshot
+    m_settingsCur,              //< Current device settings state
+    m_nodes;                    //< Calibration data nodes (raw && verified), indexed by data type and then profile node index (for that dataType)
+
+  /// Overridables:
+  ///
+  /// settingsValidate(settings)                                                  : Optional, but highly recommended
+  /// calibrationSessionNodeCreateForProfileNode(profileNode, dataType)           : Mandatory
+  /// dependentRecalc( dataType )                                                 : Optional
+  /// internalOnNodeRawDataReset( node, dataType )                                : Optional
+  /// internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )              : Optional
+  /// nodesGet( dataType )                                                        : Optional
+  /// nodeGet( dataType, nodeIdx )                                                : Optional
+  /// nodesSyncWithProfiles()                                                     : Optional
+  /// calibratedValueGetFromRaw( dataType, dataKind, rawVal )                     : Mandatory
+  /// calibratedValueGetFromRaw( dataType, inRaw )                                : Optional
+  /// calibratedVectorGetFromRawVector( dataType, inRaw )                         : Optional
+  ///
+
+  /// Overridables
+  ///
+
+  /// Overridable method to validate settings object
+  /// Do nothing by default
+  ///
+  function settingsValidate(settings)
+  {}
+
+  /// Default calibration session node creator returns a node with an empty raw and verified value cells
+  /// Default implementation returns an empty calibration session node object
+  ///
+  function calibrationSessionNodeCreateForProfileNode(idx, profileNode, dataType)
+  {}
+
+  // Recalculate calibration nodes-dependent data.
+  // default does nothing
+  //
+  function dependentRecalc(dataType) //< Overridable
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionDataBase::dependentRecalc(%s)",
+      dataType#trace()
+    );
+    
+    calibrationDataTypeCheck(
+      dataType,
+      m_session$supportedDataTypes,
+      $type
+    );
+  }
+
+  // Internal helper. Reset raw data for profile node of specified type
+  function internalOnNodeRawDataReset(node, dataType)
+  var nodeKind;
+  {
+    foreach( nodeKind in node$kinds )
+      node.rawSet(
+        null,
+        nodeKind
+      );
+    
+    // Reset calibrated data for node as well, just in case
+    node.m_calibrated = null;
+  }
+
+  // Adjust raw value before assigning it to the node object. 
+  // To be implemented in derived objects. 
+  // Default implementation just returns input value
+  //
+  function internalOnNodeRawValSet( dataType, nodeKind, nodeIdx, rawVal )
+  {
+    return rawVal;
+  }
+
+  function nodesGet(dataType)
+  {
+    return m_nodes.valueGet(dataType);
+  }
+
+  function nodeGet( dataType, nodeIdx )
+  var typeNodes = nodesGet(dataType);
+  {
+    EsScriptDebug::log( 
+      "EsCalibrationSessionDataBase::nodeGet(dataType: %s, nodeIdx: %s)->%s",
+      dataType#trace(),
+      nodeIdx#trace(),
+      ( 
+        !nodeIdx#isEmpty() &&
+        !typeNodes#isEmpty() &&
+        typeNodes#countGet() > nodeIdx
+      ) ?
+        typeNodes[nodeIdx]#trace() :
+        "Could not access node item"
+    );
+      
+    return typeNodes[nodeIdx];
+  }
+
+  /// Initialize nodes using existing profiles and data types
+  function nodesInitFromProfiles()
+  var dataType, dataTypes = m_session$supportedDataTypes,
+    typeNodes, profile, profileNode, profileNodes,
+    idx;
+  {
+    EsScriptDebug::log( 
+      "EsCalibrationSessionDataBase::nodesInitFromProfiles(devId=%s)",
+      this$deviceId
+    );
+  
+    m_nodes.clear();
+    foreach(dataType in dataTypes)
+    {
+      typeNodes = [];
+      profile = m_session.profileGetByDataType(dataType);
+      if( !profile#isEmpty() )
+      {
+        profileNodes = profile.nodesGet(dataType);
+        idx = 0;
+        foreach(profileNode in profileNodes)
+        {
+          typeNodes += calibrationSessionNodeCreateForProfileNode(
+            idx,
+            profileNode, 
+            dataType
+          );
+          
+          ++idx;
+        }
+        
+        m_nodes.newValueSet(
+          dataType,
+          typeNodes
+        );
+      }
+      else
+        throw EsStr::format(
+          I"Could not get calibration session %s profile for data type %s",
+          m_session,
+          dataTypeNameGet(dataType)
+        );
+    }
+    
+    // Post "calibration nodes initialized" response
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$SessDataNodesInitialized,
+      [
+        m_session$uuid,
+        this$deviceId
+      ]
+    );
+  }
+
+  function nodesSyncWithProfiles()
+  var dataType, dataTypes = m_session$supportedDataTypes,
+    typeNodes, profile, profileNode, profileNodes,
+    dataNodes, idx;
+  {
+    EsScriptDebug::log( "EsCalibrationSessionDataBase::nodesSyncWithProfiles" );
+  
+    foreach(dataType in dataTypes)
+    {
+      profile = m_session.profileGetByDataType(dataType);
+      if( profile#isEmpty() )
+        throw EsStr::format(
+          I"Could not get calibration session %s profile for data type %s",
+          m_session,
+          dataTypeNameGet(dataType)
+        );      
+      
+      profileNodes = profile.nodesGet(dataType);
+      dataNodes = m_nodes.valueGet(dataType);
+      
+      dataNodes#countSet(
+        profileNodes#countGet()
+      );
+      
+      m_nodes.valueSet(
+        dataType,
+        dataNodes
+      );
+    }
+    
+    // Post "calibration nodes synchronized" response
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$SessDataNodesSynchronized,
+      [
+        m_session$uuid,
+        this$deviceId
+      ]
+    );
+  }
+
+  // Mandatory override is required in derived objects
+  function calibratedValueGetFromRaw( dataType, dataKind, rawVal )
+  {}
+
+  // inRaw is assoc container where raw values are indexed by dataKind (Slow, Fast, etc.)
+  function calibratedValueGetFromRaw( dataType, inRaw )
+  var result = new EsAssocContainer(__metaclass), 
+    kind, kinds = inRaw$keys, val;
+  {
+    foreach(kind in kinds)
+    {
+      val = calibratedValueGetFromRaw(
+        dataType,
+        kind,
+        inRaw.valueGet(kind)
+      );
+
+      if( val#isEmpty() )
+        continue;
+
+      result.newValueSet(
+        kind,
+        val
+      );
+    }
+
+    return result;
+  }
+  
+  function calibratedVectorGetFromRawVector( dataType, inRaw )
+  var result = new EsAssocContainer(__metaclass);
+  {
+  }  
+
+  ///
+  /// Overradables end
+
+  // Optionally recalculate profile-dependent data (interpolation, etc.)
+  function dependentRecalcAll()
+  var dataType, dataTypes = m_session$supportedDataTypes;
+  { 
+    EsScriptDebug::log( "EsCalibrationSessionDataBase::dependentRecalcAll()" );
+  
+    foreach( dataType in dataTypes )
+      dependentRecalc( dataType );
+  }
+    
+  function nodeHasRawValues(dataType, nodeIdx)
+  {
+    return nodeGet(
+      dataType,
+      nodeIdx
+    ).hasRawValues();
+  }
+  
+  function nodeHasCalibratedValue(dataType, nodeIdx)
+  {
+    return nodeGet(
+      dataType,
+      nodeIdx
+    )$hasCalibration;
+  }  
+  
+  // Set calibration data node raw value(s) to rawVals.
+  // rawVals is expected to be assoc container, where raw values 
+  // are indexed by nodeKind.
+  //
+  function nodeRawValueSetSilent(dataType, nodeIdx, rawVals)
+  var node = nodeGet(
+      dataType, 
+      nodeIdx
+    ),
+    kind, kinds, rawVal;
+  {
+    kinds = node$kinds;
+    foreach( kind in kinds )
+    {
+      rawVal = rawVals.valueGet(kind);
+
+      rawVal = internalOnNodeRawValSet(
+        dataType,
+        kind,
+        nodeIdx,
+        rawVal
+      );
+
+      node.rawSet(
+        rawVal,
+        kind
+      );
+    }
+
+    dependentRecalc(dataType);
+  }
+  
+  /// Reset raw data for profile nodes of specified type
+  function nodesRawDataReset(dataType)
+  var idx, nodes = nodesGet(dataType);
+  {
+    for(idx = 0; idx < nodes#countGet(); ++idx)
+      internalOnNodeRawDataReset(
+        nodes[idx], 
+        dataType
+      );
+      
+    dependentRecalc(dataType);
+    
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$RawDataCleared,  //< Payload: [uuid, devId, <dataType or null, if data for all types were reset for devId>, <idx or null, all data were reset for devId and dataType>],
+      [
+        m_session$uuid,
+        this$deviceId,
+        dataType,
+        null
+      ]
+    );    
+  }
+  
+  /// Reset raw data for profile node of specified type
+  function nodeRawDataReset(dataType, idx)
+  var nodes = nodesGet(dataType);
+  {
+    internalOnNodeRawDataReset(
+      nodes[idx], 
+      dataType
+    );
+    
+    dependentRecalc(dataType);
+    
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$RawDataCleared,
+      [
+        m_session$uuid,
+        this$deviceId,
+        dataType,
+        idx
+      ]
+    );    
+  }
+  
+  /// Reset calibrated data for data nodes of specified type
+  function nodesCalibratedDataReset(dataType)
+  var idx, nodes = nodesGet(dataType);
+  {
+    for(idx = 0; idx < nodes#countGet(); ++idx)
+      nodes[idx].m_calibrated = null;
+    
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$CalibratedDataCleared,  //< Payload: [uuid, devId, <dataType or null, if data for all types were reset for devId>, <idx or null, all data were reset for devId and dataType>],
+      [
+        m_session$uuid,
+        this$deviceId,
+        dataType,
+        null
+      ]
+    );    
+  }
+  
+  /// Reset raw data for profile node of specified type
+  function nodeCalibratedDataReset(dataType, idx)
+  var nodes = nodesGet(dataType);
+  {
+    nodes[idx].m_calibrated = null;
+    
+    __scriptHost.eventPost(
+      ES_EVTC_SESSRSP,
+      EsEvtSessRsp$$CalibratedDataCleared,
+      [
+        m_session$uuid,
+        this$deviceId,
+        dataType,
+        idx
+      ]
+    );    
+  }
+  
+  /// Return true if data have any nodes with raw values set
+  function hasNodesWithRawValues(dataType)
+  var nodes = nodesGet(dataType), node;
+  {
+    foreach(node in nodes)
+    {
+      if( node.hasRawValues() )
+        return true;
+    }
+    
+    return false;
+  }
+  
+  /// Return true if data have any nodes with calibrated values set
+  function hasNodesWithCalibratedValues(dataType)
+  var nodes = nodesGet(dataType), node;
+  {
+    foreach(node in nodes)
+    {
+      if( !node$calibrated#isEmpty() )
+        return true;
+    }
+    
+    return false;
+  }
+  
+  /// Get all profile nodes, which have raw data assigned, 
+  /// return a collection of pairs [profileNode, dataNode]
+  ///
+  function nodesWithRawDataGet(dataType)
+  var nodes = nodesGet(dataType),
+    node, idx, result = [],
+    profile = m_session.profileGetByDataType(dataType),
+    profileNodes;
+  {
+    if( !profile#isEmpty() )
+      profileNodes = profile.nodesGet(dataType);
+  
+    idx = 0;
+    foreach(node in nodes)
+    {
+      if( node.hasRawValues() )
+        result#append(
+          [
+            profileNodes[idx],
+            node
+          ]
+        );
+      
+      ++idx;
+    }
+    
+    return result;
+  }
+  
+  /// Get all profile nodes of specific kind, which have raw data assigned, 
+  /// return a collection of pairs [profileNode, dataNode]
+  ///
+  function nodesWithRawDataGet(dataType, nodeKind)
+  var nodes = nodesGet(dataType),
+    node, idx, result = [],
+    profile = m_session.profileGetByDataType(dataType),
+    profileNodes;
+  {
+    if( !profile#isEmpty() )
+      profileNodes = profile.nodesGet(dataType);
+ 
+    idx = 0;
+    foreach(node in nodes)
+    {
+      if( node.hasRawValue(nodeKind) )
+        result#append(
+          [
+            profileNodes[idx],
+            node
+          ]
+        );
+        
+      ++idx;
+    }
+    
+    return result;
+  }
+
+  /// Parametrized constructor
+  new(session, fwId, settings)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationSessionDataBase::new(session=%s, fwId=%s, settings=%s)",
+      session#trace(),
+      fwId#trace(),
+      settings#trace()
+    );
+  
+    m_session = session$weakReference;
+    m_fwId = fwId;
+    m_settingsBak = settings;
+    m_settingsCur = m_settingsBak.clone();
+    m_nodes = new EsAssocContainer(__metaclass);
+  }
+  
+  /// Custom serialization support
+  ///
+  function streamWrite(stream)
+  {
+    if( !m_settingsBak#isEmpty() && m_settingsBak.hasMethod("crcUpdate", 0) )
+      m_settingsBak.call("crcUpdate");
+
+    if( !m_settingsCur#isEmpty() && m_settingsCur.hasMethod("crcUpdate", 0) )
+      m_settingsCur.call("crcUpdate");
+      
+    stream.valueWrite(
+      "fwId",
+      m_fwId
+    );
+    stream.valueWrite(
+      "settings_bak",
+      m_settingsBak
+    );
+    stream.valueWrite(
+      "settings_cur",
+      m_settingsCur
+    );
+    stream.valueWrite(
+      "nodes",
+      m_nodes
+    );
+  }
+
+  function streamRead(stream)
+  {
+    m_fwId = stream.valueRead(
+      "fwId",
+      null
+    );
+    m_settingsBak = stream.valueRead(
+      "settings_bak",
+      null
+    );
+    m_settingsCur = stream.valueRead(
+      "settings_cur",
+      null
+    );
+    
+    m_nodes = new EsAssocContainer(__metaclass);
+    stream.valueReadObject(
+      "nodes",
+      m_nodes
+    );
+  }
+
+  /// Properties
+  ///
+  property settingsBackup;
+  read: { return m_settingsBak; }
+  
+  property settingsCurrent;
+  read: { return m_settingsCur; }
+  write: {
+    settingsValidate(__value);
+    m_settingsCur = __value.clone(); 
+  }
+  
+  property deviceId;
+  read: { return m_fwId$fwIdStringEssential; }
+}

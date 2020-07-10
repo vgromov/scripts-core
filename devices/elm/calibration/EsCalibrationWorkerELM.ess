@@ -1,0 +1,172 @@
+##require("devices/calibration/EsCalibrationWorkerBase.ess");
+##require("Session.ess");
+##require("devices/calibration/EsCalibrationDataIntegrationHelperStd.ess");
+
+object EsCalibrationWorkerELM extends EsCalibrationWorkerBase
+{
+  /// Device-specific overrides should implement the following:
+  /// function devicePrepareForOffline(dev)                                                                                   : Mandatory
+  /// function deviceStateRequest(dev)                                                                                        : Mandatory
+  /// function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )                                                      : Mandatory
+  /// function checkDeviceOpmodeIsSetForDataType( dev, dataType )                                                             : Mandatory
+  /// function doDeviceLiveDataRequest( dev, doRawRequest )                                                                   : Mandatory
+  /// function integrationDataPrepare( integrator, inData, isRaw )                                                            : Optional
+  /// function childWorkerObjectCreate()                                                                                      : Mandatory
+  /// function nonBusyChannelsEnumerate(chnlType)                                                                             : Mandatory
+  /// function deviceChannelCreate(chnlPath, chnlType)                                                                        : Mandatory
+  /// function deviceCalibrationUpload(device, calibration )                                                                  : Mandatory
+  /// function supportsIntegration()                                                                                          : Optional
+  /// function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )                                  : Optional
+  /// function doLiveReadResultGet(result)                                                                                    : Optional
+  /// new(owner)                                                                                                              : Optional
+  /// new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)                                 : Optional
+  ///
+  
+  // Overridables
+  //
+
+  // Request device state in batch mode
+  function deviceStateRequest(dev)
+  {
+    return elmstateRequest(dev);
+  }
+
+  // Check if data type is supported by selected device type
+  function checkDataTypeIsSupportedByDeviceType( dataType, doThrow )
+  {
+    return elmDataTypeCheck(
+      dataType,
+      doThrow
+    );
+  }
+
+  function checkDeviceOpmodeIsSetForDataType( dev, dataType )
+  {
+    if( dataType == EsDataType$$Illuminance )
+      return true; //< ELM is always in illuminance mode
+
+    return false;
+  }
+
+  function doDeviceLiveDataRequest( dev, doRawRequest )
+  {
+    return elmliveRequest(
+      dev,
+      !doRawRequest
+    );
+  }
+  
+  function childWorkerObjectCreate()
+  {
+    return new EsCalibrationWorkerELM(this);
+  }
+  
+  function channelTypesForDevType()
+  {
+    return ["EsChannelIoUart"];
+  }
+  
+  function nonBusyChannelsEnumerate(chnlType)
+  var result = [], comm, comms = EsChannelIoUart::enumerate(
+      false,  //< Skip Busy ports
+      true    //< USB bus only
+    );
+  {
+    foreach( comm in comms )
+    {
+      if( !comm[2]#find("EL-M")#isEmpty() )
+      {
+        result += comm[0]; //< Now we have full UART device path
+      }
+    }
+
+    return result;
+  }
+  
+  function deviceChannelCreate(chnlPath, chnlType)
+  var chnl;
+  {
+    chnl = new EsChannelIoUart();
+    chnl$port = chnlPath;
+    chnl$baud = 921600;
+    
+    return chnl;
+  }
+  
+  new(owner)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerELM::new(owner=%s) root worker",
+      owner#trace()
+    );
+    
+    // Work-around for #956
+    eventSubscriberCreate();
+    m_thread = new EsThreadWorker(this);
+  }
+
+  new(activeSessionsPath, completeSessionsPath, devType, profilesGlobal, devicesCountMax)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerELM::new(activeSessionsPath=%s, completeSessionsPath=%s, devType=%s, profilesGlobal=%s) root worker",
+      activeSessionsPath#trace(), 
+      completeSessionsPath#trace(), 
+      devType#trace(), 
+      profilesGlobal#trace()
+    );
+  
+    deviceTypeCheck(
+      devType, 
+      EsDeviceType$$ELM
+    );
+    
+    // Work-around for #956
+    eventSubscriberCreate();
+    m_thread = new EsThreadWorker(this);
+
+    sessionLoadOrCreate();
+  }
+  
+  function supportsIntegration()
+  {
+    return true;
+  }  
+
+  function deviceIntegratorCreate( devId, dataType, integratorStepsCnt, profileNodeIdx )
+  var session = $session;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerELM::deviceIntegratorCreate(devId=%s, dataType=%s, integratorStepsCnt=%d, profileNodeIdx=%d)",
+      devId,
+      dataTypeNameGet(dataType),
+      integratorStepsCnt,
+      profileNodeIdx
+    );
+
+    return new EsCalibrationDataIntegrationHelperStd(
+      dataType, 
+      integratorStepsCnt, 
+      profileNodeIdx, 
+      session.deviceDataFind(devId).nodeGet(
+        dataType, 
+        profileNodeIdx
+      )$kinds
+    );
+  }
+  
+  function deviceCalibrationUpload(device, calibration)
+  {
+    EsScriptDebug::log(
+      "EsCalibrationWorkerELM::deviceCalibrationUpload(device=%s, calibration=%s)",
+      device#trace(),
+      calibration#trace()
+    );
+
+    device.settingsUpload(
+      calibration
+    );
+  }
+
+  //
+  // Overridables end  
+}

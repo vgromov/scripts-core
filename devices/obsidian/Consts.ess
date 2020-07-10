@@ -1,0 +1,132 @@
+// Device Constants for OBSIDIAN
+//
+const c_OBSIDIAN_DataDloadPosInc   = 50;
+const c_OBSIDIAN_SpecDloadPosInc   = 10;
+const c_OBSIDIAN_StorageCapacity   = 500;
+const c_OBSIDIAN_SpectrumFramesCnt = 9;
+const c_OBSIDIAN_SpectrumLength    = 1024;
+const c_OBSIDIAN_Cs137_energy      = 662.; //< kEv
+
+// OBSIDIAN-specific rpcs 
+enum OBSIDIAN_Rpid
+{
+  MIS_Get                   = 2048, "esBA_Call|Return current Measurement And State block";
+  MNK_Get                   = 2049, "esBA_Call|Return Configuration and Calibration block";
+  MNK_Set                   = 2050, "VOID_Call_esBA|Upload Configuration and Calibration block";
+  
+  DERrestart                = 2052, "VOID_Call_esU16|Start a new DER measurement";
+  UserDoseReset             = 2053, "VOID_Call_esU16|User Dose reset"; //< Params is interpreted as follows: 
+  CurrentUserIdxSet         = 2054, "VOID_Call_esU16|Set current user index";
+  DoseAccumToggle           = 2055, "VOID_Call_esU16|Toggle dose accumulation for user"; //< Param is interpreted as follows: 8 bit: (User Id 1/2) | 8bit: (Run-stop: 1/0)
+
+  SavedDERstartIdxSet       = 2071, "VOID_Call_esU16|Set DER readout starting index";
+  SavedDoseStartIdxSet      = 2072, "VOID_Call_esU16|Set Dose readout starting index";
+  SavedBetaStartIdxSet      = 2073, "VOID_Call_esU16|Set Beta readout starting index";
+
+  SavedDERread              = 2081, "esBA_Call|Read saved DER block, increment readout index";
+  SavedDoseRead             = 2082, "esBA_Call|Read saved Dose block, increment readout index";
+  SavedBetaRead             = 2083, "esBA_Call|Read saved Beta block, increment readout index";
+
+  StorageDataReset          = 2087, "VOID_Call_esU16|Reset all stored data"; //< Param val should be 1
+  
+  SpectrumFrameRead         = 2132, "esBA_Call_esU16|Spectrum frame read 0..8";
+  SpectrumReset             = 2133, "VOID_Call_esU16|Clean accumulated spectrum data"; //< Param val should be 1
+
+  Reboot                    = 2500, "VOID_Call_esU16|Perform device reboot"; //< Param val should be 1
+  Bootloader                = 2501, "VOID_Call_esU16|Enter device bootloader"; //< Param val should be 1
+
+  ConfigProtectionSet       = 3000, "VOID_Call_esU16|Configuration protection set";
+}
+
+// OBSIDIAN units
+//
+enum OBSIDIAN_Unit
+{
+  uQRh                      = 0, I"uR/h|Micro Roentgen per hour";
+  uSvh                      = 1, I"uSv/h|Micro Sievert per hour";
+  CPS                       = 2, I"s-1|Counts per second";
+  CPM                       = 3, I"min-1|Counts per minute";
+}
+
+// OBSIDIAN Display ON control
+//
+enum OBSIDIAN_DisplayOnTmo
+{
+  _15s                      = 0, I"15 seconds";
+  _30s                      = 1, I"30 seconds";
+  _1m                       = 2, I"1 minute";
+  _2m                       = 3, I"2 minutes";
+  _5m                       = 4, I"5 minutes";
+  _10m                      = 5, I"10 minutes";
+}
+
+// OBSIDIAN Alarm periods
+//
+enum OBSIDIAN_SndVibroAlarm
+{
+  _15s                      = 0, I"15 seconds";
+  _30s                      = 1, I"30 seconds";
+  _1m                       = 2, I"1 minute";
+  _2m                       = 3, I"2 minutes";
+}
+
+enum OBSIDIAN_LoggingPeriod
+{
+  _30s                      = 0, I"30 seconds";
+  _1m                       = 1, I"1 minute";
+  _2m                       = 2, I"2 minutes";
+  _5m                       = 3, I"5 minutes";
+  _10m                      = 4, I"10 minutes";
+  _30m                      = 5, I"30 minutes";
+  _1h                       = 6, I"1 hour";
+}
+
+// OBSIDIAN show deviation kind
+//
+enum OBSIDIAN_DeviationShow
+{
+  None                     = 0, I"Do not show";
+  Relative                 = 1, I"Relative";
+  Absolute                 = 2, I"Absolute";
+}
+
+// Themperature display selection
+//
+enum OBSIDIAN_TempShow
+{
+  None                    = 0, I"Do not show";
+  Celcius                 = 1, I"0C";
+  Fahrenheit              = 2, I"0F";
+}
+
+// Dose reset control
+//
+enum OBSIDIAN_DoseReset
+{
+  Button                   = 0, I"Dedicated Button";
+  MenuOnly                 = 1, I"Menu item only";
+  RemoteOnly               = 2, I"PC command only";
+}
+
+// Device UI language selection
+//
+enum OBSIDIAN_Language
+{
+  Russian                  = 0, I"Russian";
+  English                  = 1, I"English";
+  French                   = 2, I"French";
+  German                   = 3, I"German";
+  Japanese                 = 4, I"Japanese";
+  Korean                   = 5, I"Korean";
+}
+
+// Device value threshold check result
+enum OBSIDIAN_ThresholdCheck
+{
+  None                     = 0, I"Not configured";
+  Normal                   = 1, I"Value is within normal range";
+  Warning                  = 2, I"Value is within warning range";
+  Danger                   = 3, I"Value is within danger range";
+}
+
+const OBSIDIAN_lblFlowDensity = I"cm-2min-1|Particles per square centimeter per minute";

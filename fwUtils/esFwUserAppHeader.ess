@@ -1,0 +1,40 @@
+##require("core.ess");
+
+/// User application header object
+///
+object EsFwUserAppHeader
+{
+  esU32 f_size;
+  esU32 f_crc;
+  esU16 f_devType;
+  esU16 f_ccode;
+  EsVerInfo f_coreVer;
+  EsVerInfo f_appVer;
+  
+  function crcUpdate(crc)
+  {
+    crc.update(f_size$buffer);
+    crc.update(f_devType$buffer);
+    crc.update(f_ccode$buffer);
+    crc.update(f_coreVer$buffer);
+    crc.update(f_appVer$buffer);
+    
+    f_crc = crc$value;
+  }
+
+  function asString()
+  {
+    return EsStr::format(
+      "EsFwUserAppHeader: size=%d(0x%0.8X); crc=0x%0.8X; devType=%d;",
+      f_size, f_size,
+      f_crc,
+      f_devType
+    ) + 
+    EsStr::format(
+      " ccode=%d; core ver=%s; app ver=%s",
+      f_ccode,
+      f_coreVer,
+      f_appVer
+    );
+  }
+}

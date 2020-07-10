@@ -1,0 +1,20 @@
+/// EL3C calibration constants
+
+/// Maximum calibration nodes count
+const c_EL3C_MaxCalibrationNodesCnt = 8;
+
+/// Default color space reference values
+const c_csRefDefaults = [
+  645,
+  525,
+  440,
+  5000  //< Center white point
+];
+
+/// Default color temperature reference values
+const c_ctRefDefaults = [
+  1800,
+  3500,
+  5000,
+  6600
+];

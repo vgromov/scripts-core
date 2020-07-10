@@ -1,0 +1,171 @@
+// OBSIDIAN uploader implementation
+//
+##require("core.ess");
+##require("fwUtils/esUploaderModbus.ess");
+##require("Consts.ess");
+
+object OBSIDIAN_FwUploader extends EsQuartaModbusUploader
+{
+  // Base class overrides
+  //
+  function crcCalc( buffer )
+  var crc = EsQuartaModbusUploader::crcCalc( buffer );
+  {
+    // OBSIDIAN MODBUS uses non-standard CRC16, swapped
+    crc = MODBUSswapU16(crc);
+
+    EsScriptDebug::log(
+      "OBSIDIAN_FwUploader::crcCalc->0x%04X",
+      crc
+    );
+
+    return crc;
+  }
+
+  function crcCheck( buffer )
+  var crc16 = buffer[buffer#countGet()-1] + (buffer[buffer#countGet()-2]#asULong() << 8); //< Hi, Lo, OBSIDIAN uses non-standard - swapped CRC16 transfer
+  var crc16calcd = crcCalc(
+      buffer#sliceGet(0, buffer#countGet()-2)
+  );
+  {
+    EsScriptDebug::log(
+      "OBSIDIAN_FwUploader::crcCheck got: 0x%04X calc'd: 0x%04X",
+      crc16,
+      crc16calcd
+    );
+
+    return crc16 == crc16calcd;
+  }
+
+  // API
+  // Base object overrides
+  //
+  function channelConfigure()
+  {
+    // OBSIDIAN uses non-standard baud rate
+    m_chnl$baud = 115200;
+  }
+
+  function modbusEnterBoot()
+  var req = new ModbusPacket(null);
+  {
+    // Request response to CM_TO_BOOT_WAITFW
+    req$addr = 0x01;
+    req$func = ModbusFunction$$RegisterHoldingWriteMultiple;
+    req$startAddr = 0x2000;
+    req$itemsCnt = 2;
+
+    req.itemSet(
+      0,
+      0xDD05
+    );
+    req.itemSet(
+      1,
+      0x0100
+    );
+
+    return packetWrite( req ); //< Do not wait for an answer
+  }
+
+  function probeIfInBootloader()
+  var pong = false;
+  {
+    if( m_master.isActive() )
+      m_master.deactivate();
+    m_master.activate();
+
+    pong = m_master.ping();
+    if( !pong ) //< Just in case, re-request entering boot over MODBUS
+      modbusEnterBoot();
+
+    m_master.deactivate();
+
+    return !pong; //< No answer to ECO-E ping - we're in bootloader
+  }
+
+  function configureForBoot(supportedRpcs)
+  var result = false;
+  {
+    EsScriptDebug::log( m_topTask#trace() );
+
+    m_topTask.pulse(
+      EsStr::translate( I"Performing Warm Boot..." )
+    );
+
+    if( 
+      !supportedRpcs#isEmpty() &&
+      (OBSIDIAN_Rpid$$Bootloader in supportedRpcs)
+    )
+    {
+      try
+      {
+        if( !m_master.isActive() )
+          m_master.activate();
+
+        m_master.VOID_Call_esU16(
+          OBSIDIAN_Rpid$$Bootloader, 
+          1 //< Dummy parameter
+        );
+        
+        result = true;
+      }
+      catch
+      {
+      }
+
+      m_master.deactivate();
+    }
+    else
+    {
+      m_chnl.open();
+      result = modbusEnterBoot();
+      m_chnl.close();
+    }
+
+    return result;
+  }
+
+  function configureForApplication()
+  var req = new ModbusPacket(null), result;
+  {
+    EsScriptDebug::log(
+      "Booting into normal application"
+    );
+
+    // Request to BC_TO_BOOT
+    req$addr = 0x01;
+    req$func = ModbusFunction$$RegisterHoldingWriteMultiple;
+    req$startAddr = 0x2000;
+    req$itemsCnt = 2;
+
+    req.itemSet(
+      0,
+      0xDC05
+    );
+    req.itemSet(
+      1,
+      0x0100
+    );
+
+    m_chnl.open();
+    result = packetWrite( req ); //< Do not wait for an answer
+    m_chnl.close();
+
+    return result;
+  }
+
+  new(bin)
+  {
+    EsQuartaModbusUploader::new(bin);
+
+    m_devModbusAddr = 0x01;
+    m_devFwUploadAddr = 0x0300;
+    m_chunkSizeMax = 528;
+    m_maxRetries = 6;
+
+    EsScriptDebug::log(
+      "OBSIDIAN_FwUploader::new( bin:%s )",
+      bin#trace()
+    );
+  }
+}

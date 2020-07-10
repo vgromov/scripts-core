@@ -1,0 +1,340 @@
+const c_dumbShutdownTmo = 50;
+
+const ES_EVTC_FWUPLOADER = "ES_EVTC_FWUPLOADER";
+
+// Base uploader object implementation
+//
+object EsUploaderBase
+{
+  var m_moniker, 
+      m_defaultBaud,
+      m_preferredUploadBaud,
+      m_savedBaud,
+      m_cancelled,
+      m_evtHandler;
+     
+  new()
+  {
+    m_cancelled = false;
+    m_evtHandler = EsEventHandler::createAsync(
+      this,
+      ES_EVTC_FWUPLOADER
+    );
+    m_evtHandler$active = false;
+  }  
+    
+  // Event handling
+  function onEvent(evt)
+  {
+    if( ES_EVTC_FWUPLOADER == evt$category && 
+        0 == evt$id 
+    )
+      m_cancelled = true;
+  }
+    
+  // Common channel power manipulators, to augment entering boot mode
+  //
+  function configurePowerOn(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::configurePowerOn");
+      
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      chnl.devicePowerSet(true);
+      EsThreadWorker::sleep(200);
+    }
+  }
+
+  function configurePowerOff(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::configurePowerOff");
+
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      chnl.deviceProgrammingModeSet(true);   //< Nullify programming pin anyway, to allow device to power off cleanly
+      chnl.devicePowerSet(false);
+      EsThreadWorker::sleep(1000);
+    }
+  }
+  
+  function devicePowerOnInNormalMode(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::devicePowerOnInNormalMode");
+
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {
+      chnl.open();
+      configurePowerOff(chnl);
+      chnl.deviceProgrammingModeSet(false);
+      configurePowerOn(chnl);
+      chnl.close();
+    }
+  }
+  
+  function devicePowerOnInBootMode(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::devicePowerOnInBootMode");
+
+    if( chnl.hasMethod("devicePowerSet", 1) )
+    {  
+      chnl.open();
+      configurePowerOff(chnl);
+      configurePowerOn(chnl);
+      chnl.close();
+    }
+  }
+  
+  /// Overridable FW programmer object creation. To be implemented in 
+  /// derived objects
+  ///
+  
+  /// In deriver objects, this method must create and return an instance of 
+  /// device-specific programmer object
+  ///
+  function programmerCreate()
+  {
+    return null;    
+  }
+
+  /// This method prepares channel for bootloader communications, if needed.
+  /// Some bootloaders may use non-default parity, byte size, etc.
+  ///
+  function doChnlPrepareForBootloader(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForBootloader");
+    
+    chnl$baud = m_preferredUploadBaud;  
+  }
+  
+  function chnlPrepareForBootloader(chnl)
+  var reopen = chnl.isOpen();
+  {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForBootloader");
+    
+    try
+    {
+      chnl.close();
+      doChnlPrepareForBootloader(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
+  }
+    
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using default baudrate
+  //
+  function doChnlPrepareForDefaultNormalComm(chnl)
+  {  
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForDefaultNormalComm");
+    
+    chnl$baud = m_defaultBaud;
+  }
+    
+  function chnlPrepareForDefaultNormalComm(chnl)
+  var reopen = chnl.isOpen();
+  {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForDefaultNormalComm");
+
+    try
+    {
+      chnl.close();
+      doChnlPrepareForDefaultNormalComm(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
+  }
+
+  // Restore channel settings, appicable for normal (ES-RPC) communications,
+  // using saved baudrate
+  //
+  function doChnlPrepareForNormalComm(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::doChnlPrepareForNormalComm");
+    
+    chnl$baud = m_savedBaud;
+  }  
+  
+  function chnlPrepareForNormalComm(chnl)
+  var reopen = chnl.isOpen();
+  {
+    EsScriptDebug::log("EsUploaderBase::chnlPrepareForNormalComm");
+  
+    try
+    {
+      chnl.close();
+      doChnlPrepareForNormalComm(chnl);
+    }
+    catch
+    {
+    }
+    
+    if( reopen )
+      chnl.open();
+  }  
+  
+  /// Method to be called upon firmware upload completion
+  ///
+  function completeUpload(chnl)
+  {
+    EsScriptDebug::log("EsUploaderBase::completeUpload");
+  
+    chnlPrepareForDefaultNormalComm(chnl);
+    // restore normal power
+    devicePowerOnInNormalMode(chnl);
+  }
+  
+  // Configure and ebnter boot mode, before programming device with ISP
+  function configureForBoot(programmer, rpcMaster, supportedRpcs)
+  {  
+    return false;
+  }
+    
+  function checkIfStartedInBoot(chnl, programmer)
+  var deviceIsInBootMode = false;
+  {
+    EsScriptDebug::log("EsUploaderBase::checkIfStartedInBoot");
+    
+    chnl.close();
+    // Prepare channel for bootloader communication
+    chnlPrepareForBootloader(chnl);
+    // power device normally
+    devicePowerOnInNormalMode(chnl);
+    
+    // Check if we're in bootloader mode (empty chip), trying to sync with bootloader at once
+    chnl.open();
+    //EsScriptDebug::log("Checking if we're empty, and, thus, booted by default");
+    deviceIsInBootMode = programmer.checkIfInBoot(chnl);
+    chnl.close();  
+    
+    return deviceIsInBootMode;
+  }  
+  
+  function deviceDumbShutdownWait(chnl, tmo, programmer)
+  var progressTask = new EsProgressMonitorTask("waitingForShutdownOnTmo");
+  {
+    progressTask.attachTo(programmer$topTask);
+    progressTask.initialize("Waiting for device to shut down on timeout...", tmo*1000, tmo*1000 );
+    
+    chnlPrepareForBootloader(chnl);
+    configurePowerOff(chnl);
+    
+    m_cancelled = false;
+    m_evtHandler$active = true;
+    while( !__scriptHost$aborting && tmo > 0 && !m_cancelled )
+    {    
+      EsThreadWorker::sleep(100);
+      m_evtHandler.eventProcess();
+
+      tmo -= 100;
+      progressTask$position = tmo;
+    }
+    m_evtHandler$active = false;
+      
+    configurePowerOn(chnl);    
+  }
+  
+  // Upload firmware 
+  function upload(rpcMaster)
+  var programmer = programmerCreate();
+  var chnl = rpcMaster$channel, swInfo,
+    supportedRpcs, deviceIsInBootMode = false, alreadySynched = false;
+  {  
+    EsScriptDebug::log("-----------------------------------------------------");
+    EsScriptDebug::log("EsUploaderBase::upload");
+  
+    rpcMaster.deactivate();
+    m_savedBaud = chnl$baud;
+
+    EsScriptDebug::log("...Checking if already in boot");
+    deviceIsInBootMode = checkIfStartedInBoot(chnl, programmer);
+    alreadySynched = deviceIsInBootMode;
+    
+    if( !deviceIsInBootMode )
+    {
+      EsScriptDebug::log("...Not in boot");
+
+      // Prepare for normal communications
+      chnlPrepareForDefaultNormalComm(chnl);
+      
+      // Power device on in normal mode
+      devicePowerOnInNormalMode(chnl);
+      
+      // Wait extra time to allow device to boot-up
+      EsThreadWorker::sleep(1000);
+      rpcMaster.activate();
+      EsThreadWorker::sleep(1500);
+      
+      try
+      {
+        EsScriptDebug::log("...Getting implemented RPCs");
+        
+        supportedRpcs = rpcMaster.getImplementedRPCs();
+
+        EsScriptDebug::log("...Implemented RPCs acquired: %s", supportedRpcs);
+
+        // if SW_INFO is supported, read it (we'll need current fw crc to set-up previous fw crc)
+        if( EsRpcStdId$$SW_INFO_GET in supportedRpcs &&
+            m_moniker.hasProperty("fwPrevCrc") )
+        {
+          EsScriptDebug::log("...Query optional SW info");
+
+          swInfo = new EsSoftwareInfo();
+          swInfo$buffer = rpcMaster.esBA_Call(EsRpcStdId$$SW_INFO_GET);
+          m_moniker.propertySet("fwPrevCrc", swInfo$fwSoftwareInfo$crcInfo$crcCurrent);
+        }
+        rpcMaster.deactivate();
+      }
+      catch
+      {
+        // error ocurred during the most basic device query
+        // device may be already in boot mode
+        rpcMaster.deactivate();
+      }
+      
+      EsScriptDebug::log("...Trying to enter boot with RPC shutdown");
+      deviceIsInBootMode = configureForBoot(
+        programmer, 
+        rpcMaster, 
+        supportedRpcs
+      );
+    }
+     
+    chnl.close();
+    if( !deviceIsInBootMode )
+    {
+      EsScriptDebug::log("...Still not in Boot. Performing dumb shutdown");
+      deviceDumbShutdownWait(
+        chnl, 
+        c_dumbShutdownTmo, 
+        programmer
+      );
+    }
+    chnl.open();
+
+    try
+    {
+      programmer.program(
+        chnl, 
+        alreadySynched
+      );
+
+      completeUpload(chnl);
+    }
+    catch
+    {
+      completeUpload(chnl);
+      rethrow;
+    }
+  }
+  
+  property moniker;
+  read: { return m_moniker; }  
+}

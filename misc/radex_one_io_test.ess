@@ -1,0 +1,49 @@
+/// RADEX ONE IO testing utility
+///
+
+##require("core.ess");
+##require("io_monitors.ess");
+
+var master = new EsRpcMaster();
+var tmp, chnl, chnls = EsChannelIoUart::enumerate(
+  false,        //< Do not include busy ports
+  true          //< Include USB ports only
+);
+
+// Uncomment to use protocol debug monitor helper
+//master$monitor = new ProtoIoMonitor();
+
+foreach( chnl in chnls )
+{
+  if( 0 == chnl[2]#find("RADEX ONE") )
+  {
+    tmp = EsChannelIoFactory::channelCreate("EsChannelIoUart");
+    tmp$port = chnl[0];
+    tmp$baud = 9600;
+    chnl = tmp;
+    break;
+  }
+}
+
+if( !chnl#isObject() )
+  throw "Could not find RADEX ONE virtual port";
+
+// Uncomment to use channel debug monitor helper
+//chnl$monitor = new ChnlIoMonitor();
+
+master$channel = chnl;
+master.activate();
+
+if( !master.isActive() )
+  throw "Could not activate RPC master";
+
+tmp = deviceFwIdRead(master);
+if( tmp#isEmpty() )
+  throw "Could not read FW ID from device";
+
+EsScriptDebug::log(
+  "Device ID: %s",
+  tmp
+);
+
+master.deactivate();

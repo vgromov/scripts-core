@@ -1,0 +1,40 @@
+// extract strings from sql dump and put them in pot file
+function sql2pot(sqlfile, potfile)
+var f, sql, re = new EsRegEx(), match, 
+    str, pot = new EsAssocContainer(__metaclass), potItem;
+{
+ f = new EsFile(sqlfile, EsFileFlag$$Read|EsFileFlag$$Text);
+ f.open();
+ sql = f.readAllAsString();
+ f.close();
+ 
+ re$pattern = "'([\\w\\s_\\-/\\+,\\.<>()%0-9]*?)'";
+ re$text = sql; 
+ 
+ while( re$matches )
+ {
+  match = re.matchRangeGet(1);
+  if( match#isEmpty() )
+   break;
+   
+  re$offset = match[1];
+  str = sql#sliceGet(match[0], match[1]);
+  if( !pot.keyExists(str) )
+   pot.newValueSet(str, null);
+ }
+ 
+ if( !pot$empty )
+ {
+   f = new EsFile(potfile, EsFileFlag$$Write|EsFileFlag$$Text);
+   f.open();
+   f.stringWrite("msgid \"\"\nmsgstr \"\"\n");
+   f.stringWrite("\"Content-Type: text/plain; charset=UTF-8\\n\"\n");
+   f.stringWrite("\"Content-Transfer-Encoding: 8bit\\n\"\n\n");
+   foreach(potItem in pot)
+   {
+     f.stringWrite( EsStr::format("msgid \"%s\"\nmsgstr \"\"\n\n",
+     potItem[0]) );
+   }
+   f.close();
+ }
+}

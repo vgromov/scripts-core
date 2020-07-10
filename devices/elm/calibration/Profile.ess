@@ -1,0 +1,118 @@
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("ProfileNode.ess");
+
+/// Calibration profile object
+///
+object ELM_CalibrationProfile extends EsCalibrationProfileBase
+{
+  // Overridables
+  //
+  // canAppendNode(dataType)                                        : Highly recommended  
+  // profileNodeCreate( dataType, refVal, deviation )               : Mandatory
+  // profileNodeCreateNew( dataType )                               : Mandatory
+  // defaultNodesCreate( dataType )                                 : Optional
+  // isOkGet()                                                      : Mandatory
+  // isComplete( dataType )                                         : Mandatory
+  // completenessCriterionGet( dataType )                           : Mandatory  
+  //
+  function canAppendNode(dataType)
+  {
+    EsCalibrationProfileBase::canAppendNode(dataType);
+    
+    return nodesCountGet(dataType) < c_ELM_CalibrationNodesCnt;
+  }
+
+  function profileNodeCreate( dataType, refVal, deviation )
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationProfile::profileNodeCreate(dataType=%s, refVal=%s, deviation=%s)",
+      dataType#trace(),
+      refVal#trace(),
+      deviation#trace()
+    );
+
+    EsCalibrationProfileBase::profileNodeCreate( 
+      dataType, 
+      refVal, 
+      deviation 
+    );
+
+    return new ELM_ProfileNode(
+      refVal, 
+      deviation
+    );
+  }
+  
+  function profileNodeCreateNew( dataType )
+  {
+    return profileNodeCreate(
+      dataType,
+      0.,
+      0.01
+    );
+  }  
+
+  function defaultNodesCreate( dataType )
+  var nodes = [];
+  {
+    EsCalibrationProfileBase::defaultNodesCreate( dataType );
+
+    nodes += profileNodeCreate(
+      dataType,
+      0, 
+      0.1
+    );
+
+    nodes[0].m_system = true;
+    
+    m_nodes.valueSet(
+      dataType,
+      nodes
+    );
+    
+    EsScriptDebug::log(
+      "ELM_CalibrationProfile::defaultNodesCreate(dataType=%s)=>nodes:%s",
+      dataType#trace(),
+      nodes#trace()
+    );
+  }
+
+  function isOkGet()
+  {
+    return 0 < nodesCountGet( EsDataType$$Illuminance );
+  }
+  
+  function isComplete( dataType )
+  {
+    EsCalibrationProfileBase::isComplete(dataType);
+    
+    return 2 <= nodesCountGet( dataType );
+  }
+  
+  function completenessCriterionGet( dataType )
+  {
+    EsCalibrationProfileBase::completenessCriterionGet( dataType );
+    
+    return I"Valid Calibration profile should have at least two reference nodes set.";
+  }    
+  
+  /// Create new profile, all node collections got created with
+  /// default contents, optional profile name is set as specified
+  ///
+  new(name)
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationProfile::new(name=%s)",
+      name#trace()
+    );
+  
+    EsCalibrationProfileBase::new(
+      EsDeviceType$$ELM,
+      EsDataType$$Illuminance,
+      name
+    );
+    
+    defaultNodesInit();
+  }
+}
+//----------------------------------------------------------------------------

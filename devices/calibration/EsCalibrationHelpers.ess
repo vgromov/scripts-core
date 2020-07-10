@@ -1,0 +1,58 @@
+/// Generic calibration helpers
+///
+
+function calibrationValueFmtDefault(val)
+var fmt;
+{
+  if( val < 0 )
+    val = 0;
+    
+  if( val < 10 )
+    fmt = "%0.2f";
+  else if( val < 100 )
+    fmt = "%0.1f";
+  else
+    fmt = "%0.0f";
+  
+  return EsStr::format(
+    fmt, 
+    val
+  );
+}
+
+function calibrationDataTypeIsSupported(dataType, supportedTypes)
+{
+  return dataType in supportedTypes;  
+}
+
+function calibrationDataTypeCheck( dataType, supportedTypes, context )
+{
+  EsScriptDebug::log(
+    "calibrationDataTypeCheck( dataType=%s )",
+    dataType#trace()
+  );
+
+  if( dataType#isEmpty() )
+    throw I"Data type value must not be empty";
+
+  if( 
+    !calibrationDataTypeIsSupported(
+      dataType,
+      supportedTypes
+    ) 
+  )
+  {
+    if( dataType in EsDataType )
+      throw EsStr::format(
+        I"Data type %s is not supported in %s",
+        EsDataType.valueLabelGet(dataType),
+        context
+      );
+    else  
+      throw EsStr::format(
+        I"Unknown Data type %d in %s",
+        dataType,
+        context
+      );
+  }
+}

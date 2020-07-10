@@ -1,0 +1,174 @@
+/// FTxxxx MPSSE script test.
+/// Interfacing the SPI bus.
+/// Reading from AT25SF041 flash chip
+
+// Enumerate available MPSSE devices
+var devInfos = EsFtdiDriver::enumerate(
+      true,   //< Include busy devices
+      true    //< Include only MPSSE-capable devices
+    );
+
+if( !devInfos#countGet() )
+  throw "Could not find any MPSSE-capable devices";
+
+// Take the first found device and open it  
+var dev = EsFtdiDriver::deviceCreate(
+  EsFtdiDeviceKind$$MPSSE_SPI,
+  devInfos[0]
+);
+  
+if( !dev )
+  throw EsStr::format(
+    "Could not create MPSSE device of type %s for %s",
+    EsFtdiDeviceKind$$MPSSE_SPI$$label,
+    devInfos[0]
+  );
+
+if( !dev.open() )
+  throw EsStr::format(
+    "Could not open MPSSE device %s",
+    devInfos[0]
+  );
+
+// Set OS systicks period to 1 ms
+var systick = EsUtilities::systickChange(
+  1
+);
+
+dev$clockRate = 8000000;
+dev$mode = EsFtdiMpsseSpiCpolCpha$$MODE0;
+dev$csLineCtl = EsFtdiMpsseSpiCsLine$$DBUS3; //< CS is DBUS3
+dev$csLineActiveHigh = false; //< Active CS is low
+dev.configApply();
+
+// Initiate Flash IO to read all memory content
+// Read all 4 mbit memory space
+const c_memLen = 2097152;//4*1024*1024/8;
+var obuff, result, readCnt = 0, chunk, chunkLen = 32*1024,
+  progress = new EsProgressMonitorTask("flash_download");
+
+try
+{
+  // Read status register bytes
+  obuff = B"\x05";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error requesting status 1";
+
+  result = dev.read(
+    1,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  EsScriptDebug::log("SR1: %0.2X", result);
+
+  obuff = B"\x35";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  if( result != obuff#countGet() )
+    throw "Error requesting status 2";
+
+  result = dev.read(
+    1,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+  EsScriptDebug::log("SR2: %0.2X", result);
+
+  // Read all data
+  obuff = B"\x03\0\0\0";
+  result = dev.write(
+    obuff,
+    EsFtdiMpsseSpiIO$$CHIPSELECT_ENABLE|
+    EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+  );
+
+  if( result != obuff#countGet() )
+    throw "Error sending memory read request";
+
+  progress.attachTo(__scriptHost$progressMonitor);
+  progress.initialize(
+    "Reading bytes from memory...",
+    c_memLen,
+    0
+  );
+
+  result = null;
+  while( readCnt < c_memLen )
+  {
+    chunk = dev.read(
+      chunkLen,
+      EsFtdiMpsseSpiIO$$CHIPSELECT_DISABLE|
+      EsFtdiMpsseSpiIO$$SIZE_IN_BYTES
+    );
+    
+    if( !chunk#isIndexed() || chunk#countGet() < chunkLen )
+      break;
+
+    if( !result )
+      result = chunk;
+    else
+      result += chunk;
+
+    readCnt += chunkLen;
+    progress$position = readCnt;
+  }
+
+  progress = null;
+
+  if( !result#isIndexed() )
+    throw "Error reading flash memory";
+  else
+    EsScriptDebug::log(
+      "Read %d bytes",
+      result#countGet()
+    );
+}
+catch
+{
+}
+
+// Close SPI bus
+dev.close();
+
+// Restore OS systicks
+EsUtilities::systickRestore( systick );
+
+// Write entire readout to file
+var path, file;
+if( result#countGet() == c_memLen )
+{
+  path = EsPath::stdDocsGet() + "/AT25SF041.bin";
+  EsScriptDebug::log(
+    "Writing memory content to '%s'",
+    path
+  );
+
+  file = new EsFile(
+    path,
+    EsFileFlag$$Write
+  );
+  
+  file.open();
+  if( file$opened )
+  {
+    file.writeAllAsBinBuffer(
+      result
+    );
+
+    file.close();
+  }
+}
+else
+  EsScriptDebug::log(
+    "Only %d of requested %d bytes were read, aborting memory save to file",
+    result#countGet(),
+    c_memLen
+  );

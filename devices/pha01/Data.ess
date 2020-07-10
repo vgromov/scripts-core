@@ -1,0 +1,134 @@
+/// PHA01 data objects
+///
+
+/// Simple PHA01 data object
+object PHA01_Data 
+{
+  /// Fields
+  esDT   f_ts;
+  esF    f_lux;
+  esF    f_cdm;
+  esU16  f_kp;
+  esI8   f_temp;
+  
+  /// Properties
+	///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+	
+  /// illuminosity
+  property lux;
+  read: { return f_lux$value; }
+	/// illuminosity string components property
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
+	/// illuminosity value string
+	property luxStr;
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
+	
+  /// Luminosity
+  property cdm;
+  read: { return f_cdm$value; }
+	/// Luminosity string components
+	property cdmStrMulti;
+	read: { return PHA01_strMultiGet( $cdm, c_pha01_unitL); }
+	/// Luminosity value string
+  property cdmStr;
+  read: { return PHA01_fromStrMulti( $cdmStrMulti ); }
+	
+  /// pulsation coefficient, in %
+  property kp;
+  read: { return f_kp / 10.; }
+	/// pulsation string components
+	property kpStrMulti;
+	read: {	return PHA01_pulsationStrMultiGet( $kp ); }
+	/// pulsation string
+	property kpStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
+}
+
+// added since 1.6 - background subtraction data packet
+object PHA01_DataWoBgnd
+{
+  esDT   f_ts;
+  esF     f_luxOrg;        /// > original illuminosity
+  esF     f_luxBgnd;      /// > measured background illuminosity
+  esF     f_lux;          /// > illuminosity-bgnd level
+  esU16    f_kpOrg;        /// > original pulsation
+  esU16    f_kp;            /// > resulting pulsation
+  esU16    f_bgndDuration; /// > duration of background measurements in seconds
+  esU16    f_bgndETA;      /// > bgnd measurement countdown in seconds, 0 - bgnd measurement results are valid
+ 
+  /// Properties
+	///
+	/// Timestamp
+	property ts;
+	read: { return f_ts$value; }
+	/// Timestamp string
+	property tsStr;
+	read: { return f_ts.asString(); }	
+ 
+  /// original illuminosity
+  property luxOrg;
+  read: { return f_luxOrg$value; }
+	/// original illuminosity string components
+	property luxOrgStrMulti;
+	read: { return PHA01_strMultiGet( $luxOrg, c_pha01_unitE); }
+	/// original illuminosity string
+	property luxOrgStr;
+	read: { return PHA01_fromStrMulti( $luxOrgStrMulti ); }	
+
+  /// background illuminosity
+  property luxBgnd;
+  read: { return f_luxBgnd$value; }
+  /// background illuminosity	string components
+	property luxBgndStrMulti;
+	read: { return PHA01_strMultiGet( $luxBgnd, c_pha01_unitE); }
+  /// background illuminosity	string
+	property luxBgndStr;
+	read: { return PHA01_fromStrMulti( $luxBgndStrMulti ); }	
+
+  /// illuminosity W|O background
+  property lux;
+  read: { return f_lux$value; }
+  /// illuminosity W|O background, string components
+	property luxStrMulti;
+	read: { return PHA01_strMultiGet( $lux, c_pha01_unitE); }
+  /// illuminosity W|O background, string
+	property luxStr;
+	read: { return PHA01_fromStrMulti( $luxStrMulti ); }
+
+  /// original pulsation coefficient, %
+  property kpOrg;
+  read: { return f_kpOrg / 10.; }
+	property kpOrgStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kpOrg ); }
+	property kpOrgStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpOrgStrMulti ); }
+
+  /// resulting pulsation coefficient, %
+  property kp;
+  read: { return f_kp / 10.; }
+	/// pulsation multi string
+	property kpStrMulti;
+	read: { return PHA01_pulsationStrMultiGet( $kp ); }
+	/// pulsation string
+	property kpStr;
+  read: { return PHA01_pulsationFromStrMulti( $kpStrMulti ); }
+	
+	/// Background exposure duration in seconds
+	property bgndExp;
+	read: { return f_bgndDuration$value; }
+	
+	/// Data validity check
+	property valid;
+	read: { return 0 == f_bgndETA; }
+	
+	/// Bgnd ETA read access
+	property eta;
+	read: { return f_bgndETA$value; }
+}

@@ -1,0 +1,104 @@
+/// ELM Calibration helpers
+///
+
+function elmDataTypeCheck( dataType, doThrow )
+{
+  if( EsDataType$$Illuminance != dataType )
+  {
+    if( doThrow )
+      throw EsStr::format(
+        I"ELM device does not support %s type",
+        EsDataType.valueLabelGet(dataType)
+      );
+    
+    return false;
+  }
+
+  return true;
+}
+
+function elmUnitsGet(dataType)
+{
+  elmDataTypeCheck(
+    dataType,
+    true
+  );
+
+  if( EsDataType$$Illuminance == dataType )
+    return c_elm_unitE;
+}  
+
+function elmcreate(fwId)
+{
+  if( EsDeviceType$$ELM == fwId$devType )
+    return new ELM(fwId);
+}
+
+function elmcreate(fwId, caps)
+var dev;
+{
+  if( EsDeviceType$$ELM == fwId$devType )
+  {
+    dev = new ELM(fwId);
+    dev.m_caps = caps;
+  }
+  
+  return dev;
+}
+
+function elmstateBatchPrepare(device)
+var batch = [];
+{
+  if( ELM_Rpid$$BootExit in device$caps )
+    batch#append(
+      [
+        ELM_Rpid$$BootExit,
+        null
+      ]    
+    );
+
+  batch#append(
+    [
+      EsRpcStdId$$HEALTH_INFO_GET,
+      null
+    ]
+  );
+  
+  return batch;
+}
+
+function elmstateRequest(device)
+var result;
+{
+  return device.rpcBatchCall( 
+    elmstateBatchPrepare(device)
+  );
+}
+
+function elmliveRequest(device, verification)
+var batch = elmstateBatchPrepare(
+    device
+  ), 
+  result;
+{
+  if( !verification )
+  {
+    batch#append(
+      [
+        ELM_Rpid$$LiveDataGetRaw,
+        null
+      ]
+    );
+  }
+  else
+  {
+    batch#append(
+      [
+        ELM_Rpid$$LiveDataGet,
+        null
+      ]
+    );
+  }
+
+  return device.rpcBatchCall(batch);
+}

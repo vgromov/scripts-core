@@ -1,0 +1,53 @@
+/// default devices factory
+##require("core.ess");
+##require("devices/EsDeviceBase.ess");
+##require("devices/pha01.ess");
+##require("devices/et01.ess");
+##require("devices/boi01.ess");
+##require("devices/p3_81_1_2.ess");
+##require("devices/p3_80E.ess");
+##require("devices/el3c.ess");
+##require("devices/radexAq.ess");
+##require("devices/elm.ess");
+##require("devices/obsidian.ess");
+
+/// Create device instance provided fwId, created and initialized elsewhere
+function devicesDeviceCreate(fwId)
+  @help = "Create device instance, provided device fwId, created and initialized|loaded elsewhere";
+var type = fwId$devType;  
+{
+  switch( type )
+  {
+  case [EsDeviceType$$BOI1, EsTenzorDeviceType$$TBOI1]:
+    return new BOI01(fwId);
+  case [EsDeviceType$$ECOL1, EsTenzorDeviceType$$TECOL1]:
+    return new PHA01(fwId);  
+  case EsDeviceType$$ET:
+    return new ET01(fwId);
+  case [EsOctavaDeviceType$$P3811, EsOctavaDeviceType$$P3812]:
+    return new P3_81_1_2(fwId);
+  case EsOctavaDeviceType$$P380E:
+    return new P3_80E(fwId);
+  case EsDeviceType$$EL3C:
+    return new EL3C(fwId);
+  case EsDeviceType$$ELM:
+    return new ELM(fwId);
+  case EsQuartaDeviceType$$RADEXAQ:
+    return new RADEX_AQ(fwId);
+  case EsQuartaDeviceType$$OBSIDIAN:
+    return new OBSIDIAN(fwId);
+  }
+  
+  /// Otherwise, return default 'Anonymous' device object
+  return new EsDeviceBase(fwId);
+}
+
+function devicesDeviceCreate(fwId, caps)
+var dev = devicesDeviceCreate(fwId);
+{
+  if( !dev#isEmpty() &&
+      !caps#isEmpty() )
+    dev.m_caps = caps;
+    
+  return dev;
+}

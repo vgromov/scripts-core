@@ -1,0 +1,68 @@
+##require("EsCalibrationDataIntegrationHelperBase.ess");
+
+// Generic integrator implementation for vector-like profile nodes and session data
+//
+object EsCalibrationDataIntegrationHelperStd extends EsCalibrationDataIntegrationHelperBase
+{
+  // Overridables
+  //
+  // function doAccumulate( kind, kindVal )                           : Mandatory
+  // function resultGet()                                             : Mandatory
+  // new(dataType, integratorStepsCntMax, nodeKinds)                  : Optional
+  //
+
+  // Simple value accumulation
+  function doAccumulate( kind, kindVal )
+  {
+    m_accum.valueSet(
+      kind,
+      m_accum.valueGet(
+        kind
+      ) + kindVal
+    );
+  }
+
+  function resultGet()
+  var kind, result = m_accum.clone();
+  {
+    foreach(kind in m_nodeKinds)
+    {
+      if( 0 < m_accumCnt )
+        result.valueSet(
+          kind,
+          result.valueGet( kind ) / m_accumCnt
+        );
+      else
+        result.valueSet(
+          kind,
+          0
+        );
+    }
+
+    return result;
+  }
+  
+  // Ctor
+  new(dataType, integratorStepsCntMax, nodeIdx, nodeKinds)
+  var kind;
+  {
+    EsScriptDebug::log(
+      "EsCalibrationDataIntegrationHelperStd::new(dataType=%s, integratorStepsCntMax=%s, nodeIdx=%s, nodeKinds=%s)",
+      dataType#trace(), 
+      integratorStepsCntMax#trace(), 
+      nodeIdx#trace(), 
+      nodeKinds#trace()
+    );
+  
+    foreach(kind in m_nodeKinds)
+    {
+      m_accum.newValueSet(
+        kind,
+        0.
+      );
+    }
+  }
+
+  // 
+  // Overridables end
+}

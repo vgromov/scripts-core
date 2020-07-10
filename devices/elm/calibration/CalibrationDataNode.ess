@@ -1,0 +1,85 @@
+##require("devices/calibration/EsCalibrationSessionNodeBase.ess");
+
+object ELM_CalibrationNode extends EsCalibrationSessionNodeBase
+{
+  /// Overridables
+  ///
+  /// function valueFmt(val)                  : Optional
+  ///
+  
+  function valueFmt(val)
+  {
+    return EL3C_ValueFmt(val);
+  }
+
+  // Compatibility helpers
+  //
+  function kindsToMask()
+  var kind, mask = 0;
+  {
+    foreach( kind in m_kinds )
+      mask |= (1 << kind);
+
+    return mask;
+  }
+
+  function maskToKinds(mask)
+  var kinds = [];
+  {
+    if( mask & (1 << EsCalibrationNodeKind$$Fast) )
+      kinds += EsCalibrationNodeKind$$Fast;
+
+    if( mask & (1 << EsCalibrationNodeKind$$Slow) )
+      kinds += EsCalibrationNodeKind$$Slow;
+
+    nodeKindsSet(kinds);
+  }
+
+  // Compatibility properties
+  //
+
+  /// Raw uncalibrated analog value
+  property rawAnl;
+  @persistent;
+  read: { return rawGet( EsCalibrationNodeKind$$Fast ); }
+  write: { rawSet( __value, EsCalibrationNodeKind$$Fast ); }
+  
+  /// Raw uncalibrated analog value string
+  property rawAnlStr;
+  read: { return valueFmt( $rawAnl ); }
+
+  /// Raw uncalibrated digital value
+  property rawDig;
+  @persistent;
+  read: { 
+    // Flicker nodes do not support slow sensor data at all
+    if( nodeKindCheckSupported(EsCalibrationNodeKind$$Slow) ) 
+      return rawGet( EsCalibrationNodeKind$$Slow );
+    
+    return null;
+  }
+  write: { 
+    // Flicker nodes do not support slow sensor data at all
+    if( nodeKindCheckSupported(EsCalibrationNodeKind$$Slow) )   
+      rawSet(__value, EsCalibrationNodeKind$$Slow);
+  }
+  
+  /// Raw uncalibrated digital value string
+  property rawDigStr;
+  read: { return valueFmt( $rawDig ); }
+ 
+  /// Node was used in calibration - it has raw value set
+  property hasRawAnl;
+  read: { return hasRawValue(EsCalibrationNodeKind$$Fast); }
+  
+  property hasRawDig;
+  read: { return hasRawValue(EsCalibrationNodeKind$$Slow); }
+
+  property hasRawValues;
+  read: { return $hasRawAnl || $hasRawDig; }
+  
+  /// Node integration preferences
+  property integrationType;
+  read: { kindsToMask(); }
+  write: { maskToKinds(__value); }
+}

@@ -1,0 +1,66 @@
+// elm-calibration script
+##require("EsDataTypes.ess");
+##require("devices/EsDeviceBase.ess");
+##require("devices/calibration/EsCalibrationProfileBase.ess");
+##require("devices/calibration/EsCalibrationSessionBase.ess");
+##require("devices/elm.ess");
+##require("Consts.ess");
+##require("Helpers.ess");
+##require("Profile.ess");
+##require("CalibrationData.ess");
+
+/// Calibration|verification session object
+object ELM_CalibrationSession extends EsCalibrationSessionBase
+{
+  /// Overridables:
+  ///
+  /// calibrationDeviceDataCreate(fwId, settings)     : Mandatory
+  /// 
+  
+  function calibrationDeviceDataCreate(fwId, settings)
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationSession::calibrationDeviceDataCreate(fwId, settings)",
+      fwId#trace(),
+      settings#trace()
+    );
+  
+    return new ELM_CalibrationData(
+        this,
+        fwId,
+        settings
+      );
+  }
+
+  //
+  // Overridables end
+  
+  // Parametrized constructor
+  new(devType, mode, profilesGlobal)
+  {
+    EsScriptDebug::log(
+      "ELM_CalibrationSession::new(devType=%s, mode=%s, profilesGlobal=%s)",
+      devType#trace(), 
+      mode#trace(), 
+      profilesGlobal#trace()
+    );
+  
+    checkCalibrationProfilesForDeviceTypeInitialized(profilesGlobal);
+      
+    if( !m_profiles.keyExists( ELM_CalibrationProfile$type ) )
+      throw I"Non-existent ELM calibration session profile.";
+  }
+  
+  /// Properties
+  ///  
+
+  /// Get calibration profile
+  property profile;
+  read: { 
+    return m_profiles.valueGetDef(
+      ELM_CalibrationProfile$type,
+      null
+    );
+  }
+}
+//-----------------------------------------------------------------------------

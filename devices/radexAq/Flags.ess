@@ -1,0 +1,868 @@
+/// RADEX_AQ flags parser objects
+///
+
+enum RADEX_AQ_CfgFlag
+{
+  SndOn                         = 0x00000001;
+  ThresholdOn                   = 0x00000002;
+  NightModeOn                   = 0x00000004;
+  SleepModeOn                   = 0x00000008;
+  BLE_On                        = 0x00000010;
+  ContinuousMeasurementsOn      = 0x00000020;
+  ScreenScrollingOff            = 0x00000040;
+  TempInC                       = 0x00000200;
+  TimeFmtAMPM                   = 0x00000400;
+}
+
+enum RADEX_AQ_ScrFlag
+{
+  CurrentDust                   = 0x00000001;
+  CurrentDustMin                = 0x00000002;
+  CurrentDustMed                = 0x00000004;
+  CurrentDustMax                = 0x00000008;
+  CurrentDustHistogram          = 0x00000010;
+  DailyAvgDustMin               = 0x00000020;
+  DailyAvgDustMed               = 0x00000040;
+  DailyAvgDustMax               = 0x00000080;
+  DailyAvgDustHistogram         = 0x00000100;
+  CurrentTemperature            = 0x00000200;
+  CurrentTemperatureMin         = 0x00000400;
+  CurrentTemperatureMax         = 0x00000800;
+  CurrentTemperatureHistogram   = 0x00001000;
+  DailyAvgTemperatureMin        = 0x00002000;
+  DailyAvgTemperatureMed        = 0x00004000;
+  DailyAvgTemperatureMax        = 0x00008000;
+  DailyAvgTemperatureHistogram  = 0x00010000;
+  CurrentHumidity               = 0x00020000;
+  CurrentHumidityMin            = 0x00040000;
+  CurrentHumidityMax            = 0x00080000;
+  CurrentHumidityHistogram      = 0x00100000;
+  DailyAvgHumidityMin           = 0x00200000;
+  DailyAvgHumidityMed           = 0x00400000;
+  DailyAvgHumidityMax           = 0x00800000;
+  DailyAvgHumidityHistogram     = 0x01000000;
+  Clock                         = 0x02000000;
+}
+
+enum RADEX_AQ_DataFlag {
+  DustValid                     = 0x00000001;
+  DustMinValid                  = 0x00000002;
+  DustMeanValid                 = 0x00000004;
+  DustMaxValid                  = 0x00000008;
+  DustDailyAvgMinValid          = 0x00000010;
+  DustDailyAvgMeanValid         = 0x00000020;
+  DustDailyAvgMaxValid          = 0x00000040;
+  TemperatureValid              = 0x00000080;
+  TemperatureMinValid           = 0x00000100;
+  TemperatureMaxValid           = 0x00000200;
+  TemperatureDailyAvgMinValid   = 0x00000400;
+  TemperatureDailyAvgMeanValid  = 0x00000800;
+  TemperatureDailyAvgMaxValid   = 0x00001000;
+  HumidityValid                 = 0x00002000;
+  HumidityMinValid              = 0x00004000;
+  HumidityMaxValid              = 0x00008000;
+  HumidityDailyAvgMinValid      = 0x00010000;
+  HumidityDailyAvgMeanValid     = 0x00020000;
+  HumidityDailyAvgMaxValid      = 0x00040000;
+  ThresholdOverflow             = 0x40000000;
+  Manual                        = 0x80000000;
+}
+
+enum RADEX_AQ_Error
+{
+  I2C                           = 0x00000001, I"I2C bus error";                       ///< Error condition latched on I2C bus
+  SensorTH                      = 0x00000002, I"T/H Sensor error";
+  SensorDust                    = 0x00000004, I"Dust Sensor error";
+  TouchKbd                      = 0x00000008, I"Touch input error";
+  EEPROM                        = 0x00000010, I"EEPROM error";
+  ADC                           = 0x00000020, I"ADC peripheral error";
+  RTC                           = 0x00000040, I"RTC error";                           ///< RTC initialization error
+  BatteryCritical               = 0x00000080, I"Battery level is critical";
+  CalibrationInvalid            = 0x00000100, I"Calibration is missing or CRC invalid";
+  AppInvalid                    = 0x00000200, I"User application is missing or CRC invalid";
+}
+//-------------------------------------------------------------------------------------
+
+/// RADEX AQ health (AKA errors) helper structure
+///
+object RADEX_AQ_Health
+{
+  esU32 f_val;
+  
+  new(val)
+  {
+    f_val = val#asULong();
+  }
+  
+  /// Return health errors as string collection
+  function errorsAsStrings()
+  var result = []; 
+  {
+    if(f_val & RADEX_AQ_Error$$I2C)
+      result += RADEX_AQ_Error$$I2C$$label;
+    if(f_val & RADEX_AQ_Error$$SensorTH)
+      result += RADEX_AQ_Error$$SensorTH$$label;
+    if(f_val & RADEX_AQ_Error$$SensorDust)
+      result += RADEX_AQ_Error$$SensorDust$$label;
+    if(f_val & RADEX_AQ_Error$$TouchKbd)
+      result += RADEX_AQ_Error$$TouchKbd$$label;
+    if(f_val & RADEX_AQ_Error$$EEPROM)
+      result += RADEX_AQ_Error$$EEPROM$$label;
+    if(f_val & RADEX_AQ_Error$$ADC)
+      result += RADEX_AQ_Error$$ADC$$label;
+    if(f_val & RADEX_AQ_Error$$RTC)
+      result += RADEX_AQ_Error$$RTC$$label;
+    if(f_val & RADEX_AQ_Error$$BatteryCritical)
+      result += RADEX_AQ_Error$$BatteryCritical$$label;
+    if(f_val & RADEX_AQ_Error$$CalibrationInvalid)
+      result += RADEX_AQ_Error$$CalibrationInvalid$$label;
+    if(f_val & RADEX_AQ_Error$$AppInvalid)
+      result += RADEX_AQ_Error$$AppInvalid$$label;
+
+    return result;
+  }
+
+  /// Return health errors as string
+  function asString()
+  {
+    return EsStr::fromArray(errorsAsStrings(), "; ", "", "");
+  }
+  
+  property value;
+  read: { return f_val#asULong(); }
+  
+  property errors;
+  read: { return f_val#asULong(); }
+  
+  /// return true if health critical error was latched
+  property hasCriticalError;
+  read: { 
+    return 0 != (f_val & 
+                  ( RADEX_AQ_Error$$I2C|
+                    RADEX_AQ_Error$$SensorDust|
+                    RADEX_AQ_Error$$SensorTH|
+                    RADEX_AQ_Error$$TouchKbd|
+                    RADEX_AQ_Error$$EEPROM|
+                    RADEX_AQ_Error$$ADC|
+                    RADEX_AQ_Error$$RTC|
+                    RADEX_AQ_Error$$AppInvalid
+                  )
+                ); 
+  }
+
+  // Return true if error flags contain warnings      
+  property hasWarning;
+  read: { return 0 != (f_val & (RADEX_AQ_Error$$CalibrationInvalid|RADEX_AQ_Error$$BatteryCritical)); }
+
+  /// return true if health non-critical error was latched
+  property hasNonCriticalError;
+  read: { return $hasWarning; }
+  
+  /// Return true if any health error was latched
+  property hasError;
+  read: { return f_val != 0;  }
+  
+  /// Return errors as string collection
+  property errorStrings;
+  read: { return errorsAsStrings(); }
+}
+
+//----------------------------------------------------------------------------------
+// RADEX AQ configuration flags
+//
+object RADEX_AQ_Flags
+{
+  esU32 f_val;
+
+  property value;
+  read: { return f_val#asULong(); }
+  write: { f_val$values = __value; }
+
+  property sound;
+  @label = I"Device Sound";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$SndOn); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$SndOn;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$SndOn;
+  }
+  
+  property soundStr;
+  read: { 
+    return (
+      $sound ? 
+        I"Device Sound is ON" :
+        I"Device Sound is OFF"
+    );
+  }
+  
+  property alert;
+  @label = I"Concentration Alert";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$ThresholdOn); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$ThresholdOn;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$ThresholdOn;
+  }
+
+  property alertStr;
+  read: {
+    return (
+      $alert ? 
+        I"Concentration Alert is ON" :
+        I"Concentration Alert is OFF"
+    );
+  }
+  
+  property nightMode;
+  @label = I"Device Night Mode";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$NightModeOn); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$NightModeOn;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$NightModeOn;
+  }
+
+  property nightModeStr;
+  read: {
+    return (
+      $nightMode ? 
+        I"Night Mode is ON" :
+        I"Night Mode is OFF"
+    );
+  }
+
+  property sleepMode;
+  @label = I"Sleep mode";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$SleepModeOn); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$SleepModeOn;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$SleepModeOn;
+  }
+
+  property sleepModeStr;
+  read: {
+    return (
+      $sleepMode ? 
+        I"Sleep mode ON" :
+        I"Sleep mode OFF"
+    );
+  }
+
+  property bluetooth;
+  @label = I"Bluetooth";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$BLE_On); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$BLE_On;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$BLE_On;
+  }
+
+  property bluetoothStr;
+  read: {
+    return (
+      $bluetooth ? 
+        I"Bluetooth is ON" :
+        I"Bluetooth is OFF"
+    );
+  }
+
+  property continousMeasurements;
+  @label = I"Continuous Measurements";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$ContinuousMeasurementsOn); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$ContinuousMeasurementsOn;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$ContinuousMeasurementsOn;
+  }
+
+  property continousMeasurementsStr;
+  read: {
+    return (
+      $continousMeasurements ? 
+        I"Continuous Measurements" :
+        I"Periodic Measurements"
+    );
+  }
+  
+  property screenScrolling;
+  @label = I"Screen Scrolling";
+  read: { return !(f_val & RADEX_AQ_CfgFlag$$ScreenScrollingOff); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$ScreenScrollingOff;
+    if( !__value )
+      f_val |= RADEX_AQ_CfgFlag$$ScreenScrollingOff;
+  }
+
+  property screenScrollingStr;
+  read: {
+    return (
+      $screenScrolling ? 
+        I"Screen Scrolling is ON" :
+        I"Screen Scrolling is OFF"
+    );
+  }
+  
+  property temperatureInF;
+  @label = I"Temperature in 0F";
+  read: { return !(f_val & RADEX_AQ_CfgFlag$$TempInC); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$TempInC;
+    if( !__value )
+      f_val |= RADEX_AQ_CfgFlag$$TempInC;
+  }
+
+  property temperatureInFStr;
+  read: {
+    return (
+      $temperatureInF ? 
+        I"Show Temperature in 0F" :
+        I"Show Temperature in 0C"
+    );
+  }
+
+  property timeInAmPm;
+  @label = I"Time Format";
+  read: { return (f_val & RADEX_AQ_CfgFlag$$TimeFmtAMPM); } 
+  write: { 
+    f_val &= ~RADEX_AQ_CfgFlag$$TimeFmtAMPM;
+    if( __value )
+      f_val |= RADEX_AQ_CfgFlag$$TimeFmtAMPM;
+  }
+
+  property timeInAmPmStr;
+  read: {
+    return (
+      $timeInAmPm ? 
+        I"Show Time in AM/PM format" :
+        I"Show Time in 24h format"
+    );
+  }
+}
+
+//----------------------------------------------------------------------------------
+// RADEX AQ Screens configuration mask
+//
+object RADEX_AQ_Screens
+{
+  esU32 f_val;
+
+  property value;
+  read: { return f_val#asULong(); }
+  write: { f_val$values = __value; }
+  
+  property currentDust;
+  @label = I"Current Dust concentration";
+  @help = I"Include or exclude Current Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentDust); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentDust;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentDust;    
+  }
+
+  property currentDustStr;
+  read: { 
+    return $currentDust ? 
+      I"Current Dust concentration screen is ON" :
+      I"Current Dust concentration screen is OFF";
+  }
+
+  property currentDustMin;
+  @label = I"Current Minimum Dust concentration";
+  @help = I"Include or exclude Current Minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentDustMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentDustMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentDustMin;    
+  }
+
+  property currentDustMinStr;
+  read: { 
+    return $currentDustMin ? 
+      I"Current Minimum Dust concentration screen is ON" :
+      I"Current Minimum Dust concentration screen is OFF";
+  }
+
+  property currentDustMed;
+  @label = I"Current Mean Dust concentration";
+  @help = I"Include or exclude Current Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentDustMed); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentDustMed;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentDustMed;    
+  }
+
+  property currentDustMedStr;
+  read: { 
+    return $currentDustMed ? 
+      I"Current Mean Dust concentration screen is ON" :
+      I"Current Mean Dust concentration screen is OFF";
+  }
+
+  property currentDustMax;
+  @label = I"Current Maximum Dust concentration";
+  @help = I"Include or exclude Current Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentDustMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentDustMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentDustMax;    
+  }
+
+  property currentDustMaxStr;
+  read: { 
+    return $currentDustMax ? 
+      I"Current Maximum Dust concentration screen is ON" :
+      I"Current Maximum Dust concentration screen is OFF";
+  }
+
+  property currentDustHistogram;
+  @label = I"Current Dust concentration Histogram";
+  @help = I"Include or exclude Current Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentDustHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentDustHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentDustHistogram;    
+  }
+
+  property currentDustHistogramStr;
+  read: { 
+    return $currentDustHistogram ? 
+      I"Current Dust concentration Histogram screen is ON" :
+      I"Current Dust concentration Histogram screen is OFF";
+  }
+
+  property dailyAvgDustMin;
+  @label = I"Daily avg. minimum Dust concentration";
+  @help = I"Include or exclude Daily avg. minimum Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgDustMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgDustMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgDustMin;    
+  }  
+  
+  property dailyAvgDustMinStr;
+  read: { 
+    return $dailyAvgDustMin ? 
+      I"Daily Average Minimum Dust concentration screen is ON" :
+      I"Daily Average Minimum Dust concentration screen is OFF";
+  }
+
+  property dailyAvgDustMed;
+  @label = I"Daily Average Mean Dust concentration";
+  @help = I"Include or exclude Daily Average Mean Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgDustMed); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgDustMed;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgDustMed;    
+  }
+
+  property dailyAvgDustMedStr;
+  read: { 
+    return $dailyAvgDustMed ? 
+      I"Daily Average Mean Dust concentration screen is ON" :
+      I"Daily Average Mean Dust concentration screen is OFF";
+  }
+
+  property dailyAvgDustMax;
+  @label = I"Daily Average Maximum Dust concentration";
+  @help = I"Include or exclude Daily Average Maximum Dust concentration screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgDustMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgDustMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgDustMax;    
+  }
+
+  property dailyAvgDustMaxStr;
+  read: { 
+    return $dailyAvgDustMax ? 
+      I"Daily Average Maximum Dust concentration screen is ON" :
+      I"Daily Average Maximum Dust concentration screen is OFF";
+  }
+
+  property dailyAvgDustHistogram;
+  @label = I"Daily Average Dust concentration Histogram";
+  @help = I"Include or exclude Daily Average Dust concentration Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgDustHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgDustHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgDustHistogram;    
+  }
+
+  property dailyAvgDustHistogramStr;
+  read: { 
+    return $dailyAvgDustHistogram ? 
+      I"Daily Average Dust concentration Histogram screen is ON" :
+      I"Daily Average Dust concentration Histogram screen is OFF";
+  }
+  
+  property currentTemperature;
+  @label = I"Current Temperature";
+  @help = I"Include or exclude Current Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentTemperature); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentTemperature;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentTemperature;    
+  }
+
+  property currentTemperatureStr;
+  read: { 
+    return $currentTemperature ? 
+      I"Current Temperature screen is ON" :
+      I"Current Temperature screen is OFF";
+  }
+
+  property currentTemperatureMin;
+  @label = I"Current Minimum Temperature";
+  @help = I"Include or exclude Current Minimum Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentTemperatureMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentTemperatureMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentTemperatureMin;    
+  }
+
+  property currentTemperatureMinStr;
+  read: { 
+    return $currentTemperatureMin ? 
+      I"Current Minimum Temperature screen is ON" :
+      I"Current Minimum Temperature screen is OFF";
+  }
+
+  property currentTemperatureMax;
+  @label = I"Current Maximum Temperature";
+  @help = I"Include or exclude Current Maximum Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentTemperatureMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentTemperatureMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentTemperatureMax;    
+  }
+
+  property currentTemperatureMaxStr;
+  read: { 
+    return $currentTemperatureMax ? 
+      I"Current Maximum Temperature screen is ON" :
+      I"Current Maximum Temperature screen is OFF";
+  }
+
+  property currentTemperatureHistogram;
+  @label = I"Current Temperature Histogram";
+  @help = I"Include or exclude Current Temperature Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentTemperatureHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentTemperatureHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentTemperatureHistogram;    
+  }
+
+  property currentTemperatureHistogramStr;
+  read: { 
+    return $currentTemperatureHistogram ? 
+      I"Current Temperature Histogram screen is ON" :
+      I"Current Temperature Histogram screen is OFF";
+  }
+  
+  property dailyAvgTemperatureMin;
+  @label = I"Daily Average Minimum Temperature";
+  @help = I"Include or exclude Daily Average Minimum Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgTemperatureMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgTemperatureMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgTemperatureMin;    
+  }
+
+  property dailyAvgTemperatureMinStr;
+  read: { 
+    return $dailyAvgTemperatureMin ? 
+      I"Daily Average Minimum Temperature screen is ON" :
+      I"Daily Average Minimum Temperature screen is OFF";
+  }
+
+  property dailyAvgTemperatureMed;
+  @label = I"Daily Average Mean Temperature";
+  @help = I"Include or exclude Daily Average Mean Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgTemperatureMed); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgTemperatureMed;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgTemperatureMed;    
+  }
+
+  property dailyAvgTemperatureMedStr;
+  read: { 
+    return $dailyAvgTemperatureMed ? 
+      I"Daily Average Mean Temperature screen is ON" :
+      I"Daily Average Mean Temperature screen is OFF";
+  }
+
+  property dailyAvgTemperatureMax;
+  @label = I"Daily Average Maximum Temperature";
+  @help = I"Include or exclude Daily Average Maximum Temperature screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgTemperatureMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgTemperatureMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgTemperatureMax;    
+  }
+
+  property dailyAvgTemperatureMaxStr;
+  read: { 
+    return $dailyAvgTemperatureMax ? 
+      I"Daily Average Maximum Temperature screen is ON" :
+      I"Daily Average Maximum Temperature screen is OFF";
+  }
+
+  property dailyAvgTemperatureHistogram;
+  @label = I"Daily Average Temperature Histogram";
+  @help = I"Include or exclude Daily Average Temperature Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgTemperatureHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgTemperatureHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgTemperatureHistogram;    
+  }
+
+  property dailyAvgTemperatureHistogramStr;
+  read: { 
+    return $dailyAvgTemperatureHistogram ? 
+      I"Daily Average Temperature Histogram screen is ON" :
+      I"Daily Average Temperature Histogram screen is OFF";
+  }
+  
+  property currentHumidity;
+  @label = I"Current Humidity";
+  @help = I"Include or exclude Current Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentHumidity); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentHumidity;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentHumidity;    
+  }
+
+  property currentHumidityStr;
+  read: { 
+    return $currentHumidity ? 
+      I"Current Humidity screen is ON" :
+      I"Current Humidity screen is OFF";
+  }
+
+  property currentHumidityMin;
+  @label = I"Current Minimum Humidity";
+  @help = I"Include or exclude Current Minimum Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentHumidityMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentHumidityMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentHumidityMin;    
+  }
+
+  property currentHumidityMinStr;
+  read: { 
+    return $currentHumidityMin ? 
+      I"Current Minimum Humidity screen is ON" :
+      I"Current Minimum Humidity screen is OFF";
+  }
+
+  property currentHumidityMax;
+  @label = I"Current Maximum Humidity";
+  @help = I"Include or exclude Current Maximum Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentHumidityMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentHumidityMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentHumidityMax;    
+  }
+
+  property currentHumidityMaxStr;
+  read: { 
+    return $currentHumidityMax ? 
+      I"Current Maximum Humidity screen is ON" :
+      I"Current Maximum Humidity screen is OFF";
+  }
+
+  property currentHumidityHistogram;
+  @label = I"Current Humidity Histogram";
+  @help = I"Include or exclude Current Humidity Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$CurrentHumidityHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$CurrentHumidityHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$CurrentHumidityHistogram;    
+  }
+
+  property currentHumidityHistogramStr;
+  read: { 
+    return $currentHumidityHistogram ? 
+      I"Current Humidity Histogram screen is ON" :
+      I"Current Humidity Histogram screen is OFF";
+  }
+  
+  property dailyAvgHumidityMin;
+  @label = I"Daily Average Minimum Humidity";
+  @help = I"Include or exclude Daily Average Minimum Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgHumidityMin); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgHumidityMin;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgHumidityMin;    
+  }
+
+  property dailyAvgHumidityMinStr;
+  read: { 
+    return $dailyAvgHumidityMin ? 
+      I"Daily Average Minimum Humidity screen is ON" :
+      I"Daily Average Minimum Humidity screen is OFF";
+  }
+
+  property dailyAvgHumidityMed;
+  @label = I"Daily Average Mean Humidity";
+  @help = I"Include or exclude Daily Average Mean Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgHumidityMed); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgHumidityMed;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgHumidityMed;    
+  }
+
+  property dailyAvgHumidityMedStr;
+  read: { 
+    return $dailyAvgHumidityMed ? 
+      I"Daily Average Mean Humidity screen is ON" :
+      I"Daily Average Mean Humidity screen is OFF";
+  }
+
+  property dailyAvgHumidityMax;
+  @label = I"Daily Average Maximum Humidity";
+  @help = I"Include or exclude Daily Average Maximum Humidity screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgHumidityMax); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgHumidityMax;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgHumidityMax;    
+  }
+
+  property dailyAvgHumidityMaxStr;
+  read: { 
+    return $dailyAvgHumidityMax ? 
+      I"Daily Average Maximum Humidity screen is ON" :
+      I"Daily Average Maximum Humidity screen is OFF";
+  }
+
+  property dailyAvgHumidityHistogram;
+  @label = I"Daily Average Humidity Histogram";
+  @help = I"Include or exclude Daily Average Humidity Histogram screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$DailyAvgHumidityHistogram); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$DailyAvgHumidityHistogram;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$DailyAvgHumidityHistogram;    
+  }
+
+  property dailyAvgHumidityHistogramStr;
+  read: { 
+    return $dailyAvgHumidityHistogram ? 
+      I"Daily Average Humidity Histogram screen is ON" :
+      I"Daily Average Humidity Histogram screen is OFF";
+  }  
+
+  property clock;
+  @label = I"Current Date Time";
+  @help = I"Include or exclude Current Date Time screen in/from screen sliding sequence";
+  read: { return (f_val & RADEX_AQ_ScrFlag$$Clock); }
+  write: {
+    f_val &= ~RADEX_AQ_ScrFlag$$Clock;
+    if( __value )
+      f_val |= RADEX_AQ_ScrFlag$$Clock;    
+  }
+
+  property clockStr;
+  read: { 
+    return $clock ? 
+      I"Current Date Time screen is ON" :
+      I"Current Date Time screen is OFF";
+  }  
+}
+
+/// Live data flags
+object RADEX_AQ_DataFlags
+{
+  esU32 f_val;
+  
+  property value;
+  read: { return f_val#asULong(); }
+  
+  property manual;
+  read: { return f_val & RADEX_AQ_DataFlag$$Manual; }
+
+  property thresholdOverflow;
+  read: { return f_val & RADEX_AQ_DataFlag$$ThresholdOverflow; }
+
+  property dustvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustValid; }
+  
+  property dustMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustMinValid; }
+  
+  property dustMeanvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustMeanValid; }
+
+  property dustMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustMaxValid; }
+
+  property dustDailyAvgMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustDailyAvgMinValid; }
+
+  property dustDailyAvgMeanvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustDailyAvgMeanValid; }
+
+  property dustDailyAvgMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$DustDailyAvgMaxValid; }
+
+  property temperaturevalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureValid; }
+
+  property temperatureMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureMinValid; }
+
+  property temperatureMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureMaxValid; }
+
+  property temperatureDailyAvgMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureDailyAvgMinValid; }
+
+  property temperatureDailyAvgMeanvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureDailyAvgMeanValid; }
+
+  property temperatureDailyAvgMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$TemperatureDailyAvgMaxValid; }
+
+  property humidityvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityValid; }
+
+  property humidityMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityMinValid; }
+
+  property humidityMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityMaxValid; }
+
+  property humidityDailyAvgMinvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityDailyAvgMinValid; }
+
+  property humidityDailyAvgMeanvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityDailyAvgMeanValid; }
+  
+  property humidityDailyAvgMaxvalid;
+  read: { return f_val & RADEX_AQ_DataFlag$$HumidityDailyAvgMaxValid; }
+}
